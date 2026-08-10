@@ -36,6 +36,7 @@ npm run build && npm run preview
 
 ## Status
 
-Milestone 1 complete: foundations plus the English content pipeline —
-23,497 banded English↔Indonesian sentence pairs and 5,245 ranked lexemes,
-1.05 MB gzipped for the whole corpus. The practice loop lands in M2.
+Milestone 2 complete: the practice loop runs. FSRS scheduling, a four-rung card
+ladder, an interleaved session composer, and 23,497 banded English↔Indonesian
+sentence pairs behind it — offline, in about a second from icon tap to the
+first question. Adaptive placement lands in M3.

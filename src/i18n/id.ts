@@ -48,4 +48,56 @@ export const copy = {
     en: 'Inggris',
     ja: 'Jepang',
   },
+  session: {
+    start: (minutes: number) => `Latihan ${minutes} menit`,
+    resume: 'Lanjutkan latihan',
+    preparing: 'Menyiapkan materi…',
+    downloading: 'Mengunduh materi sekali saja…',
+    empty: 'Semua materi sudah kamu kerjakan hari ini. Sampai besok!',
+    progress: (done: number, total: number) => `${done} dari ${total}`,
+    quit: 'Selesai dulu',
+
+    exposure: {
+      heading: 'Kenalan dulu',
+      instruction: 'Baca dan dengar. Belum perlu dihafal.',
+      confirm: 'Oke, paham',
+    },
+    recognition: {
+      heading: 'Yang mana artinya?',
+    },
+    cloze: {
+      supported: 'Lengkapi kalimatnya',
+      unaided: 'Lengkapi tanpa bantuan',
+      placeholder: 'Ketik kata yang hilang',
+      // SCIENCE: judgment-of-learning — see SPEC §2.12. Both buttons submit,
+      // so the confidence signal costs no extra tap.
+      sure: 'Yakin',
+      unsure: 'Ragu',
+    },
+
+    feedback: {
+      correct: 'Tepat.',
+      nearMiss: (answer: string) => `Hampir — maksudmu “${answer}”.`,
+      wrong: (answer: string) => `Jawabannya “${answer}”.`,
+      promoted: 'Kata ini naik tingkat.',
+      demoted: 'Kita pelan-pelan lagi untuk kata ini.',
+      leech: 'Kata ini kita ajarkan ulang dengan contoh lain.',
+      next: 'Lanjut',
+    },
+
+    summary: {
+      heading: 'Selesai!',
+      // SPEC §2.14: capability, never points.
+      strengthened: (count: number) => `${count} kata jadi lebih kuat.`,
+      learned: (count: number) => `${count} kata baru kamu kenali.`,
+      promoted: (count: number) => `${count} kata naik ke tugas yang lebih sulit.`,
+      nothing: 'Belum ada yang dikerjakan.',
+      done: 'Kembali',
+    },
+
+    audio: {
+      play: 'Dengarkan',
+      unavailable: 'Suara belum tersedia di peramban ini',
+    },
+  },
 } as const;

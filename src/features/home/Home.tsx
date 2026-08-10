@@ -1,7 +1,9 @@
 import { copy } from '../../i18n/id.ts';
+import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import { Screen } from '../../ui/Screen.tsx';
-import type { DailyMinutes, Profile, TargetLang } from '../../data/types.ts';
+import { sessionProgress } from '../../data/repositories/sessions.ts';
+import type { DailyMinutes, Profile, Session, TargetLang } from '../../data/types.ts';
 import type { OfflineStatus } from '../../platform/serviceWorker.ts';
 import type { StorageDurability } from '../../platform/persistence.ts';
 
@@ -12,6 +14,10 @@ interface HomeProps {
   profile: Profile;
   offline: OfflineStatus;
   durability: StorageDurability;
+  /** An unfinished session, if the learner was interrupted (SPEC §2.13). */
+  resumable: Session | null;
+  busy: boolean;
+  onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
 }
 
@@ -21,7 +27,15 @@ const offlineLabel: Record<OfflineStatus, string> = {
   unavailable: copy.home.offlineUnavailable,
 };
 
-export const Home = ({ profile, offline, durability, onChange }: HomeProps) => {
+export const Home = ({
+  profile,
+  offline,
+  durability,
+  resumable,
+  busy,
+  onPractise,
+  onChange,
+}: HomeProps) => {
   const toggleTarget = (lang: TargetLang) => {
     const next = profile.targets.includes(lang)
       ? profile.targets.filter((l) => l !== lang)
@@ -30,8 +44,19 @@ export const Home = ({ profile, offline, durability, onChange }: HomeProps) => {
     if (next.length > 0) onChange({ targets: next });
   };
 
+  const resumeProgress = resumable ? sessionProgress(resumable) : null;
+
   return (
-    <Screen>
+    <Screen
+      footer={
+        // SPEC §10: the primary action lives in the thumb zone.
+        <Button onClick={onPractise} disabled={busy} data-testid="practise">
+          {resumable
+            ? copy.session.resume
+            : copy.session.start(profile.dailyMinutes)}
+        </Button>
+      }
+    >
       <h1 className="text-2xl font-bold">{copy.home.greeting}</h1>
       <p className="mt-1 text-stone-600 dark:text-slate-400">
         {copy.home.learningLabel}{' '}
@@ -40,6 +65,12 @@ export const Home = ({ profile, offline, durability, onChange }: HomeProps) => {
         </strong>
         .
       </p>
+
+      {resumeProgress ? (
+        <p className="mt-3 rounded-2xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+          {copy.session.progress(resumeProgress.done, resumeProgress.total)}
+        </p>
+      ) : null}
 
       <h2 className="mt-8 text-lg font-bold">{copy.home.changeTargets}</h2>
       <div className="mt-3 flex flex-col gap-3">

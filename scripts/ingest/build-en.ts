@@ -117,6 +117,8 @@ interface Pair {
   translation: string;
   difficulty: number;
   band: FrequencyBand;
+  /** Highest token rank in the sentence — `CoverageMeta.maxFreqRank` (SPEC §6). */
+  maxRank: number;
 }
 
 /** One translation per English sentence: shortest, ties broken by id, so reruns agree. */
@@ -148,7 +150,7 @@ for (const [engId, indId] of [...bestTranslation].sort(([a], [b]) => Number(a) -
   if (incumbent !== undefined) continue;
   seenText.set(key, engId);
 
-  const { difficulty, band } = scoreSentence(tokens, rankOf, text);
+  const { difficulty, band, maxRank } = scoreSentence(tokens, rankOf, text);
   pairs.push({
     engId,
     text,
@@ -157,6 +159,7 @@ for (const [engId, indId] of [...bestTranslation].sort(([a], [b]) => Number(a) -
     translation: indonesian.get(indId)!,
     difficulty,
     band,
+    maxRank,
   });
 }
 console.log(`  ${pairs.length.toLocaleString()} deduped EN↔ID pairs`);
@@ -229,7 +232,7 @@ console.log(
 await mkdir(OUT_DIR, { recursive: true });
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes';
+  kind: 'sentences' | 'lexemes' | 'anchors';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -275,6 +278,7 @@ for (const band of BANDS) {
         id: sentenceId(pair.engId),
         text: pair.text,
         difficulty: pair.difficulty,
+        maxRank: pair.maxRank,
         tr: { id: `tatoeba:ind:${pair.indId}`, text: pair.translation },
       })),
     },
@@ -287,6 +291,32 @@ for (const band of BANDS) {
     band,
     { lang: 'en', band, count: bandLexemes.length, lexemes: bandLexemes },
     bandLexemes.length,
+  );
+
+  // Just the sentences this band's lexemes are actually taught through.
+  //
+  // The full `sentences.*` shards exist for the i+1 selector and the reader
+  // (M3, M7), which need the whole corpus. A *session* needs a couple of dozen
+  // examples, and importing 27k sentences to show 20 cards costs ~40s on a
+  // phone — so the session path loads this instead.
+  const anchorIds = new Set(bandLexemes.flatMap((lexeme) => lexeme.anchors));
+  const anchors = pairs.filter((pair) => anchorIds.has(sentenceId(pair.engId)));
+  await writeShard(
+    'anchors',
+    band,
+    {
+      lang: 'en',
+      band,
+      count: anchors.length,
+      sentences: anchors.map((pair) => ({
+        id: sentenceId(pair.engId),
+        text: pair.text,
+        difficulty: pair.difficulty,
+        maxRank: pair.maxRank,
+        tr: { id: `tatoeba:ind:${pair.indId}`, text: pair.translation },
+      })),
+    },
+    anchors.length,
   );
 }
 

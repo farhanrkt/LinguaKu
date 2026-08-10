@@ -26,8 +26,9 @@ review log round-trips; a simulated 90-day history measures retention within
 ±3 points of target. See R6 in `docs/DECISIONS.md` for what that last test can
 and cannot honestly claim.
 
-**Status:** serialization and the append-only invariant **shipped** (M0);
-scheduler **planned (M2)**.
+**Status:** **shipped** (M2). `src/core/scheduler.ts` is the only writer of FSRS
+state; determinism is pinned by tests that replay a history and compare, fuzz
+included, and by one that round-trips the state through JSON mid-history.
 
 ## §2.2 Retrieval practice, not review
 
@@ -42,7 +43,11 @@ rating alone.
 **Acceptance:** a test asserts no exported function mutates `Card.fsrs` without
 a corresponding log row.
 
-**Status:** planned (M2).
+**Status:** **shipped** (M2). `recordReview` is the single writer, it cannot be
+called without a rating, and it writes the card and appends the log inside one
+transaction — so state cannot move without its log, and the log cannot be
+dropped to make a card look better. A card is not even created until the
+learner first answers.
 
 ## §2.3 Desirable difficulty via a card-type ladder
 
@@ -55,14 +60,20 @@ stability passes threshold *and* last-3 accuracy ≥ 2/3; demotion on lapse.
 Distractors drawn from the same POS and frequency band, or from a §3
 confusable.
 
-**Open question:** whether each rung is its own FSRS card or the ladder level
-is a property of one card. This changes review load by up to 7×. See R5 in
-`docs/DECISIONS.md` — must be settled before M2.
+**Resolved (D18):** one active FSRS card per item; the ladder level selects the
+task and the state carries across promotion. A card per rung would multiply
+review load by up to 7× and cap a 4-minute learner at a vocabulary in the low
+hundreds. `ReviewLog.ladderLevel` records the rung each answer was given at, so
+promotion can use the last three answers *at the current level* and the ladder's
+effect on accuracy stays measurable.
 
 **Acceptance:** an item that has only ever been answered at L1 cannot display
 as mastered.
 
-**Status:** planned (M2 for L0–L3, M7 for L5–L6); **at risk** (R5).
+**Status:** **shipped for L0–L3** (M2); L4 waits on audio (R1), L5–L6 on
+production input (M7). R5 resolved as one card per item (D18). L2 ships as a
+supported cloze rather than typed meaning (D21) — a documented deviation forced
+by the missing gloss source.
 
 ## §2.4 Comprehensible input at i+1, quantified
 
@@ -110,8 +121,10 @@ utterance). Pre-cached CC-licensed clips as fallback.
 **Acceptance:** an item with no working audio is **excluded from L4
 scheduling**, never silently degraded to a text card.
 
-**Status:** planned (M2); **at risk** (R1 — this is the most fragile
-assumption in the app).
+**Status:** probe **shipped** (M2) — including the case that makes voice
+enumeration insufficient on its own: an engine that lists a voice and then never
+speaks. L4 itself waits until the device matrix has been run. Still **at risk**
+(R1).
 
 ## §2.7 Generation and output
 
@@ -126,7 +139,10 @@ tolerance scaled to item length, English contractions. Near-misses are shown
 **Acceptance:** grader unit tests cover romaji↔kana, typos within tolerance,
 and contractions.
 
-**Status:** planned (M2 for the grader, M7 for speech input).
+**Status:** grader **shipped** (M2); speech input is M7. Distance is
+Damerau-Levenshtein, not plain Levenshtein: an adjacent transposition is the
+commonest typing slip, and charging 2 for it would tell a learner who knew the
+answer that they were wrong. Romaji↔kana is M6.
 
 ## §2.8 Interleaving and mixed practice
 
@@ -140,7 +156,12 @@ under a seeded RNG.
 **Acceptance:** a property test over 1,000 generated sessions finds no
 violation.
 
-**Status:** planned (M2).
+**Status:** **shipped** (M2), and the property test passes with zero
+violations and zero relaxations. Ordering is not naive greedy — always taking
+the highest-priority legal card defers same-type cards until only same-type
+cards remain, and then has no legal move. The primary key is how many of a
+category are still waiting; risk breaks ties. Where a pool makes §2.8
+impossible, the session says so rather than silently blocking.
 
 ## §2.9 Elaborative, contrastive feedback
 
@@ -199,8 +220,10 @@ accuracy. Also a second signal for leech detection.
 **Acceptance:** the calibration chart renders from real logs; confidence never
 overrides the FSRS rating.
 
-**Status:** field **shipped** in the schema (M0); UI **planned (M2)**, chart
-**planned (M5)**.
+**Status:** **shipped** (M2) — and the confidence signal *is* the submit
+button (Yakin / Ragu), so asking for it costs the learner no extra tap. A test
+pins that two identical answers with opposite confidence produce identical FSRS
+state. Chart is M5.
 
 ## §2.13 Microlearning and habit architecture
 
@@ -214,8 +237,10 @@ Session state persists after **every single answer** (`Session.resumeCursor`).
 **Acceptance:** killing the app mid-session and reopening resumes at the exact
 next item, losing no review logs.
 
-**Status:** session-length choice **shipped** (M0); habit capture and resume
-**planned (M2)**.
+**Status:** resume **shipped** (M2): the cursor is persisted and *awaited*
+before the next item renders, and an e2e test kills the page mid-session and
+asserts both the position and the review-log count survive. Habit capture and
+notifications are still to come.
 
 ## §2.14 Motivation via competence, not coercion
 

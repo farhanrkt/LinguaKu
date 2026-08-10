@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from './db.ts';
+import Dexie from 'dexie';
+import { db, DB_NAME } from './db.ts';
 import { emptyFsrsState } from './fsrsState.ts';
 import type { Card, ReviewLog } from './types.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './repositories/profiles.ts';
@@ -24,6 +25,7 @@ const makeLog = (overrides: Partial<ReviewLog> = {}): ReviewLog => ({
   id: 'log-1',
   profileId: 'p1',
   cardId: 'card-1',
+  ladderLevel: 1,
   rating: 3,
   confidence: 'yakin',
   latencyMs: 1840,
@@ -44,12 +46,13 @@ beforeEach(async () => {
 });
 
 describe('schema', () => {
-  it('opens at version 1 with every SPEC §6 table', () => {
-    expect(db.verno).toBe(1);
+  it('opens at the current version with every SPEC §6 table', () => {
+    expect(db.verno).toBe(2);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       'abilities',
       'cards',
       'categoryScores',
+      'contentShards',
       'habits',
       'items',
       'mnemonics',
@@ -58,6 +61,46 @@ describe('schema', () => {
       'sentences',
       'sessions',
     ]);
+  });
+
+  it('carries v1 data forward into v2 (SPEC §6: every change ships a migration)', async () => {
+    db.close();
+    await db.delete();
+
+    // A store written by the previous release.
+    const v1 = new Dexie(DB_NAME);
+    v1.version(1).stores({
+      profiles: 'id, createdAt',
+      abilities: '[profileId+lang+dimension], profileId, updatedAt',
+      items: 'id, [lang+band], [lang+kind], freqRank, *interferenceTags',
+      sentences: 'id, [lang+difficulty], translationId',
+      cards: 'id, itemId, profileId, [profileId+itemId], [profileId+suspended+dueAt]',
+      reviewLogs: 'id, cardId, [profileId+reviewedAt], reviewedAt',
+      categoryScores: '[profileId+lang+categoryId], profileId, elo',
+      sessions: 'id, [profileId+startedAt], completed',
+      mnemonics: '[profileId+itemId], itemId',
+      habits: 'id, profileId',
+    });
+    await v1.open();
+    await v1.table('profiles').add({
+      id: 'p1',
+      uiLang: 'id',
+      targets: ['en'],
+      dailyMinutes: 4,
+      scriptMode: 'kanji',
+      createdAt: NOW,
+    });
+    await v1.table('cards').add(makeCard());
+    await v1.table('reviewLogs').add(makeLog());
+    v1.close();
+
+    // Upgrading must not lose a single review log.
+    await db.open();
+    expect(db.verno).toBe(2);
+    expect((await db.profiles.get('p1'))?.dailyMinutes).toBe(4);
+    expect(await db.cards.get('card-1')).toBeTruthy();
+    expect(await db.reviewLogs.count()).toBe(1);
+    expect(await db.contentShards.count()).toBe(0);
   });
 });
 

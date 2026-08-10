@@ -12,7 +12,8 @@ Ordered by how much of the product dies if the assumption is wrong.
 
 ### R1 — Web Speech API voices on cheap Indonesian Android devices
 
-**Status:** unresolved, and the single most fragile assumption in the app.
+**Status:** the probe shipped in M2; the device matrix is still unrun, and this
+remains the single most fragile assumption in the app.
 
 SPEC §2.6 makes audio mandatory (every item ships with pronounceable audio, and
 audio-only L4 cards are a required rung of the ladder). SPEC §5.1 says that
@@ -34,12 +35,12 @@ What makes it fragile, specifically:
   rely on the network one.
 - Firefox and iOS Safari each have their own gaps and gesture requirements.
 
-**Mitigation (M2):** `src/platform/` gets a capability probe that waits for
+**Mitigation (shipped, M2):** `src/platform/speech.ts` waits for
 `voiceschanged`, enumerates voices per target language, prefers
-`localService`, and actually speaks a timed test utterance before declaring
-success. The result is cached and surfaced honestly in the UI. Per SPEC §2.6,
-an item with no working audio is **excluded from L4 scheduling**, never
-degraded silently to text.
+`localService`, and speaks a timed silent utterance before declaring success —
+which catches the engine that lists a voice and then never speaks. The verdict
+is surfaced honestly in the UI, and `canScheduleAudioOnly` is the gate that
+withholds L4 rather than degrading it to text (SPEC §2.6).
 
 **Insurance:** a pre-cached, CC-licensed clip set for the highest-frequency
 items. See R4 — this is what actually spends the 8 MB budget.
@@ -130,7 +131,10 @@ the audio question a content-sourcing problem, not a budget one.
 
 ### R5 — FSRS was not designed for a 7-rung ladder (my nomination)
 
-**Status:** open architectural decision, blocks M2.
+**Status:** **decided** in M2 — one active card per item (see below). Delegated
+to me rather than answered, so it stays here as a reversible call: the schema
+supports either reading, and `ReviewLog.ladderLevel` keeps the evidence needed
+to revisit it.
 
 SPEC §2.1 buys a validated memory model. SPEC §2.3 then turns one lexeme into
 up to seven cards. These interact in a way the spec does not resolve:
@@ -153,8 +157,11 @@ vocabulary and keeps FSRS closest to its validated shape. The §2.3 acceptance
 test still holds: an item that never left L1 has never been promoted, so it
 cannot show as mastered.
 
-The current schema supports either reading (`Card` carries both `itemId` and
-`ladderLevel`), so nothing is foreclosed — but M2 has to pick one.
+**Implemented as recommended** (`src/core/ladder.ts`): one card per item, the
+ladder level selects the task, FSRS state carries across promotion, demotion on
+lapse, and every `ReviewLog` row records the rung it was answered at — so
+promotion can look at the last three answers *at the current level*, and the
+ladder's effect on accuracy stays measurable despite the shared state.
 
 ### R6 — The retention acceptance test can be made to pass meaninglessly
 
@@ -198,6 +205,12 @@ memory model.
 | D15 | **Sentence banding is by 90th-percentile token rank**, not by the composite difficulty score | "The harder words here live in band N" is a defensible claim; "this sentence is B1" is not (§2.15). The composite score only orders sentences within a band. p90 rather than max, so one rare proper noun cannot make an otherwise simple sentence look advanced. |
 | D16 | **`Item.levelTag` is optional and unset for everything M1 ships** | No licence-cleared CEFR-aligned wordlist exists yet, and deriving a CEFR label from corpus frequency is exactly the fake precision §2.15 bans. `band` is the honest signal until a real alignment lands. |
 | D17 | **Every relative import carries its file extension** | Lets Node run `scripts/ingest/*.ts` directly against `src/core`, so the pipeline shares the app's tokenizer and scorer with no transpiler dependency and no duplicated logic. Vite and Vitest both accept explicit extensions. |
+| D18 | **One active FSRS card per item; the ladder level selects the task** | The R5 decision, implemented. Keeps review load linear in vocabulary instead of multiplying it by up to 7×, and keeps FSRS closest to the shape it was validated in. `ReviewLog.ladderLevel` preserves the evidence to reverse this. |
+| D19 | **Lexemes live in IndexedDB; sentences stay as JSON in memory** | Measured, not assumed: importing the 27,650 sentence rows of bands 1–3 took **43 s** on an emulated mid-range phone against a 3 s budget, while fetching and parsing a band's anchor shard takes ~5 ms. Lexemes are queried (by band, rank, kind) and number in the thousands; sentences are read by id and number in the tens of thousands. The pipeline emits `anchors.b*.json` — just the sentences a band's vocabulary is taught through — for the session path. |
+| D20 | **Starter bands are precached, not runtime-cached** | SPEC §5.4 promises the app is fully functional offline *after first load*. Runtime caching only delivers that if the learner happened to be online for a whole session first. Bands 1–3 lexemes + anchors cost ~0.58 MB gzipped against an 8 MB budget. |
+| D21 | **L2 is a supported cloze, not "target → meaning typed"** | A deviation from §2.3, forced by R3: grading a typed meaning needs a gloss to compare against, and grading against the single shipped Indonesian sentence would mark good paraphrases wrong — the exact unfairness §2.7 exists to prevent. So contextual production splits by *support*: L2 shows the Indonesian translation, L3 does not. Reverts to the spec's shape when glosses land. |
+| D22 | **No answer ever produces an FSRS rating of Easy** | Easy is a claim about how effortless retrieval felt. §2.12 forbids deriving it from the confidence tap, and deriving it from response latency would be an invented mechanic. Correct → Good, near-miss → Hard, wrong → Again, until there is a real signal. |
+| D23 | **Lighthouse PWA gate replaced with direct installability assertions** | §13 asks for "Lighthouse PWA score ≥ 90", but Lighthouse removed the PWA category in v12 (Chrome 126) when Chrome revised its installability criteria. `e2e/coldstart.spec.ts` asserts what the score measured — manifest validity, icon resolution, maskable icon, service-worker control, offline start_url — with no new dependency. |
 
 ---
 

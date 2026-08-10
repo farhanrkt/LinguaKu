@@ -1,5 +1,98 @@
 # PROGRESS.md
 
+## M2 — The loop · complete (2026-08-10)
+
+**Acceptance:** a 4-minute session runs end to end offline; kill-and-resume
+loses nothing; §2.1 and §2.8 tests pass; icon-tap to first question ≤ 3s. All
+four met, each as an executable test rather than a claim.
+
+| | required | actual |
+|---|---|---|
+| icon tap → first answerable question | ≤ 3s | **1.2s** |
+| §2.8 interleaving over 1,000 generated sessions | no violations | **0 violations, 0 relaxations** |
+| session offline, network cut | works | e2e passes |
+| kill mid-session → review logs kept | all | e2e asserts the count |
+| initial JS (gzipped) | ≤ 200 KB | 105.4 KB |
+| first-load precache | ≤ 8 MB | ~0.58 MB gzipped |
+
+```
+✓ typecheck · lint · 198 unit tests · licence gate · build · bundle budget
+✓ 9 e2e tests: offline session, lossless resume, cold start, installability
+```
+
+### The R5 decision, made
+
+You delegated it, so: **one active FSRS card per item**, with the ladder level
+selecting the task and FSRS state carrying across promotion (D18). A card per
+rung would multiply review load by up to 7× and cap a 4-minute-a-day learner at
+a vocabulary in the low hundreds. `ReviewLog.ladderLevel` records the rung every
+answer was given at, so promotion uses the last three answers *at the current
+level* and the call stays reversible on real evidence rather than on argument.
+
+### What shipped
+
+Six new `src/core` modules, all pure and unit-tested: `scheduler` (the ts-fsrs
+wrapper), `ladder` (promotion, demotion, leeches, mastery), `grader`,
+`sessionComposer`, `cloze`, `rng`. Plus `src/platform/speech.ts` (the R1 probe),
+the content loader, the review and session repositories, and the session UI —
+L0 exposure, L1 recognition, L2/L3 cloze, feedback, and an end screen that
+reports what got stronger rather than points.
+
+`recordReview` is the single writer of FSRS state: it cannot be called without a
+rating and it writes the card and appends the log in one transaction. That is
+§2.2 made structural. A card is not created until the learner first answers it.
+
+### Four things measurement changed
+
+**Importing the corpus into IndexedDB took 43 seconds.** Bands 1–3 are 27,650
+sentence rows, and the budget for icon-tap-to-first-question is 3 seconds.
+Fetching and parsing the same content as JSON takes ~5 ms. So lexemes (queried,
+thousands) live in IndexedDB and sentences (read by id, tens of thousands) stay
+as JSON in memory, with the pipeline emitting `anchors.b*.json` — just the
+sentences a band's vocabulary is taught through. 43s → **1.2s** (D19).
+
+**Runtime caching could not deliver the offline promise.** §5.4 says the app
+works offline after first load; runtime caching only achieves that if the
+learner happened to be online for a whole session first. The starter bands are
+now precached — 0.58 MB gzipped against an 8 MB budget (D20).
+
+**Naive greedy interleaving fails §2.8.** Always taking the highest-priority
+legal card defers same-type cards until only same-type cards remain, then has no
+legal move — 2 violations in 1,000 sessions. Ordering by how many of a category
+are still waiting, with risk breaking ties, gives zero violations.
+
+**Plain Levenshtein calls a transposition a different word.** `becuase` scores
+distance 2 from `because`, past the tolerance for a 7-letter word — so a learner
+who knew the answer would be told they were wrong. Damerau-Levenshtein charges 1
+for the commonest typing slip there is.
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| L2 is a cloze *with* the Indonesian translation, not "target → meaning typed" | Grading typed meaning needs a gloss (blocked, R3). Grading against the single shipped translation would mark good paraphrases wrong — the unfairness §2.7 exists to prevent. Contextual production splits by support instead: L2 shows the translation, L3 does not (D21). Reverts when glosses land. |
+| No answer ever produces an FSRS rating of Easy | §2.12 forbids deriving it from the confidence tap, and deriving it from latency would be invented. Correct → Good, near-miss → Hard, wrong → Again (D22). |
+| Lighthouse PWA gate replaced with direct installability assertions | Lighthouse **removed the PWA category in v12** (Chrome 126) when Chrome revised its installability criteria. The e2e suite asserts what the score measured — manifest validity, icon resolution, maskable icon, SW control, offline start_url — with no new dependency (D23). |
+| `ReviewLog.ladderLevel` and `Item.anchorSentenceIds` added to the §6 shape | Both follow from D18: promotion needs the last three answers at the current rung, and which example a learner meets first is a pipeline decision, not a query. |
+| Session budget spends the reserved input/contrastive 20% on reviews | Those pools have no content until M3 and M4. The share is reserved in the constants, so the numbers are already right when they arrive. |
+| The §2.1 "±3 points of target retention" test is not the one the spec describes | Simulating a learner who forgets on FSRS's own curve tests FSRS against itself. What ships is a regression test that our parameters and timestamp handling reach the scheduler intact — see R6, which called this at M0. |
+
+### Known content-quality limitation
+
+Frequency is type-level with no POS tagging, so the exposure card for the
+article `a` can pick *"She got an A."* — where the "A" is a grade, not the
+article. Real, visible, and not worth a tagger yet; noting it rather than
+hiding it.
+
+### Next decision I need from you
+
+Only one, and it is not blocking: **the manual speech device matrix** (R1).
+The probe is built and tested against engines that lie, but it has still never
+run on a real phone. That needs a cheap Android, an iPhone, and Firefox Android
+— things I cannot reach. Until then L4 stays withheld rather than guessed at.
+
+---
+
 ## M1 — Content pipeline, English · complete (2026-08-10)
 
 **Acceptance:** ≥5,000 banded EN sentences with ID translations; licence check
@@ -213,10 +306,8 @@ what the app promises. R2 in `docs/DECISIONS.md`.
 
 ## Next milestone
 
-**M2 — The loop.** FSRS scheduler, card ladder L0–L3, session composer, TTS
-capability probe, session UI, resume-safety. It also picks up two things M1
-deliberately left: the runtime shard loader (so the content reaches the app),
-and the Lighthouse + cold-start CI gates, which pair with M2's ≤3s
-icon-tap-to-first-question criterion.
-
-Blocked only on the ladder-versus-FSRS decision (R5).
+**M3 — Level awareness.** Adaptive placement (≤90s, ≤25 items), three separate
+ability estimates, the i+1 content selector, and a new-item throttle driven by
+forecast review debt. Nothing blocks it: the tokenizer and banding it needs are
+already shipped, and `sentences.b*.json` is waiting for the selector that
+finally has a use for the whole corpus.

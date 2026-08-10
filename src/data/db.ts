@@ -10,6 +10,7 @@ import type {
   ReviewLog,
   Sentence,
   Session,
+  ContentShard,
 } from './types.ts';
 
 export const DB_NAME = 'linguaku';
@@ -37,6 +38,7 @@ export class LinguaKuDb extends Dexie {
   sessions!: Table<Session, string>;
   mnemonics!: Table<Mnemonic, [string, string]>;
   habits!: Table<Habit, string>;
+  contentShards!: Table<ContentShard, string>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -54,6 +56,19 @@ export class LinguaKuDb extends Dexie {
       sessions: 'id, [profileId+startedAt], completed',
       mnemonics: '[profileId+itemId], itemId',
       habits: 'id, profileId',
+    });
+
+    // v2 (M2): the runtime content loader needs to know which generated shards
+    // are already imported, and at which hash. Additive only — no data
+    // migration, because no existing row changes shape.
+    this.version(2).stores({
+      contentShards: 'path, lang',
+      // Items gain a band index so the composer can pull new items for a band
+      // without scanning, and sentences an index on their lexeme references.
+      items: 'id, [lang+band], [lang+kind], freqRank, *interferenceTags, *anchorSentenceIds',
+      // `[lang+band]` backs SPEC §2.3's "distractors from the same frequency
+      // band"; the multi-entry index answers "which sentences use this lexeme".
+      sentences: 'id, [lang+band], [lang+difficulty], translationId, *coverageMeta.lexemeIds',
     });
 
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a

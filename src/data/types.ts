@@ -27,6 +27,13 @@ export type Timestamp = number;
 export type UiLang = 'id';
 export type TargetLang = 'en' | 'ja';
 
+/**
+ * Languages a stored sentence can be in. Indonesian appears as the L1 side of
+ * a translation pair — it is stored so `translationId` resolves, but it is
+ * never itself study material, which is why it is not a `TargetLang`.
+ */
+export type ContentLang = TargetLang | 'id';
+
 /** SPEC §4.3: romaji is actively deprecated once kana fluency is reached. */
 export type ScriptMode = 'romaji' | 'kana' | 'kanji';
 
@@ -64,7 +71,19 @@ export interface Item {
   kind: ItemKind;
   headword: string;
   reading?: string;
-  glossId: string;
+  /**
+   * Optional: no Indonesian gloss source is licence-cleared yet (risk R3), so
+   * M1/M2 content carries none. Meaning is conveyed by `anchorSentenceIds`
+   * instead, which is what SPEC §2.5 asks for anyway.
+   */
+  glossId?: string;
+  /**
+   * Example sentences this item is taught through, easiest first. Not in the
+   * SPEC §6 shape, but §2.5 makes the anchor a property of the item, and *which*
+   * example a learner meets first is a pedagogical choice the pipeline makes —
+   * not something to rediscover by query at session time.
+   */
+  anchorSentenceIds: string[];
   freqRank: number;
   band: FrequencyBand;
   /**
@@ -92,13 +111,20 @@ export interface SourceRef {
 
 export interface Sentence {
   id: string;
-  lang: TargetLang;
+  lang: ContentLang;
   text: string;
   /** Japanese is tokenized at build time (SPEC §5.1), never naively split. */
   tokens: string[];
   /** Id of the Indonesian translation sentence (SPEC §2.5). */
   translationId: string;
   audioRef?: string;
+  /**
+   * Frequency band of the shard this sentence shipped in. Not in the SPEC §6
+   * shape, but SPEC §2.3 requires multiple-choice distractors from the same
+   * band, and rederiving that at query time from token ranks would be both
+   * slower and less faithful than the banding the pipeline already did.
+   */
+  band: FrequencyBand;
   difficulty: number;
   coverageMeta: CoverageMeta;
   sourceRef: SourceRef;
@@ -157,6 +183,13 @@ export interface ReviewLog {
   id: string;
   profileId: string;
   cardId: string;
+  /**
+   * The rung this answer was given at. Under one-card-per-item (decision R5)
+   * the FSRS state is shared across rungs, so without this the ladder's effect
+   * on accuracy would be unmeasurable — and promotion needs the last three
+   * answers *at the current level*.
+   */
+  ladderLevel: LadderLevel;
   rating: Grade;
   confidence: Confidence | null;
   latencyMs: number;
@@ -200,6 +233,20 @@ export interface Mnemonic {
   text: string;
   authoredByUser: Flag;
   updatedAt: Timestamp;
+}
+
+/**
+ * Import bookkeeping for a generated content shard. Keyed by path, holding the
+ * hash the manifest published, so an unchanged shard is never reimported and a
+ * changed one always is (SPEC §5.3 cache-busting).
+ */
+export interface ContentShard {
+  path: string;
+  lang: TargetLang;
+  sha256: string;
+  importedAt: Timestamp;
+  sentences: number;
+  items: number;
 }
 
 /** SPEC §2.13: implementation intention — "setelah <cue>, di <place>". */

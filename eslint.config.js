@@ -12,7 +12,7 @@ export default tseslint.config(
     ignores: ['dist/**', 'dev-dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', '*.config.ts'],
+    files: ['src/**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
@@ -37,8 +37,9 @@ export default tseslint.config(
     ...reactHooks.configs.flat['recommended-latest'],
   },
   {
-    // Ingest pipeline: TypeScript run directly by Node, so Node globals apply.
-    files: ['scripts/**/*.ts'],
+    // Build-time code: ingest pipeline, tool configs, Playwright specs. All run
+    // under Node, so Node globals and built-ins are fair game here.
+    files: ['scripts/**/*.ts', '*.config.ts', 'e2e/**/*.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },

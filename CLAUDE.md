@@ -45,6 +45,11 @@ needs React state to work, it is in the wrong place.
 
 ## Invariants
 
+0. **`recordReview` is the only writer of FSRS state** (`src/data/repositories/`).
+   It cannot be called without a rating, and it writes the card and appends the
+   log in one transaction. That is what makes §2.2 structural rather than a
+   convention. One active card per item; the ladder level selects the task
+   (decision D18).
 1. **`ReviewLog` is append-only.** Enforced by Dexie hooks in `src/data/db.ts`
    — updates, `put()` over an existing row, deletes and `clear()` all throw.
    A full reset drops the database instead. The log is the substrate for FSRS
@@ -76,6 +81,12 @@ needs React state to work, it is in the wrong place.
     out — no timestamps, ties broken explicitly. Content hashes in
     `assets/content/*/manifest.json` are the cache-busting signal, so churn
     there means every learner re-downloads for nothing.
+11. **Lexemes go in IndexedDB; sentences do not.** Importing bands 1–3's 27,650
+    sentence rows measured 43s on an emulated mid-range phone against a 3s
+    budget (decision D19). Sessions read `anchors.b*.json` from memory; the full
+    `sentences.b*.json` shards exist for M3's selector and M7's reader.
+12. **≤ 3s from icon tap to first answerable question**, on a warm cache.
+    Enforced by `e2e/coldstart.spec.ts` against a real production build.
 
 ## Conventions
 
