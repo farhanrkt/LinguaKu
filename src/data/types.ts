@@ -11,6 +11,11 @@
  *    delta sync (§5.1) can scope by profile.
  */
 
+// The frequency band model belongs to the domain, so it lives in core and the
+// storage layer borrows it — never the other way round (see CLAUDE.md).
+export type { FrequencyBand } from '../core/frequency.ts';
+import type { FrequencyBand } from '../core/frequency.ts';
+
 /** IndexedDB-indexable boolean. */
 export type Flag = 0 | 1;
 
@@ -53,22 +58,6 @@ export interface Ability {
 
 export type ItemKind = 'lexeme' | 'sentence' | 'kanji' | 'grammar' | 'chunk';
 
-/** SPEC §2.10: frequency tiers driving new-item introduction order. */
-export type FrequencyBand = 1 | 2 | 3 | 4 | 5 | 6;
-
-export const FREQUENCY_BANDS: ReadonlyArray<{
-  band: FrequencyBand;
-  minRank: number;
-  maxRank: number;
-}> = [
-  { band: 1, minRank: 1, maxRank: 500 },
-  { band: 2, minRank: 501, maxRank: 1000 },
-  { band: 3, minRank: 1001, maxRank: 2000 },
-  { band: 4, minRank: 2001, maxRank: 4000 },
-  { band: 5, minRank: 4001, maxRank: 8000 },
-  { band: 6, minRank: 8001, maxRank: Number.MAX_SAFE_INTEGER },
-];
-
 export interface Item {
   id: string;
   lang: TargetLang;
@@ -78,8 +67,14 @@ export interface Item {
   glossId: string;
   freqRank: number;
   band: FrequencyBand;
-  /** CEFR (`A1`…`C2`) or JLPT (`N5`…`N1`) tag — SPEC §4.1. */
-  levelTag: string;
+  /**
+   * CEFR (`A1`…`C2`) or JLPT (`N5`…`N1`) tag — SPEC §4.1. Optional, and absent
+   * for everything M1 ships: no licence-cleared CEFR-aligned wordlist exists
+   * yet, and deriving a CEFR label from corpus frequency would be precisely
+   * the fake precision SPEC §2.15 bans. `band` is the honest signal until a
+   * real alignment is available.
+   */
+  levelTag?: string;
   /** SPEC §2.11: kanji components, e.g. 校 → ['木', '交']. */
   componentsOf?: string[];
   /** SPEC §3: contrastive category IDs this item exercises. */

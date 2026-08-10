@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from './db';
-import { emptyFsrsState } from './fsrsState';
-import type { Card, ReviewLog } from './types';
-import { createProfile, getCurrentProfile, updateProfile } from './repositories/profiles';
+import { db } from './db.ts';
+import { emptyFsrsState } from './fsrsState.ts';
+import type { Card, ReviewLog } from './types.ts';
+import { createProfile, getCurrentProfile, updateProfile } from './repositories/profiles.ts';
 
 const NOW = Date.UTC(2026, 0, 1);
 

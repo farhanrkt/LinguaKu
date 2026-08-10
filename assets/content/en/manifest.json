@@ -1,0 +1,118 @@
+{
+  "sources": [
+    "tatoeba"
+  ],
+  "license": "CC BY 2.0 FR",
+  "version": 1,
+  "lang": "en",
+  "corpus": {
+    "englishSentences": 2033133,
+    "indonesianSentences": 28189,
+    "links": 25635,
+    "distinctTokens": 83085,
+    "pairs": 23497,
+    "lexemes": 5245,
+    "maxLexemeRank": 8000
+  },
+  "shards": [
+    {
+      "kind": "lexemes",
+      "band": 1,
+      "path": "lexemes.b1.json",
+      "count": 481,
+      "bytes": 88778,
+      "gzipBytes": 15740,
+      "sha256": "b37605e020601690b3353d382c2db7ff80272fc205a963d0f998cdc056c4282e"
+    },
+    {
+      "kind": "lexemes",
+      "band": 2,
+      "path": "lexemes.b2.json",
+      "count": 481,
+      "bytes": 89254,
+      "gzipBytes": 16435,
+      "sha256": "21664a89acb1003545da5251e1fde3edf00d11fcd4777beaa70e91db720d1be6"
+    },
+    {
+      "kind": "lexemes",
+      "band": 3,
+      "path": "lexemes.b3.json",
+      "count": 872,
+      "bytes": 152094,
+      "gzipBytes": 27686,
+      "sha256": "46b31954ac92da74437ffaa3711f546175cd526a7b2ba0a7ab4e7eeb0d63da71"
+    },
+    {
+      "kind": "lexemes",
+      "band": 4,
+      "path": "lexemes.b4.json",
+      "count": 1643,
+      "bytes": 236303,
+      "gzipBytes": 41678,
+      "sha256": "d544064a58c5b0784a632d6d8ed744d57eb254d46c66a40273b53c2ee82c7657"
+    },
+    {
+      "kind": "lexemes",
+      "band": 5,
+      "path": "lexemes.b5.json",
+      "count": 1768,
+      "bytes": 213898,
+      "gzipBytes": 36440,
+      "sha256": "29cc3783eef3ed98d9dbd01ea090730552e70a1536cc51b8e52a5a6d3021ccd6"
+    },
+    {
+      "kind": "sentences",
+      "band": 1,
+      "path": "sentences.b1.json",
+      "count": 5795,
+      "bytes": 927236,
+      "gzipBytes": 201111,
+      "sha256": "f357106fd5c8ad9bb1e95737c179ae8aac5ce0865ea938cd0f1d026ed67036bf"
+    },
+    {
+      "kind": "sentences",
+      "band": 2,
+      "path": "sentences.b2.json",
+      "count": 4619,
+      "bytes": 753133,
+      "gzipBytes": 178337,
+      "sha256": "90229e5b5a752e32fab754906e61dd0f8280113a7bc60b736057195e8cf96f80"
+    },
+    {
+      "kind": "sentences",
+      "band": 3,
+      "path": "sentences.b3.json",
+      "count": 4456,
+      "bytes": 738926,
+      "gzipBytes": 183188,
+      "sha256": "e32a28f41906fcbeab2c55cc3508c23cd9857e699ce7d3e7dda0ecec946bc988"
+    },
+    {
+      "kind": "sentences",
+      "band": 4,
+      "path": "sentences.b4.json",
+      "count": 3619,
+      "bytes": 609974,
+      "gzipBytes": 158876,
+      "sha256": "5ad4227172984143c92866035cdcdc076e9e6e85dcadb549963365cfc2f14816"
+    },
+    {
+      "kind": "sentences",
+      "band": 5,
+      "path": "sentences.b5.json",
+      "count": 2551,
+      "bytes": 441867,
+      "gzipBytes": 120343,
+      "sha256": "9cb4b36e374d0ea34b0b058e91e97a812d911915d3c2ff440f1fd2ecbd38f916"
+    },
+    {
+      "kind": "sentences",
+      "band": 6,
+      "path": "sentences.b6.json",
+      "count": 2457,
+      "bytes": 434995,
+      "gzipBytes": 122342,
+      "sha256": "bd51fa6770feb81e8157f4d8b357d59bfbff46a2d2638f6fd66dbfc2eeb98cb2"
+    }
+  ]
+}

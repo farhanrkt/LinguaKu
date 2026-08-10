@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FirstRun } from './features/onboarding/FirstRun';
-import { Home } from './features/home/Home';
-import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles';
+import { FirstRun } from './features/onboarding/FirstRun.tsx';
+import { Home } from './features/home/Home.tsx';
+import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import {
   getStorageDurability,
   requestPersistentStorage,
   type StorageDurability,
-} from './platform/persistence';
-import { registerServiceWorker, type OfflineStatus } from './platform/serviceWorker';
-import type { DailyMinutes, Profile, TargetLang } from './data/types';
+} from './platform/persistence.ts';
+import { registerServiceWorker, type OfflineStatus } from './platform/serviceWorker.ts';
+import type { DailyMinutes, Profile, TargetLang } from './data/types.ts';
 
 type ProfileState = { status: 'loading' } | { status: 'ready'; profile: Profile | null };
 

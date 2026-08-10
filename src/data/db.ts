@@ -10,7 +10,7 @@ import type {
   ReviewLog,
   Sentence,
   Session,
-} from './types';
+} from './types.ts';
 
 export const DB_NAME = 'linguaku';
 

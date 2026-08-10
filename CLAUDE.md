@@ -13,7 +13,15 @@ npm run verify       # the gate: typecheck → lint → unit → licences → bu
 npm run test:watch   # Vitest in watch mode
 npm run test:e2e     # Playwright smoke against a real production build
 npm run icons        # regenerate public/icons/ (committed; run only on redesign)
+
+npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)
+npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
 ```
+
+Ingest scripts are TypeScript run directly by Node — no transpiler — so they
+share `src/core` with the app rather than duplicating the tokenizer or the
+difficulty scorer. That is why **every relative import in this repo carries its
+file extension** (`./frequency.ts`, not `./frequency`).
 
 `npm run verify` is what CI runs. If it is red, the milestone is not done.
 
@@ -60,6 +68,14 @@ needs React state to work, it is in the wrong place.
    no fake-precision level claims.
 8. **TypeScript strict, no `any`, no dead scaffolding.** Prefer deleting code
    over commenting it out. Do not build a seam for a feature two milestones out.
+9. **No level claim without a licence-cleared alignment.** Frequency bands are
+   the honest signal; CEFR and JLPT labels wait for real wordlists (§2.15,
+   decision D16). Sentences are banded by their 90th-percentile token rank, and
+   the composite difficulty score only orders *within* a band.
+10. **The pipeline is deterministic.** Same corpus in, byte-identical shards
+    out — no timestamps, ties broken explicitly. Content hashes in
+    `assets/content/*/manifest.json` are the cache-busting signal, so churn
+    there means every learner re-downloads for nothing.
 
 ## Conventions
 

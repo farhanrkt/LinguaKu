@@ -36,4 +36,6 @@ npm run build && npm run preview
 
 ## Status
 
-Milestone 0 (foundations). The practice loop lands in M2.
+Milestone 1 complete: foundations plus the English content pipeline —
+23,497 banded English↔Indonesian sentence pairs and 5,245 ranked lexemes,
+1.05 MB gzipped for the whole corpus. The practice loop lands in M2.

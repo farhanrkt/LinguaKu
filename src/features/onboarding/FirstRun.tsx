@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { copy } from '../../i18n/id';
-import { Button } from '../../ui/Button';
-import { OptionCard } from '../../ui/OptionCard';
-import { Screen } from '../../ui/Screen';
-import type { DailyMinutes, TargetLang } from '../../data/types';
+import { copy } from '../../i18n/id.ts';
+import { Button } from '../../ui/Button.tsx';
+import { OptionCard } from '../../ui/OptionCard.tsx';
+import { Screen } from '../../ui/Screen.tsx';
+import type { DailyMinutes, TargetLang } from '../../data/types.ts';
 
 const TARGETS: TargetLang[] = ['en', 'ja'];
 const MINUTES: DailyMinutes[] = [4, 8, 15];

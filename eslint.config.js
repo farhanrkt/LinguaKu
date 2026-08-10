@@ -25,6 +25,11 @@ export default tseslint.config(
       // Floating promises in a local-first app mean silently lost writes.
       '@typescript-eslint/no-floating-promises': 'error',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+      // Node types are on for scripts/; the app must not reach for them.
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['node:*'], message: 'Node built-ins do not exist in the browser.' }] },
+      ],
     },
   },
   {
@@ -32,7 +37,21 @@ export default tseslint.config(
     ...reactHooks.configs.flat['recommended-latest'],
   },
   {
-    files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'e2e/**/*.ts'],
+    // Ingest pipeline: TypeScript run directly by Node, so Node globals apply.
+    files: ['scripts/**/*.ts'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      globals: { ...globals.node },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'e2e/**/*.ts', 'scripts/**/*.test.ts'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   {

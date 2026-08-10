@@ -20,7 +20,9 @@
     "check:bundle": "node scripts/check-bundle.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
     "icons": "node scripts/gen-icons.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:licenses && npm run build && npm run check:bundle"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:licenses && npm run build && npm run check:bundle",
+    "ingest:fetch": "node scripts/ingest/fetch.ts",
+    "ingest:en": "node scripts/ingest/build-en.ts"
   },
   "dependencies": {
     "dexie": "^4.4.4",
@@ -32,6 +34,7 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",

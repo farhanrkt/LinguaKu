@@ -1,5 +1,97 @@
 # PROGRESS.md
 
+## M1 — Content pipeline, English · complete (2026-08-10)
+
+**Acceptance:** ≥5,000 banded EN sentences with ID translations; licence check
+passes; beginner shard ≤ 8 MB. All three met, with a lot of room.
+
+| | required | actual |
+|---|---|---|
+| banded EN sentences with ID translations | ≥ 5,000 | **23,497** |
+| beginner first download (band 1, gzipped) | ≤ 8 MB | **0.21 MB** |
+| whole corpus, all six bands (gzipped) | — | 1.05 MB |
+| lexemes ranked, banded and anchored | — | 5,245 |
+| licence gate | passes | 4 datasets declared, 12 asset files traced |
+
+```
+✓ typecheck · lint · 61 unit tests · licence gate · build · bundle budget
+✓ 3 e2e tests including offline reload
+```
+
+### The two blockers, resolved
+
+**English frequency list — removed rather than cleared.** Frequency ranks are
+computed from Tatoeba's own 2.03M-sentence English corpus (decision D13). This
+adds no licence surface, is register-matched to the sentences we actually teach
+from, and makes §2.4 coverage self-consistent: a rank predicts coverage of *our*
+corpus, which is the thing coverage is computed over. `wordfreq` was verified as
+a viable fallback (Apache-2.0 code, CC BY-SA 4.0 data) but is sunset and frozen
+at ~2021 usage.
+
+**Indonesian glosses — sidestepped, not solved.** M1 anchors meaning in
+translated sentences rather than dictionary definitions, which is what §2.5
+asks for anyway. Kaikki's terms remain unstated and the blocker is still live
+for the short glosses that L1/L2 cards will eventually want.
+
+### What shipped
+
+**`scripts/ingest/`** — `fetch.ts` pulls the Tatoeba exports into a gitignored
+`.cache/`; `build-en.ts` runs the §5.3 chain (normalize → dedupe → rank →
+score → band → shard → hash) in about six seconds. Both are TypeScript executed
+directly by Node, so they share `src/core` with the app instead of duplicating
+the tokenizer and the difficulty scorer (D17).
+
+**Four new `src/core` modules**, pure and unit-tested: `tokenize.ts` (the same
+tokenizer at build time and runtime, so coverage cannot drift), `frequency.ts`
+(§2.10 bands, deterministic ranking), `difficulty.ts` (§7.6), `properNoun.ts`.
+
+**`assets/content/en/`** — 11 shards plus a manifest carrying a SHA-256 per
+shard for cache-busting. Output is deterministic: no timestamps, ties broken
+explicitly, so an unchanged corpus produces byte-identical files and nobody
+re-downloads anything.
+
+**Content-integrity tests in CI** — the M1 acceptance numbers, hash and byte
+matching per shard, every anchor resolving to a sentence that actually ships,
+every lexeme banded consistently with its rank, and no placeholder name taught
+as vocabulary.
+
+### Two judgement calls worth reviewing
+
+**Tatoeba made `tom` the third most frequent English token**, ahead of `a` —
+the corpus is saturated with Tom and Mary as placeholder names. Ranks are left
+untouched, because coverage genuinely has to account for a learner meeting
+"Tom" in a sentence, but proper nouns are filtered out of the *vocabulary list*
+(D14). Detection uses lower-case share among mid-sentence occurrences only; the
+naive version, which looks at all occurrences, also deleted `i'm`, `i've` and
+`where's`, since those are capitalized only because they open sentences. 493
+tokens filtered. **Known gap:** demonyms go too — `french` and `german` are not
+currently teachable words.
+
+**Sentences are banded by 90th-percentile token rank, not by the composite
+difficulty score** (D15). "The harder words in this sentence live in band N" is
+defensible; "this sentence is B1" is not. Relatedly, `Item.levelTag` is now
+optional and unset for everything M1 ships (D16) — inventing CEFR labels from
+frequency would be exactly the fake precision §2.15 bans.
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| No Indonesian glosses in the lexeme inventory | Blocked on licence (above). Meaning is carried by anchor sentences, which §2.5 prefers. |
+| Lexeme inventory stops at rank 8,000 (bands 1–5) | Band 6 is the open-ended tail; shipping it means hundreds of thousands of entries for no M1 benefit. |
+| `Item.levelTag` made optional | See D16 — no cleared CEFR alignment exists. |
+| Shards not yet copied into `dist/` | The runtime loader is M2. Copying 4.5 MB into the build with nothing reading it would be dead weight. |
+| Every relative import now carries a file extension | See D17 — lets Node run the pipeline against `src/core` with no transpiler. |
+| Syntactic depth approximated by clause markers | Shipping a parser to score 25k sentences is not free; the proxy is labelled as a proxy everywhere it surfaces. |
+
+### Next decision I need from you
+
+Nothing blocks M2 except **the ladder-versus-FSRS question**, still open from
+M0 and repeated below. Everything else in M1 was mine to decide and is
+documented in `docs/DECISIONS.md` (D13–D17).
+
+---
+
 ## M0 — Foundations · complete (2026-08-10)
 
 **Acceptance:** `npm run verify` green; app installs as a PWA and loads offline.
@@ -102,12 +194,10 @@ recommendation is (c): the contrastive explanations in §3.1 are the product's
 differentiator and read wrong when they are not written by someone who has made
 the mistake.
 
-**3. Two licence blockers that stop M1 from shipping.**
-No Indonesian gloss source is cleared (Kaikki states no licence for its
-extraction; parsing Wikimedia dumps directly may be the cleaner path) and no
-English frequency list is chosen. Frequency banding is the backbone of §2.10,
-so M1 cannot start in earnest until one is cleared. Do you want me to spend M1's
-first block resolving these, or do you already have preferences?
+**3. ~~Two licence blockers that stop M1 from shipping.~~ Resolved in M1** —
+frequency by removing the dependency (D13), glosses by deferring them (§2.5
+anchors meaning in sentences anyway). The gloss question returns when L1/L2
+cards want a short definition.
 
 **4. Code licence.** Currently `UNLICENSED`. EDRDG's share-alike binds the data,
 not the code, so this is a free choice — worth settling before the repo is
@@ -123,8 +213,10 @@ what the app promises. R2 in `docs/DECISIONS.md`.
 
 ## Next milestone
 
-**M1 — Content pipeline, English only.** Blocked on decision 3 above. Once a
-gloss source and a frequency list are cleared, the pipeline itself
-(`scripts/ingest/*` → normalize → dedupe → difficulty score → band → shard) is
-straightforward, and the licence gate is already in place to catch anything
-that tries to ship unattributed.
+**M2 — The loop.** FSRS scheduler, card ladder L0–L3, session composer, TTS
+capability probe, session UI, resume-safety. It also picks up two things M1
+deliberately left: the runtime shard loader (so the content reaches the app),
+and the Lighthouse + cold-start CI gates, which pair with M2's ≤3s
+icon-tap-to-first-question criterion.
+
+Blocked only on the ladder-versus-FSRS decision (R5).

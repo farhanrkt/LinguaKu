@@ -1,9 +1,9 @@
-import { copy } from '../../i18n/id';
-import { OptionCard } from '../../ui/OptionCard';
-import { Screen } from '../../ui/Screen';
-import type { DailyMinutes, Profile, TargetLang } from '../../data/types';
-import type { OfflineStatus } from '../../platform/serviceWorker';
-import type { StorageDurability } from '../../platform/persistence';
+import { copy } from '../../i18n/id.ts';
+import { OptionCard } from '../../ui/OptionCard.tsx';
+import { Screen } from '../../ui/Screen.tsx';
+import type { DailyMinutes, Profile, TargetLang } from '../../data/types.ts';
+import type { OfflineStatus } from '../../platform/serviceWorker.ts';
+import type { StorageDurability } from '../../platform/persistence.ts';
 
 const TARGETS: TargetLang[] = ['en', 'ja'];
 const MINUTES: DailyMinutes[] = [4, 8, 15];

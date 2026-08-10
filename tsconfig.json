@@ -6,7 +6,7 @@
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "jsx": "react-jsx",
-    "types": ["vite/client", "vite-plugin-pwa/client", "vitest/globals"],
+    "types": ["vite/client", "vite-plugin-pwa/client", "vitest/globals", "node"],
 
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -23,7 +23,11 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // Node runs scripts/ingest/*.ts directly (no transpiler dependency), and
+    // Node ESM needs explicit extensions — so every relative import in this
+    // repo carries one. Vite and Vitest both accept them.
+    "allowImportingTsExtensions": true,
     "allowJs": false
   },
-  "include": ["src", "e2e", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "e2e", "scripts", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }

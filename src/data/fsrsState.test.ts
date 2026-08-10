@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyCard, fsrs, Rating, State, type Grade } from 'ts-fsrs';
-import { emptyFsrsState, fromStoredFsrsState, toStoredFsrsState } from './fsrsState';
+import { emptyFsrsState, fromStoredFsrsState, toStoredFsrsState } from './fsrsState.ts';
 
 const NOW = new Date(Date.UTC(2026, 0, 1, 8, 0, 0));
 

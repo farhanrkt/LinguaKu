@@ -1,5 +1,5 @@
-import { db } from '../db';
-import type { DailyMinutes, Profile, ScriptMode, TargetLang } from '../types';
+import { db } from '../db.ts';
+import type { DailyMinutes, Profile, ScriptMode, TargetLang } from '../types.ts';
 
 /**
  * SPEC §10: no signup. An anonymous local profile is created on first launch;

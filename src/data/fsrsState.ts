@@ -1,5 +1,5 @@
 import { createEmptyCard, State, type Card as FsrsCard } from 'ts-fsrs';
-import type { StoredFsrsState, Timestamp } from './types';
+import type { StoredFsrsState, Timestamp } from './types.ts';
 
 /**
  * Serialization boundary between `ts-fsrs` (Date-based) and IndexedDB

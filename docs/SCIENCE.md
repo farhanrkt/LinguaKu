@@ -77,7 +77,9 @@ build-time morphological tokens (`Sentence.tokens`), never character splitting.
 **Acceptance:** against synthetic learner profiles, ≥90% of returned items fall
 in band and none fall below 0.85.
 
-**Status:** planned (M3).
+**Status:** the tokenizer (`src/core/tokenize.ts`) is **shipped** (M1) and is the
+same one the build-time pipeline uses, so runtime and build-time coverage
+cannot disagree. The selector itself is **planned (M3)**.
 
 ## §2.5 Everything lives in a sentence
 
@@ -91,8 +93,10 @@ example sentences. Collocations and formulaic chunks are first-class `Item`s
 **Acceptance:** pipeline test — a lexeme with no linked sentence fails
 ingestion rather than shipping bare.
 
-**Status:** planned (M1); **at risk for Japanese** (R2 — the Indonesian
-translated corpus is only ~28k sentences).
+**Status:** **shipped for English** (M1). The pipeline rejected 2,185 otherwise
+qualifying lexemes for having no example sentence, and a CI test asserts that
+every shipped lexeme resolves to at least one sentence that actually ships.
+Still **at risk for Japanese** (R2).
 
 ## §2.6 Dual coding and audio-first
 
@@ -158,13 +162,16 @@ have an authored contrastive note.
 effort should buy maximal coverage.
 
 **Implementation:** six frequency bands (`FREQUENCY_BANDS` in
-`src/data/types.ts`), modulated by learner-selected topic goals.
+`src/core/frequency.ts`), modulated by learner-selected topic goals. Ranks come
+from Tatoeba's own English corpus (D13); proper nouns are filtered from the
+vocabulary list but not from the ranks (D14).
 
 **Acceptance:** the known-words dashboard renders a coverage-vs-band curve from
 real learner state.
 
-**Status:** band model **shipped** (M0); banding pipeline **planned (M1)** and
-**at risk** (R3 — no frequency list is licence-cleared yet).
+**Status:** **shipped for English** (M1) — 5,245 lexemes ranked and banded from
+a 2.03M-sentence corpus. R3 resolved by deriving frequency from Tatoeba itself
+(D13) rather than clearing an external list. The dashboard curve is M5.
 
 ## §2.11 Mnemonics and decomposition for kanji
 

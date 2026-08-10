@@ -50,16 +50,16 @@ get recorded in Part 3 of this file.
 
 ### R2 — Indonesian-translated corpus is a hard ceiling, and it binds Japanese
 
-**Status:** partially measured. Decisive for M6, comfortable for M1.
+**Status:** measured for English (comfortable). Still decisive for M6.
 
 SPEC §2.5 requires every lexical item to be anchored to an example sentence
 **with an Indonesian translation**. Measured at tatoeba.org/en/stats on
 2026-08-10: English 2,041,935 sentences, Japanese 249,125, **Indonesian
 28,198**. Indonesian ranks 42nd.
 
-- **M1 (English):** fine. English is Tatoeba's hub language, so most of those
-  28k Indonesian sentences are linked to an English one. The ≥5,000 bar has
-  headroom. The exact EN↔ID pair count gets measured from `links.csv` in M1.
+- **M1 (English):** fine, as predicted. 25,635 of the 28,189 Indonesian
+  sentences (91%) are linked to an English one; after deduplication that is
+  **23,497 usable pairs**, nearly 5× the milestone bar.
 - **M6 (Japanese):** likely not fine. Direct JA↔ID pairs are a subset of a
   subset and could be in the hundreds. Japanese content that meets §2.5 as
   written may simply not exist for free.
@@ -72,7 +72,9 @@ three change what §2.5 means for Japanese, so this is your call, not mine.
 
 ### R3 — Dataset licensing
 
-**Status:** four sources cleared, the two M1 needs are **not**.
+**Status:** the English frequency blocker is **resolved** (D13, by removing the
+dependency rather than clearing it); the Indonesian gloss blocker remains, but
+no longer blocks M1.
 
 Verified 2026-08-10 by reading the licence text (see `NOTICE.md`,
 `data/licenses.json`):
@@ -88,36 +90,43 @@ Verified 2026-08-10 by reading the licence text (see `NOTICE.md`,
   About screen for apps) — so the attribution screen is a licence condition,
   not a courtesy.
 
-Not cleared, and both block M1:
+Resolved since:
+
+- **English frequency list** — no longer needed. Ranks are computed from
+  Tatoeba's own English corpus, which is already cleared (decision D13). The
+  fallback, if those ranks ever prove inadequate, is `wordfreq`: verified
+  2026-08-10 as Apache-2.0 code with **CC BY-SA 4.0 data**, so it is usable —
+  but it is sunset, frozen at roughly 2021 usage, and ships as Python packages.
+
+Still open, though no longer blocking:
 
 - **Indonesian glosses.** Kaikki's raw-data page states no licence for the
   extraction itself. The underlying Wiktionary content is CC BY-SA 4.0, so the
   safer path may be to parse Wikimedia dumps directly rather than depend on
-  unstated third-party terms.
-- **English frequency list.** No source chosen. Candidates differ sharply:
-  some are permissive, some are non-commercial, some state nothing. Frequency
-  banding (§2.10) is the backbone of the curriculum, so this cannot be
-  hand-waved.
+  unstated third-party terms. M1 sidesteps this by anchoring meaning in
+  translated sentences rather than dictionary definitions, which §2.5 arguably
+  prefers anyway — but L1/L2 cards will want a short gloss eventually.
 
 Everything unresolved sits under `candidates` in `data/licenses.json`, and the
 licence gate refuses anything in `assets/` that references a candidate key.
 
 ### R4 — The 8 MB beginner shard is an audio budget, not a text budget
 
-**Status:** analysed, not yet measured against real data.
+**Status:** **confirmed by measurement** (M1).
 
-Back-of-envelope for M1-shaped content: 5,000 sentence pairs at roughly 250
-bytes of JSON each ≈ 1.25 MB raw, well under 500 KB gzipped; 2,000 lexeme
-entries add a few hundred KB. Text is nearly free.
+Predicted at M0, measured at M1: the entire English corpus — 23,497 sentence
+pairs and 5,245 lexemes across all six bands — is **1.05 MB gzipped**, and a
+beginner's band-1 download is **0.21 MB**. That is 2.6% of the 8 MB budget.
+Text is effectively free.
 
 Audio is not. At ~8 KB per short Opus clip, 1,000 clips ≈ 8 MB — the entire
 budget, for one band. So the real question the 8 MB number is asking is *how
 much pre-recorded audio do we ship as insurance against R1*.
 
-**Proposed:** the initial shard is text-only (~1–2 MB, so first launch on
-mobile data stays cheap); audio is fetched and cached per band on demand, and
-the pre-cached insurance set is capped at a few hundred of the highest-value
-clips. Confirm in M1 once real sizes are known.
+**Settled:** the initial shard is text-only; audio is fetched and cached per
+band on demand. With text costing so little, essentially the whole 8 MB is
+available as R1 insurance — roughly 800–1,000 pre-cached clips — which makes
+the audio question a content-sourcing problem, not a budget one.
 
 ### R5 — FSRS was not designed for a 7-rung ladder (my nomination)
 
@@ -184,6 +193,11 @@ memory model.
 | D10 | Japanese tokenization happens **at build time only** | A bundled morphological dictionary is an order of magnitude over the whole content budget. `Sentence.tokens` is precomputed. Consequence: the M7 reader's "paste your own text" path needs a lighter heuristic or does without. |
 | D11 | Icons are generated by a **~150-line rasterizer**, outputs committed | An image toolchain that exists to draw one speech bubble does not earn its place (§0 rule 1). `npm run icons` runs on redesign, never in CI. |
 | D12 | Code licence **not yet chosen** (`UNLICENSED` for now) | EDRDG share-alike binds the *data*, not the code, so this is a free choice — but it is yours. Worth settling before the repo goes public. |
+| D13 | **English frequency is derived from Tatoeba's own corpus**, not an external word list | Removes a licence dependency instead of clearing one; register-matched to the sentences we actually teach from; and makes §2.4 coverage self-consistent, since a rank predicts coverage of *our* corpus. Cost: Tatoeba skews toward short translated declaratives and is saturated with the names Tom and Mary — handled by D14. |
+| D14 | **Proper nouns are filtered from the lexeme inventory but not from the ranks** | `tom` is the 3rd most frequent token in Tatoeba. The ranks stay honest, because coverage genuinely has to account for meeting "Tom" in a sentence; the vocabulary list drops names. Detection uses lower-case share among *mid-sentence* occurrences only — sentence-initial capitalisation makes `where's` look exactly like `boston`. Known gap: demonyms (`french`, `german`) are filtered too. |
+| D15 | **Sentence banding is by 90th-percentile token rank**, not by the composite difficulty score | "The harder words here live in band N" is a defensible claim; "this sentence is B1" is not (§2.15). The composite score only orders sentences within a band. p90 rather than max, so one rare proper noun cannot make an otherwise simple sentence look advanced. |
+| D16 | **`Item.levelTag` is optional and unset for everything M1 ships** | No licence-cleared CEFR-aligned wordlist exists yet, and deriving a CEFR label from corpus frequency is exactly the fake precision §2.15 bans. `band` is the honest signal until a real alignment lands. |
+| D17 | **Every relative import carries its file extension** | Lets Node run `scripts/ingest/*.ts` directly against `src/core`, so the pipeline shares the app's tokenizer and scorer with no transpiler dependency and no duplicated logic. Vite and Vitest both accept explicit extensions. |
 
 ---
 

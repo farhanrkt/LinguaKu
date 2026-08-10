@@ -22,6 +22,11 @@ Sentence text is released under CC BY 2.0 FR, and a subset is additionally
 available under CC0 1.0. Attribution to Tatoeba and its contributors is
 required for the CC BY portion.
 
+LinguaKu's English content in `assets/content/en/` is derived from Tatoeba: the
+sentence pairs are Tatoeba sentences and their Indonesian translations, and the
+**word frequency ranking is computed from the Tatoeba English corpus itself**
+rather than from an external word list.
+
 **Audio is not covered by that licence.** Each audio file's licence is chosen by
 the contributor who recorded it; where the licence field is empty, the clip may
 not be reused outside Tatoeba. LinguaKu therefore resolves audio licences
