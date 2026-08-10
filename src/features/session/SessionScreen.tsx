@@ -7,6 +7,8 @@ import { speak } from '../../platform/speech.ts';
 import { recordReview } from '../../data/repositories/reviews.ts';
 import { advanceCursor, completeSession } from '../../data/repositories/sessions.ts';
 import { buildTask, type Task } from './task.ts';
+import { knownItemIds } from '../../core/coverage.ts';
+import { db } from '../../data/db.ts';
 import { ClozeTask, ExposureTask, RecognitionTask, type AnswerPayload } from './TaskViews.tsx';
 import type { Profile, Session } from '../../data/types.ts';
 import type { LadderDecision } from '../../core/ladder.ts';
@@ -50,6 +52,16 @@ export const SessionScreen = ({
   // Set when the task actually renders, not during render — `latencyMs` is a
   // real measurement (SPEC §6) and must start from when the learner saw it.
   const shownAt = useRef(0);
+  // The known-set drives the i+1 choice of which sentence teaches a word
+  // (SPEC §2.4). Loaded once per session, not per card.
+  const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    void (async () => {
+      const cards = await db.cards.where('profileId').equals(profile.id).toArray();
+      setKnown(knownItemIds(cards, Date.now()));
+    })();
+  }, [profile.id]);
 
   // Load the item at the cursor. Skipping unbuildable items keeps a single
   // missing sentence from stalling the whole session.
@@ -59,7 +71,7 @@ export const SessionScreen = ({
       for (let index = cursor; index < session.itemIds.length; index++) {
         const itemId = session.itemIds[index];
         if (!itemId) continue;
-        const built = await buildTask(profile.id, itemId, session.startedAt + index);
+        const built = await buildTask(profile.id, itemId, session.startedAt + index, known);
         if (cancelled) return;
         if (built) {
           if (index !== cursor) setCursor(index);
@@ -73,7 +85,7 @@ export const SessionScreen = ({
     return () => {
       cancelled = true;
     };
-  }, [cursor, profile.id, session.itemIds, session.startedAt]);
+  }, [cursor, profile.id, session.itemIds, session.startedAt, known]);
 
   const playAudio = useCallback(() => {
     if (task) void speak(task.sentence.text, profile.targets[0] ?? 'en');

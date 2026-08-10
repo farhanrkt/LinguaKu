@@ -1,5 +1,81 @@
 # PROGRESS.md
 
+## M3 — Level awareness · complete (2026-08-10)
+
+**Acceptance:** §2.4 and §4.2 acceptance tests pass; simulated learners of three
+different levels receive appropriately different content. Both met.
+
+| | required | actual |
+|---|---|---|
+| i+1 selection in band, passage-length text | ≥ 90% | **100%**, 0 below the floor |
+| placement length | ≤ 25 items, ≤ 90s | capped and asserted end to end |
+| three simulated learners get different bands | yes | strictly increasing band means |
+| unit tests | — | 306 |
+| e2e tests | — | 14 |
+
+### What shipped
+
+Four new `src/core` modules: `coverage` (known-set and i+1 selection),
+`forecast` (14-day load projection and the new-item throttle), `placement`
+(1PL estimation, max-information selection, stopping rule, false-alarm
+correction) and `pseudoword` (build-time non-word generation).
+
+The placement screen itself is one interaction: a word, and two buttons. SPEC
+§4.2 asks for both an adaptive 1PL loop and a Yes/No pseudoword check inside 90
+seconds, so they are the **same sequence** (D24) — every real word judged is a
+1PL response, and pseudowords interleave at one in four to catch over-claiming.
+It is offered right after the language choice and can always be declined; an
+e2e test asserts that declining costs nothing, because a placement that has
+quietly become mandatory is an onboarding wall.
+
+Sessions are now level-gated: new items come from the learner's frontier band,
+nearest the frontier first (D27), and the new-item allowance is throttled
+automatically by projected review debt. Which anchor sentence teaches a word is
+now an i+1 decision rather than always the globally easiest one.
+
+### Three things measurement or the spec's own numbers forced
+
+**The i+1 coverage band is unreachable on sentences.** Coverage on an n-token
+text is quantized to 1/n, and the band is 0.06 wide — so below ~17 tokens it can
+contain no achievable value at all. On a 10-token sentence the reachable
+coverages are 1.00, 0.90, 0.80: the band is empty. §2.4's threshold is a
+*running-text* finding. Applied literally to single sentences it would reject
+nearly all of them, so short items fall back to i+1's literal form — exactly one
+new word — and the §2.4 acceptance test runs on passage-length text where the
+band is the operative criterion (D28).
+
+**Uncapped over-claim correction produced a useless placement.** A learner who
+answered erratically and claimed pseudowords got "somewhere between band 1 and
+band 6" — honest, and worthless. Evidence can fail to narrow what we knew; it
+cannot make us less certain than the prior, so the corrected standard error is
+now capped there. Where the band is still three tiers wide, the result screen
+says so in words rather than printing the range (D26).
+
+**A trigram model makes obvious fakes.** The first pseudoword pass emitted
+`admaninja` and `awflualte` — a learner spots those on sight, and a Yes/No check
+whose fakes are visible measures nothing. An order-3 character model follows
+English orthotactics closely enough to produce word-shaped output (`anago`,
+`badests`, `assicks`) while carrying far too little context to reconstruct real
+words. Candidates within one edit of a real word are rejected too: showing
+`becuase` tests whether a learner spots a typo, not whether they know the word.
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| Only `vocab` is estimated; listening and grammar rows are absent | §4.2 forbids collapsing the three. Listening needs audio verified on a real device (R1); grammar has no items until M4. A missing row reads as "not measured"; a fabricated one would read as a measurement (D25). |
+| Vocabulary ability is a corrected self-report, not a test of recall | It is what §4.2's Yes/No check is, and it buys 25 items in 90 seconds. The false-alarm correction is what keeps it from measuring confidence. Recall-based placement items would need glosses (R3). |
+| The mapping from false-alarm correction onto (θ, SE) is a calibration choice | The mechanism is the spec's; the shrink-toward-prior mapping is an implementation detail, labelled as such in the code rather than presented as a finding. |
+| §7.2's "forecast load > 1.5× daily budget" read as *mean daily* load | Read as a weekly total against a daily budget it would throttle almost every learner — any learner with more than ~60 cards due in a week. Mean daily load against daily capacity is the reading that does what the rule is for. |
+
+### Next decision I need from you
+
+Still only R1: **the speech device matrix**. Unchanged from M2 — the probe is
+built and tested against engines that lie, but has never run on a real phone,
+and until it has, L4 stays withheld and the `listening` ability stays unmeasured.
+
+---
+
 ## M2 — The loop · complete (2026-08-10)
 
 **Acceptance:** a 4-minute session runs end to end offline; kill-and-resume
@@ -306,8 +382,8 @@ what the app promises. R2 in `docs/DECISIONS.md`.
 
 ## Next milestone
 
-**M3 — Level awareness.** Adaptive placement (≤90s, ≤25 items), three separate
-ability estimates, the i+1 content selector, and a new-item throttle driven by
-forecast review debt. Nothing blocks it: the tokenizer and banding it needs are
-already shipped, and `sentences.b*.json` is waiting for the selector that
-finally has a use for the whole corpus.
+**M4 — Contrastive engine (English).** The differentiator: authored
+`data/contrastive/en.yaml` covering every §3.1 category, interference tagging on
+items and wrong answers, targeted drills, minimal-pair listening, and the
+heatmap. This is the milestone where §14 question 3 — how much of the
+contrastive content you write yourself — stops being hypothetical.

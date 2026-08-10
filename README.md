@@ -36,7 +36,7 @@ npm run build && npm run preview
 
 ## Status
 
-Milestone 2 complete: the practice loop runs. FSRS scheduling, a four-rung card
-ladder, an interleaved session composer, and 23,497 banded English↔Indonesian
-sentence pairs behind it — offline, in about a second from icon tap to the
-first question. Adaptive placement lands in M3.
+Milestone 3 complete: the practice loop runs and adapts. FSRS scheduling, a
+four-rung card ladder, adaptive placement in under 90 seconds, i+1 content
+selection and an automatic new-item throttle — offline, in about a second from
+icon tap to the first question. The Indonesian-L1 contrastive engine is M4.

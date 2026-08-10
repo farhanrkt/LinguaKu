@@ -87,6 +87,10 @@ needs React state to work, it is in the wrong place.
     `sentences.b*.json` shards exist for M3's selector and M7's reader.
 12. **≤ 3s from icon tap to first answerable question**, on a warm cache.
     Enforced by `e2e/coldstart.spec.ts` against a real production build.
+13. **Placement is offered, never enforced.** Skipping leaves the learner at the
+    prior and costs nothing; an e2e test holds that line. Only the `vocab`
+    ability is estimated — listening and grammar rows stay absent rather than
+    guessed (decision D25).
 
 ## Conventions
 

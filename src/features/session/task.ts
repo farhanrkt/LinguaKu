@@ -5,6 +5,7 @@ import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
+import { selectGraded } from '../../core/coverage.ts';
 import type { LadderLevel } from '../../data/types.ts';
 
 /**
@@ -81,6 +82,8 @@ export const buildTask = async (
   profileId: string,
   itemId: string,
   seed: number,
+  /** Lexeme ids the learner currently knows, for the i+1 anchor choice (SPEC §2.4). */
+  known?: ReadonlySet<string>,
 ): Promise<Task | null> => {
   const item = await db.items.get(itemId);
   if (!item) return null;
@@ -88,12 +91,26 @@ export const buildTask = async (
   const card = await db.cards.get(cardIdFor(profileId, itemId));
   const level = card?.ladderLevel ?? 0;
 
-  // Anchors are ordered easiest-first by the pipeline; rotate through them so a
-  // leech is re-taught with a different sentence rather than the same one
-  // (SPEC §7.2).
-  const anchorIndex = (card?.fsrs.lapses ?? 0) % Math.max(1, item.anchorSentenceIds.length);
-  const sentence = await getAnchor(item.lang, item.band, item.anchorSentenceIds[anchorIndex] ?? '');
-  if (!sentence) return null;
+  // Which example sentence teaches this word is an i+1 decision (SPEC §2.4):
+  // among the anchors, pick the one whose coverage best fits what this learner
+  // already knows, rather than always the globally easiest.
+  const anchors = (
+    await Promise.all(
+      item.anchorSentenceIds.map((id) => getAnchor(item.lang, item.band, id)),
+    )
+  ).filter((anchor): anchor is AnchorSentence => anchor !== null);
+  if (anchors.length === 0) return null;
+
+  const lapses = card?.fsrs.lapses ?? 0;
+  let sentence: AnchorSentence;
+  if (lapses > 0) {
+    // SPEC §7.2: a leech is re-taught with a *fresh* sentence, never the same
+    // one again — so rotation wins over the coverage fit here.
+    sentence = anchors[lapses % anchors.length]!;
+  } else {
+    sentence =
+      selectGraded(anchors, known ?? new Set(), item.lang)?.item ?? anchors[0]!;
+  }
 
   const cloze = makeCloze(sentence.text, item.headword);
   // A cloze rung with no blank to make is unanswerable — fall back a rung

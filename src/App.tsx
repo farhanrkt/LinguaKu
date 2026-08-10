@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { FirstRun } from './features/onboarding/FirstRun.tsx';
 import { Home } from './features/home/Home.tsx';
 import { SessionScreen } from './features/session/SessionScreen.tsx';
+import { PlacementScreen } from './features/placement/PlacementScreen.tsx';
+import { hasBeenPlaced } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import { findResumable, startSession } from './data/repositories/sessions.ts';
 import { ensureBands, STARTER_BANDS } from './data/content.ts';
@@ -18,6 +20,7 @@ type Screen =
   | { name: 'loading' }
   | { name: 'first-run' }
   | { name: 'home'; profile: Profile }
+  | { name: 'placement'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
 export const App = () => {
@@ -26,6 +29,7 @@ export const App = () => {
   const [durability, setDurability] = useState<StorageDurability>('best-effort');
   const [voice, setVoice] = useState<VoiceReport | null>(null);
   const [resumable, setResumable] = useState<Session | null>(null);
+  const [placementOffered, setPlacementOffered] = useState(true);
   const [busy, setBusy] = useState(false);
 
   /** Starts or resumes a session. The only path into the practice loop. */
@@ -57,6 +61,7 @@ export const App = () => {
         return;
       }
       setResumable(await findResumable(profile.id));
+      setPlacementOffered(await hasBeenPlaced(profile.id, profile.targets[0] ?? 'en'));
       setScreen({ name: 'home', profile });
     })();
   }, [beginSession]);
@@ -75,7 +80,10 @@ export const App = () => {
 
   const handleStart = useCallback(async (targets: TargetLang[], dailyMinutes: DailyMinutes) => {
     const profile = await createProfile({ targets, dailyMinutes, now: Date.now() });
-    setScreen({ name: 'home', profile });
+    // SPEC §10: placement is offered, not enforced — and only after the learner
+    // has already chosen something, so it is never an onboarding wall.
+    await ensureBands(profile.targets[0] ?? 'en', STARTER_BANDS).catch(() => undefined);
+    setScreen({ name: 'placement', profile });
     // Ask only once the learner has committed to something — a permission
     // prompt on a cold first paint is the fastest way to lose them.
     setDurability(await requestPersistentStorage());
@@ -116,6 +124,19 @@ export const App = () => {
       return null;
     case 'first-run':
       return <FirstRun onStart={(targets, minutes) => void handleStart(targets, minutes)} />;
+    case 'placement':
+      return (
+        <PlacementScreen
+          profile={screen.profile}
+          onDone={() => {
+            // Re-read rather than assume: skipping leaves the offer standing,
+            // taking it does not (SPEC §4.2 — offered, never enforced).
+            const { profile } = screen;
+            void hasBeenPlaced(profile.id, profile.targets[0] ?? 'en').then(setPlacementOffered);
+            setScreen({ name: 'home', profile });
+          }}
+        />
+      );
     case 'session':
       return (
         <SessionScreen
@@ -133,6 +154,8 @@ export const App = () => {
           durability={durability}
           resumable={resumable}
           busy={busy}
+          placementOffered={placementOffered}
+          onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}
         />

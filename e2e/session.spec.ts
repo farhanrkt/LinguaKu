@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { firstRun, waitForOfflineReady } from './helpers.ts';
 
 /**
  * M2 acceptance (SPEC §12):
@@ -6,22 +7,6 @@ import { expect, test, type Page } from '@playwright/test';
  *  - kill-and-resume loses nothing;
  *  - icon-tap to first answerable question ≤ 3s on a warm cache (§5.4).
  */
-
-const onboard = async (page: Page) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: /Bahasa Inggris/ }).click();
-  await page.getByRole('button', { name: '4 menit' }).click();
-  await page.getByRole('button', { name: 'Mulai', exact: true }).click();
-  await expect(page.getByTestId('practise')).toBeEnabled();
-};
-
-/** Waits for the service worker to control the page and finish precaching. */
-const waitForOfflineReady = async (page: Page) => {
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
-    timeout: 30_000,
-  });
-  await expect(page.getByTestId('offline-status')).toHaveText('Siap dipakai offline');
-};
 
 /** Answers whatever task is on screen and advances past the feedback. */
 const answerOne = async (page: Page) => {
@@ -43,7 +28,7 @@ const answerOne = async (page: Page) => {
 };
 
 test('a session runs end to end with the network cut', async ({ page, context }) => {
-  await onboard(page);
+  await firstRun(page);
   await waitForOfflineReady(page);
 
   // Everything from here happens with no network at all.
@@ -59,7 +44,7 @@ test('a session runs end to end with the network cut', async ({ page, context })
 });
 
 test('killing the app mid-session resumes at the exact next item', async ({ page }) => {
-  await onboard(page);
+  await firstRun(page);
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
 
@@ -79,7 +64,7 @@ test('killing the app mid-session resumes at the exact next item', async ({ page
 });
 
 test('finishing a session reports what got stronger, not points', async ({ page }) => {
-  await onboard(page);
+  await firstRun(page);
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
 

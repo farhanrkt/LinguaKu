@@ -100,4 +100,37 @@ export const copy = {
       unavailable: 'Suara belum tersedia di peramban ini',
     },
   },
+  placement: {
+    offer: 'Cek kemampuan (1 menit)',
+    heading: 'Kata mana yang kamu tahu?',
+    // SPEC §4.2: it must feel like learning, not like an exam.
+    intro:
+      'Bukan ujian. Kami cuma perlu tahu dari mana enaknya mulai, biar kamu tidak diajari kata yang sudah kamu kuasai.',
+    instruction: 'Tahu artinya? Ketuk saja. Jujur saja — tidak ada nilai di sini.',
+    start: 'Mulai cek',
+    skip: 'Lewati saja',
+    // §4.2: skipping must cost nothing.
+    skipNote: 'Kalau dilewati, kami belajar dari jawabanmu sambil jalan.',
+    know: 'Tahu',
+    dontKnow: 'Belum',
+    progress: (done: number) => `${done} kata`,
+
+    result: {
+      heading: 'Sudah, itu saja.',
+      // SPEC §2.15 / §4.1: a band, never a bare level claim.
+      band: (from: number, to: number) =>
+        from === to
+          ? `Kamu paling pas mulai dari kata tingkat ${from}.`
+          : `Kamu paling pas mulai di antara tingkat ${from} dan ${to}.`,
+      // SPEC §2.15: when the estimate is too vague to name a level, saying so
+      // is more useful — and more honest — than printing a range that spans
+      // the whole scale.
+      unclear:
+        'Jawabanmu campur-campur, jadi kami belum bisa menebak dengan yakin. Kami mulai dari tengah dan menyesuaikan sambil kamu latihan.',
+      estimate: 'Ini perkiraan, dan akan terus kami perbaiki setiap kali kamu latihan.',
+      overclaimed:
+        'Beberapa kata tadi sebenarnya bukan bahasa Inggris — jadi perkiraannya kami buat lebih hati-hati.',
+      begin: 'Mulai latihan',
+    },
+  },
 } as const;

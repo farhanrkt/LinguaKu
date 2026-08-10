@@ -25,6 +25,8 @@ import { fileURLToPath } from 'node:url';
 import { scoreSentence } from '../../src/core/difficulty.ts';
 import { bandForRank, rankTokens, type FrequencyBand } from '../../src/core/frequency.ts';
 import { isLikelyProperNoun, type CaseStats } from '../../src/core/properNoun.ts';
+import { buildCharModel, generatePseudowords } from '../../src/core/pseudoword.ts';
+import { mulberry32 } from '../../src/core/rng.ts';
 import {
   isLexemeCandidate,
   tokenizeLatin,
@@ -227,7 +229,29 @@ console.log(
     `${rejectedAsProperNoun.toLocaleString()} as proper nouns`,
 );
 
-// ---------------------------------------------------------------- 5. sharding
+// ------------------------------------------------------------ 5. pseudowords
+
+// SPEC §4.2: the Yes/No vocabulary check needs plausible non-words, or it
+// measures confidence instead of vocabulary. Sampled from a trigram model of
+// the corpus's own words, so they follow English phonotactics without being
+// English — and so they cost no extra licence surface.
+const realWordSet = new Set(
+  [...ranks.keys()].filter((token) => /^[a-z]+$/.test(token)),
+);
+const modelWords = [...ranks.entries()]
+  .filter(([token, rank]) => rank <= 20_000 && /^[a-z]{4,9}$/.test(token))
+  .map(([token]) => token);
+
+const pseudowords = generatePseudowords(
+  buildCharModel(modelWords),
+  realWordSet,
+  // Fixed seed: the pipeline must be byte-reproducible (D10).
+  mulberry32(20260810),
+  { count: 240, minLength: 4, maxLength: 9 },
+);
+console.log(`  ${pseudowords.length} pseudowords from ${modelWords.length.toLocaleString()} words`);
+
+// ---------------------------------------------------------------- 6. sharding
 
 await mkdir(OUT_DIR, { recursive: true });
 
@@ -324,6 +348,18 @@ for (const band of BANDS) {
 // stable so the shard list itself is cacheable; the loader compares hashes.
 // Deliberately free of timestamps: the same corpus must produce byte-identical
 // output, or every rerun invalidates every learner's cache for nothing.
+await writeFile(
+  join(OUT_DIR, 'pseudowords.json'),
+  JSON.stringify({
+    sources: ['tatoeba'],
+    license: 'CC BY 2.0 FR',
+    note: 'Sampled from a trigram model fitted to the Tatoeba English corpus. Derived statistics, not Tatoeba text.',
+    lang: 'en',
+    count: pseudowords.length,
+    words: pseudowords,
+  }),
+);
+
 const manifest = {
   sources: ['tatoeba'],
   license: 'CC BY 2.0 FR',
@@ -336,6 +372,7 @@ const manifest = {
     distinctTokens: ranks.size,
     pairs: pairs.length,
     lexemes: lexemes.length,
+    pseudowords: pseudowords.length,
     maxLexemeRank: MAX_LEXEME_RANK,
   },
   shards: shards.sort((a, b) => a.kind.localeCompare(b.kind) || a.band - b.band),

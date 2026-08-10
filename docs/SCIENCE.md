@@ -88,9 +88,17 @@ build-time morphological tokens (`Sentence.tokens`), never character splitting.
 **Acceptance:** against synthetic learner profiles, ≥90% of returned items fall
 in band and none fall below 0.85.
 
-**Status:** the tokenizer (`src/core/tokenize.ts`) is **shipped** (M1) and is the
-same one the build-time pipeline uses, so runtime and build-time coverage
-cannot disagree. The selector itself is **planned (M3)**.
+**Status:** **shipped** (M3). The tokenizer is shared with the build pipeline,
+so runtime and build-time coverage cannot disagree.
+
+One finding worth recording: the [0.92, 0.98] band is a **running-text**
+criterion and is unreachable on short sentences. Coverage on an n-token text is
+quantized to 1/n, so below ~17 tokens the band can contain no achievable value
+— on a 10-token sentence the reachable coverages are 1.00, 0.90, 0.80 and the
+band is simply empty. For shorter items the selector falls back to i+1 in its
+literal form: exactly one new word inside a sentence the learner otherwise
+knows. The §2.4 acceptance test is run on passage-length text, where the band
+is the operative criterion.
 
 ## §2.5 Everything lives in a sentence
 
@@ -190,9 +198,10 @@ vocabulary list but not from the ranks (D14).
 **Acceptance:** the known-words dashboard renders a coverage-vs-band curve from
 real learner state.
 
-**Status:** **shipped for English** (M1) — 5,245 lexemes ranked and banded from
-a 2.03M-sentence corpus. R3 resolved by deriving frequency from Tatoeba itself
-(D13) rather than clearing an external list. The dashboard curve is M5.
+**Status:** **shipped for English** (M1), and level-gated in M3 — new items are
+drawn from the learner's frontier band, nearest the frontier first, so an
+intermediate learner is not marched through the 500 commonest words again. The
+dashboard curve is M5.
 
 ## §2.11 Mnemonics and decomposition for kanji
 

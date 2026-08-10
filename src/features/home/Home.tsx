@@ -17,6 +17,9 @@ interface HomeProps {
   /** An unfinished session, if the learner was interrupted (SPEC §2.13). */
   resumable: Session | null;
   busy: boolean;
+  /** False while the learner has not yet taken (or declined) placement. */
+  placementOffered: boolean;
+  onPlacement: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
 }
@@ -33,6 +36,8 @@ export const Home = ({
   durability,
   resumable,
   busy,
+  placementOffered,
+  onPlacement,
   onPractise,
   onChange,
 }: HomeProps) => {
@@ -65,6 +70,18 @@ export const Home = ({
         </strong>
         .
       </p>
+
+      {placementOffered ? null : (
+        // SPEC §4.2: offered, never enforced — a quiet link, not a gate.
+        <button
+          type="button"
+          onClick={onPlacement}
+          data-testid="placement-offer"
+          className="mt-4 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+        >
+          {copy.placement.offer}
+        </button>
+      )}
 
       {resumeProgress ? (
         <p className="mt-3 rounded-2xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950 dark:text-teal-200">

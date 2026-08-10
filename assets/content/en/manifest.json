@@ -12,6 +12,7 @@
     "distinctTokens": 83085,
     "pairs": 23497,
     "lexemes": 5245,
+    "pseudowords": 240,
     "maxLexemeRank": 8000
   },
   "shards": [

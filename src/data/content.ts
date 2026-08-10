@@ -167,7 +167,30 @@ export const anchorPool = async (
 ): Promise<AnchorSentence[]> => [...(await loadAnchors(lang, band)).values()];
 
 /** Test seam: the cache is process-wide and would otherwise leak between cases. */
-export const clearAnchorCache = (): void => anchorCache.clear();
+export const clearAnchorCache = (): void => {
+  anchorCache.clear();
+  pseudowordCache.clear();
+};
+
+// ------------------------------------------------------------- pseudowords
+
+const pseudowordCache = new Map<string, string[]>();
+
+/**
+ * Non-words for the Yes/No vocabulary check (SPEC §4.2). Generated at build
+ * time from a character model of the corpus, so they are plausible English
+ * shapes that are not English words.
+ */
+export const loadPseudowords = async (lang: TargetLang): Promise<string[]> => {
+  const cached = pseudowordCache.get(lang);
+  if (cached) return cached;
+
+  const payload = await fetchJson<{ words: string[] }>(
+    `${CONTENT_BASE}/${lang}/pseudowords.json`,
+  );
+  pseudowordCache.set(lang, payload.words);
+  return payload.words;
+};
 
 /**
  * Bands a learner starts with before placement (M3) has an opinion.

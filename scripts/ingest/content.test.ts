@@ -16,7 +16,7 @@ import type { FrequencyBand } from '../../src/core/frequency.ts';
 const CONTENT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'content', 'en');
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes';
+  kind: 'sentences' | 'lexemes' | 'anchors';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -115,6 +115,65 @@ describe('shard integrity', () => {
   it('has no duplicate sentence or lexeme ids across shards', () => {
     expect(new Set(allSentences.map((s) => s.id)).size).toBe(allSentences.length);
     expect(new Set(allLexemes.map((l) => l.id)).size).toBe(allLexemes.length);
+  });
+});
+
+describe('pseudowords (SPEC §4.2)', () => {
+  const pseudowords = readShard<{ sources: string[]; words: string[] }>('pseudowords.json');
+  const headwords = new Set(allLexemes.map((lexeme) => lexeme.headword));
+
+  it('ships enough of them for a 25-item placement run', () => {
+    expect(pseudowords.words.length).toBeGreaterThanOrEqual(50);
+  });
+
+  it('are all plausible word shapes', () => {
+    for (const word of pseudowords.words) expect(word).toMatch(/^[a-z]{4,9}$/);
+  });
+
+  it('contains no word we actually teach', () => {
+    // A pseudoword that is really a word turns a hit into a false alarm and
+    // corrupts the correction it exists to support.
+    for (const word of pseudowords.words) expect(headwords.has(word)).toBe(false);
+  });
+
+  it('has no duplicates', () => {
+    expect(new Set(pseudowords.words).size).toBe(pseudowords.words.length);
+  });
+
+  it('declares its provenance like every other shard', () => {
+    expect(pseudowords.sources).toEqual(['tatoeba']);
+  });
+});
+
+describe('anchor shards', () => {
+  const anchorShards = manifest.shards.filter((shard) => shard.kind === 'anchors');
+
+  it('exist for every band that has lexemes', () => {
+    const lexemeBands = new Set(lexemeShards.map((shard) => shard.band));
+    const anchorBands = new Set(anchorShards.map((shard) => shard.band));
+    for (const band of lexemeBands) expect(anchorBands.has(band)).toBe(true);
+  });
+
+  it('cover every anchor the lexemes in that band point at', () => {
+    // The session path reads only these, so a missing anchor is an item that
+    // cannot be taught (SPEC §2.5).
+    for (const shard of lexemeShards) {
+      const lexemes = readShard<{ lexemes: LexemeRecord[] }>(shard.path).lexemes;
+      const anchorPath = anchorShards.find((a) => a.band === shard.band)?.path;
+      expect(anchorPath).toBeTruthy();
+      const available = new Set(
+        readShard<{ sentences: SentenceRecord[] }>(anchorPath!).sentences.map((s) => s.id),
+      );
+      for (const lexeme of lexemes) {
+        for (const anchor of lexeme.anchors) expect(available.has(anchor)).toBe(true);
+      }
+    }
+  });
+
+  it('are far smaller than the full sentence shards they stand in for', () => {
+    const anchorBytes = anchorShards.reduce((sum, shard) => sum + shard.gzipBytes, 0);
+    const sentenceBytes = sentenceShards.reduce((sum, shard) => sum + shard.gzipBytes, 0);
+    expect(anchorBytes).toBeLessThan(sentenceBytes);
   });
 });
 

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { firstRun, waitForOfflineReady } from './helpers.ts';
 
 /**
  * SPEC §5.4 performance gates, as tests rather than as aspirations.
@@ -22,19 +23,9 @@ interface WebManifest {
   shortcuts?: Array<{ name: string; url: string }>;
 }
 
-const onboard = async (page: Page) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: /Bahasa Inggris/ }).click();
-  await page.getByRole('button', { name: '4 menit' }).click();
-  await page.getByRole('button', { name: 'Mulai', exact: true }).click();
-  await expect(page.getByTestId('practise')).toBeEnabled();
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
-    timeout: 30_000,
-  });
-};
-
 test('icon tap to first answerable question stays under 3s on a warm cache', async ({ page }) => {
-  await onboard(page);
+  await firstRun(page);
+  await waitForOfflineReady(page);
   // Warm the caches the way a returning learner's device would be.
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
