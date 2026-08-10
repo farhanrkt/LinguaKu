@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+/* SPEC §10: dark mode, WCAG AA contrast, reduced motion respected.
+   Tailwind v4's `dark:` variant follows prefers-color-scheme by default,
+   and `motion-safe:` gates every transition we ship. */
+
+@layer base {
+  html {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+    /* Latin, kana and kanji all render from system fonts — no webfont download
+       on a metered connection (SPEC §5.4). */
+    text-wrap: pretty;
+  }
+
+  /* Never trap a keyboard user in an invisible focus state (SPEC §10). */
+  :focus-visible {
+    outline-offset: 2px;
+  }
+}

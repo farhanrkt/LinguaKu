@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LinguaKu">
+  <rect width="512" height="512" rx="113" fill="#0f766e"/>
+  <path d="M113 158a29 29 0 0 1 29-29h228a29 29 0 0 1 29 29v106a29 29 0 0 1-29 29H231l-53 62v-62h-36a29 29 0 0 1-29-29z" fill="#fafaf9"/>
+  <g fill="#0f766e">
+    <circle cx="190" cy="211" r="21"/><circle cx="256" cy="211" r="21"/><circle cx="322" cy="211" r="21"/>
+  </g>
+</svg>

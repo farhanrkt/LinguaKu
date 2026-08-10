@@ -1,0 +1,98 @@
+{
+  "$comment": "SPEC §5.2. `datasets` are cleared for shipping: their terms were read at the URL below on `verifiedOn`. `candidates` are NOT cleared — nothing may enter assets/ under a candidate key. Promote a candidate only after reading its licence text and recording the date.",
+  "version": 1,
+  "datasets": [
+    {
+      "key": "tatoeba",
+      "name": "Tatoeba",
+      "url": "https://tatoeba.org/en/downloads",
+      "use": "Example sentences and EN/JA/ID translation alignments (SPEC §2.5).",
+      "license": "CC BY 2.0 FR",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0/fr/",
+      "attributionRequired": true,
+      "shareAlike": false,
+      "verifiedOn": "2026-08-10",
+      "notes": "Sentence text is CC BY 2.0 FR; a subset is additionally CC0 1.0. Audio is NOT covered — each clip's licence is chosen by its contributor, and clips with an empty licence field may not be reused outside Tatoeba. See the `tatoeba-audio` candidate."
+    },
+    {
+      "key": "jmdict",
+      "name": "JMdict (Electronic Dictionary Research and Development Group)",
+      "url": "https://www.edrdg.org/jmdict/j_jmdict.html",
+      "use": "Japanese lexicon, readings, senses (SPEC §5.2, M6).",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://www.edrdg.org/edrdg/licence.html",
+      "attributionRequired": true,
+      "shareAlike": true,
+      "verifiedOn": "2026-08-10",
+      "notes": "EDRDG requires acknowledgement on each screen that displays dictionary content, or on a dedicated About screen for apps. Share-alike: any shard derived from this data must ship under CC BY-SA 4.0 or a compatible licence."
+    },
+    {
+      "key": "jmnedict",
+      "name": "JMnedict (Electronic Dictionary Research and Development Group)",
+      "url": "https://www.edrdg.org/enamdict/enamdict_doc.html",
+      "use": "Japanese proper names, for tokenizer and reader disambiguation (M6).",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://www.edrdg.org/edrdg/licence.html",
+      "attributionRequired": true,
+      "shareAlike": true,
+      "verifiedOn": "2026-08-10",
+      "notes": "Same EDRDG terms as JMdict."
+    },
+    {
+      "key": "kanjidic2",
+      "name": "KANJIDIC2 (Electronic Dictionary Research and Development Group)",
+      "url": "https://www.edrdg.org/wiki/index.php/KANJIDIC_Project",
+      "use": "Kanji readings, grade, stroke count and frequency banding (SPEC §4.1, §2.11).",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://www.edrdg.org/edrdg/licence.html",
+      "attributionRequired": true,
+      "shareAlike": true,
+      "verifiedOn": "2026-08-10",
+      "notes": "Same EDRDG terms as JMdict. Radical decomposition for §2.11 is NOT in KANJIDIC2 — that needs a separate source (see the `kradfile` candidate)."
+    }
+  ],
+  "candidates": [
+    {
+      "key": "tatoeba-audio",
+      "name": "Tatoeba audio",
+      "url": "https://tatoeba.org/en/downloads",
+      "blocker": "Licence is per-clip and chosen by the contributor; clips with an empty licence field are unusable. The pipeline must filter per file and record each clip's licence individually before any audio enters assets/."
+    },
+    {
+      "key": "wiktionary-id",
+      "name": "Wiktionary Indonesian glosses (via Kaikki/wiktextract)",
+      "url": "https://kaikki.org/dictionary/rawdata.html",
+      "blocker": "Kaikki's raw-data page states no licence for the extraction itself. Underlying Wiktionary content is CC BY-SA 4.0 + GFDL, but the extraction's terms must be confirmed (wiktextract repo / kaikki maintainer) before M1 ships ID glosses."
+    },
+    {
+      "key": "wikipedia-simple-en",
+      "name": "Simple English Wikipedia",
+      "url": "https://dumps.wikimedia.org/",
+      "blocker": "Expected CC BY-SA 4.0 under the Wikimedia Terms of Use; not yet read and dated."
+    },
+    {
+      "key": "freq-en",
+      "name": "English frequency list",
+      "url": "https://github.com/rspeer/wordfreq",
+      "blocker": "Source not chosen. Each candidate list (wordfreq, OpenSubtitles/OPUS derivatives, SUBTLEX) carries its own terms and some are non-commercial or unstated. M1 cannot band by frequency until one is cleared."
+    },
+    {
+      "key": "kradfile",
+      "name": "KRADFILE / RADKFILE",
+      "url": "https://www.edrdg.org/krad/kradinf.html",
+      "blocker": "Needed for kanji component decomposition (SPEC §2.11). EDRDG-adjacent but has its own notice; verify before M6."
+    },
+    {
+      "key": "jlpt-wordlists",
+      "name": "JLPT level wordlists",
+      "url": "",
+      "blocker": "Official JLPT lists are not published; community lists vary in provenance and licence. Needs a specific, licence-clear list before M6 level banding."
+    },
+    {
+      "key": "librivox",
+      "name": "LibriVox",
+      "url": "https://librivox.org/pages/public-domain/",
+      "blocker": "Recordings are public domain in the US; source-text status varies by country. Verify before shipping listening material."
+    }
+  ]
+}
