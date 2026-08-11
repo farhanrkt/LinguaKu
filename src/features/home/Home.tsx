@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { sessionProgress } from '../../data/repositories/sessions.ts';
+import { activateTarget, scriptModeOnSwitch } from '../../data/repositories/profiles.ts';
 import type { DailyMinutes, Profile, Session, TargetLang } from '../../data/types.ts';
 import type { OfflineStatus } from '../../platform/serviceWorker.ts';
 import type { VoiceReport } from '../../platform/speech.ts';
@@ -31,7 +32,7 @@ interface HomeProps {
   onRead: () => void;
   onSync: () => void;
   onPractise: () => void;
-  onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
+  onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => void;
 }
 
 const offlineLabel: Record<OfflineStatus, string> = {
@@ -57,12 +58,19 @@ export const Home = ({
   onPractise,
   onChange,
 }: HomeProps) => {
-  const toggleTarget = (lang: TargetLang) => {
-    const next = profile.targets.includes(lang)
-      ? profile.targets.filter((l) => l !== lang)
-      : [...profile.targets, lang];
-    // Autonomy has a floor: a profile with no target language has nothing to do.
-    if (next.length > 0) onChange({ targets: next });
+  // Sessions, content, drills and the ability estimate all follow `targets[0]`,
+  // so this control switches *which language you are learning now* rather than
+  // ticking a set. Tapping the one already active is a no-op; the other language
+  // keeps its cards, its ability and its own unfinished session.
+  const activeTarget = profile.targets[0] ?? 'en';
+  const switchTarget = (lang: TargetLang) => {
+    if (lang === activeTarget) return;
+    onChange({
+      targets: activateTarget(profile.targets, lang),
+      // SPEC §4.3: a first-time Japanese learner starts at kana, whatever the
+      // profile was carrying from its English days.
+      scriptMode: scriptModeOnSwitch(profile.targets, lang, profile.scriptMode),
+    });
   };
 
   // After the paint: the speech probe can block the main thread outright on a
@@ -88,8 +96,11 @@ export const Home = ({
       <h1 className="text-2xl font-bold">{copy.home.greeting}</h1>
       <p className="mt-1 text-stone-600 dark:text-slate-400">
         {copy.home.learningLabel}{' '}
-        <strong className="font-semibold text-stone-900 dark:text-slate-100">
-          {profile.targets.map((lang) => copy.langNames[lang]).join(' dan ')}
+        <strong
+          data-testid="learning-label"
+          className="font-semibold text-stone-900 dark:text-slate-100"
+        >
+          {copy.langNames[activeTarget]}
         </strong>
         .
       </p>
@@ -136,8 +147,8 @@ export const Home = ({
           <OptionCard
             key={lang}
             label={copy.firstRun.targets[lang].label}
-            selected={profile.targets.includes(lang)}
-            onToggle={() => toggleTarget(lang)}
+            selected={lang === activeTarget}
+            onToggle={() => switchTarget(lang)}
           />
         ))}
       </div>

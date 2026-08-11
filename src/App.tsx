@@ -62,8 +62,8 @@ export const App = () => {
     // The boot probe's verdict stands for the whole session (risk R1), so the
     // composer knows here whether minimal-pair drills can be scheduled at all.
     const session =
-      (await findResumable(profile.id)) ??
-      (await startSession(profile, Date.now(), { audioAvailable: isTtsLive() }));
+      (await findResumable(profile.id, lang)) ??
+      (await startSession(profile, Date.now(), { audioAvailable: isTtsLive(lang) }));
     setResumable(null);
     setScreen({ name: 'session', profile, session });
   }, []);
@@ -86,7 +86,7 @@ export const App = () => {
         await beginSession(profile);
         return;
       }
-      setResumable(await findResumable(profile.id));
+      setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
       setPlacementOffered(await hasBeenPlaced(profile.id, profile.targets[0] ?? 'en'));
       setScreen({ name: 'home', profile });
     })();
@@ -116,14 +116,30 @@ export const App = () => {
   }, []);
 
   const handleChange = useCallback(
-    async (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => {
+    async (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => {
       setScreen((current) =>
         current.name === 'home'
           ? { name: 'home', profile: { ...current.profile, ...changes } }
           : current,
       );
       const profile = await getCurrentProfile();
-      if (profile) await updateProfile(profile.id, changes);
+      if (!profile) return;
+      await updateProfile(profile.id, changes);
+
+      // Switching the language switches everything that hangs off it. Left
+      // stale, the home screen offers to resume the *other* language's session
+      // and hides the placement check because a different language was placed —
+      // so a learner starting Japanese never gets offered one.
+      const lang = changes.targets?.[0];
+      if (!lang) return;
+      void loadContrastive(lang);
+      void ensureBands(lang, STARTER_BANDS).catch(() => undefined);
+      const [resume, placed] = await Promise.all([
+        findResumable(profile.id, lang),
+        hasBeenPlaced(profile.id, lang),
+      ]);
+      setResumable(resume);
+      setPlacementOffered(placed);
     },
     [],
   );
@@ -141,7 +157,7 @@ export const App = () => {
   const handleFinish = useCallback(async () => {
     const profile = await getCurrentProfile();
     if (!profile) return;
-    setResumable(await findResumable(profile.id));
+    setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
     setScreen({ name: 'home', profile });
   }, []);
 

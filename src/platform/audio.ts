@@ -70,8 +70,8 @@ export const clipUrl = (index: ClipIndex, sentenceId: string): string | null =>
  * "neither cached clip nor working TTS voice" is the exclusion condition, so
  * either one satisfies it.
  */
-export const hasAudio = (index: ClipIndex, sentenceId: string): boolean =>
-  index.clips.has(sentenceId) || isTtsLive();
+export const hasAudio = (index: ClipIndex, sentenceId: string, lang: TargetLang): boolean =>
+  index.clips.has(sentenceId) || isTtsLive(lang);
 
 // ------------------------------------------------------------------ playback
 
@@ -100,6 +100,6 @@ export const playSentence = async (
 ): Promise<void> => {
   const url = clipUrl(index, sentenceId);
   if (url !== null) return playClip(url);
-  if (!isTtsLive()) return;
+  if (!isTtsLive(lang)) return;
   return speak(text, lang);
 };

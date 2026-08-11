@@ -218,10 +218,10 @@ describe('the boot verdict (risk R1)', () => {
   });
 
   it('reports nothing until the probe has actually answered', () => {
-    expect(ttsReport()).toBeNull();
+    expect(ttsReport('en')).toBeNull();
     // Unknown counts as not live: claiming audio we have not verified is the
     // failure this module exists to prevent (SPEC §2.6).
-    expect(isTtsLive()).toBe(false);
+    expect(isTtsLive('en')).toBe(false);
   });
 
   it('holds one verdict for the whole session instead of re-probing', async () => {
@@ -232,7 +232,35 @@ describe('the boot verdict (risk R1)', () => {
     // Three callers, one utterance: an L4 card must not pay a probe each time,
     // and a verdict that flips mid-session would flicker the rung in and out.
     expect(stub.spoken).toHaveLength(1);
-    expect(isTtsLive()).toBe(true);
+    expect(isTtsLive('en')).toBe(true);
+  });
+
+  /**
+   * Voice availability is per language, and R1 says `ja-JP` is the one most
+   * likely to be missing on a cheap Android. A single verdict shared across
+   * languages would let an en-US voice vouch for Japanese — reporting audio as
+   * ready, scheduling L4 dictation and mora minimal-pair drills, and then having
+   * nothing to speak them with. That is the silent degradation §2.6 forbids.
+   */
+  it('reaches a separate verdict per language', async () => {
+    const stub = stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
+    await probeOnBoot('en', FAST);
+    expect(isTtsLive('en')).toBe(true);
+
+    // The same device, asked about a language it has no voice for.
+    await probeOnBoot('ja', FAST);
+    expect(isTtsLive('ja')).toBe(false);
+    expect(isTtsLive('en')).toBe(true);
+    // One utterance per language, not one for the app.
+    expect(stub.spoken).toHaveLength(1);
+  });
+
+  it('still holds one verdict per language for the whole session', async () => {
+    const stub = stubSpeech({ voices: [voice('Voice', 'ja-JP')], utterance: 'end' });
+    await probeOnBoot('ja', FAST);
+    await probeOnBoot('ja', FAST);
+    expect(stub.spoken).toHaveLength(1);
+    expect(isTtsLive('ja')).toBe(true);
   });
 
   it('shares one probe between concurrent callers', async () => {
@@ -255,7 +283,7 @@ describe('the boot verdict (risk R1)', () => {
     const probe = probeOnBoot('en', { ...FAST, deferMs: 60 });
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(stub.spoken).toHaveLength(0);
-    expect(isTtsLive()).toBe(false);
+    expect(isTtsLive('en')).toBe(false);
     await probe;
     expect(stub.spoken).toHaveLength(1);
   });
@@ -263,8 +291,8 @@ describe('the boot verdict (risk R1)', () => {
   it('marks the engine dead for the session when onend never arrives', async () => {
     stubSpeech({ voices: [voice('Liar', 'en-US')], utterance: 'start' });
     expect((await probeOnBoot('en', FAST)).support).toBe('dead');
-    expect(isTtsLive()).toBe(false);
+    expect(isTtsLive('en')).toBe(false);
     // And it stays dead — no second chance mid-session.
-    expect(ttsReport()?.support).toBe('dead');
+    expect(ttsReport('en')?.support).toBe('dead');
   });
 });

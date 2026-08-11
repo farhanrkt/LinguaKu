@@ -5,6 +5,58 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.0.1 — 2026-08-11
+
+Five bugs, all one idea held in too many places. `targets[0]` is the language
+being taught — the content loader, item queue, drill picker, ability estimate
+and speech probe all read it — but nothing kept the things derived from it in
+step when it changed. Reported from the live build.
+
+### Fixed
+
+- **Choosing the other language did nothing.** The home control *appended* to
+  `targets` instead of changing which language was active, so tapping "Bahasa
+  Jepang" while learning English changed a heading and kept teaching English.
+  It is now a switch: the chosen language moves to the head, and the other one
+  keeps its cards, its ability estimate and its own unfinished session.
+- **An unfinished session followed the learner across languages.** `Session`
+  recorded no language and resume was found by profile alone, so an English
+  queue resumed under a Japanese heading — and logged against Japanese.
+  Sessions now carry `lang` and resume is scoped to it, which makes the failure
+  structurally impossible rather than merely fixed.
+- **The skill check never appeared for a newly chosen language.** The placement
+  offer was computed at boot and never recomputed, so a learner who had been
+  placed in English was treated as placed in Japanese, and a first-time
+  Japanese learner could not be placed at all.
+- **One speech verdict spoke for every language.** The TTS probe cached a
+  single app-wide result, so on a device with an en-US voice and no ja-JP one —
+  the configuration R1 names as most likely on a cheap Android — English
+  vouched for Japanese: audio reported ready, L4 dictation and mora
+  minimal-pair drills scheduled, and nothing to speak them with. The verdict is
+  now per language (D29 amended).
+- **A first-time Japanese learner started in kanji.** `scriptMode` was computed
+  once at profile creation, so a learner who began in English carried `kanji`
+  into Japanese, skipping the kana entry point §4.3 requires. It is recomputed
+  on switch, and only when Japanese is genuinely new — `kanji` is also the top
+  of the script ladder, and resetting on its value would demote someone who had
+  earned it.
+
+### Tests
+
+596 → **609 unit tests**, 29 → **32 e2e**. The three e2e tests were confirmed
+red against the unfixed build before being taken as green. Bundle unchanged at
+125.6 KB.
+
+### Still open
+
+The app teaches **one language at a time**, while `targets` is an array and
+first run offers a multi-select. Nothing is lost — each language keeps its own
+progress — but a learner who picks both on first run is taught only the first,
+and the home screen now names the active one rather than both. Making the
+composer interleave two languages is a product decision, not a bug fix (D53).
+
+---
+
 ## v1.0.0 — 2026-08-11
 
 The first release. An offline-first PWA that teaches **English and Japanese to

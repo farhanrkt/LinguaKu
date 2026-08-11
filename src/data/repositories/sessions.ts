@@ -16,7 +16,7 @@ import { allCategoryScores, recentDrillIds, weakestCategories } from './contrast
 import { minedItemIds } from './mining.ts';
 import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { Profile, Session, Timestamp } from '../types.ts';
+import type { Profile, Session, TargetLang, Timestamp } from '../types.ts';
 
 /**
  * SPEC §2.13: sessions are interruption-safe. The cursor is persisted after
@@ -31,13 +31,23 @@ import type { Profile, Session, Timestamp } from '../types.ts';
 /** New items a session would introduce if the learner carried no review debt. */
 const BASE_NEW_ITEMS = 40;
 
-export const findResumable = async (profileId: string): Promise<Session | null> => {
+/**
+ * Scoped to a language on purpose. A queue is built from one language's items,
+ * so an unfinished English session resumed by a learner who has switched to
+ * Japanese would serve English cards under a Japanese heading — and log them
+ * against the Japanese ability. Sessions written before v1.0.1 carry no `lang`
+ * and are never resumed; the review logs they produced are untouched.
+ */
+export const findResumable = async (
+  profileId: string,
+  lang: TargetLang,
+): Promise<Session | null> => {
   const sessions = await db.sessions
     .where('[profileId+startedAt]')
     .between([profileId, Dexie.minKey], [profileId, Dexie.maxKey])
     .reverse()
     .toArray();
-  return sessions.find((session) => session.completed === 0) ?? null;
+  return sessions.find((session) => session.completed === 0 && session.lang === lang) ?? null;
 };
 
 /**
@@ -246,6 +256,7 @@ export const planSession = async (
   const session: Session = {
     id: crypto.randomUUID(),
     profileId: profile.id,
+    lang,
     startedAt: now,
     endedAt: null,
     plannedMinutes: profile.dailyMinutes,

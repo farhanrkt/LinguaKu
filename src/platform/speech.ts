@@ -194,8 +194,19 @@ export const probeVoice = async (
  * verdict per session is a stable contract that the rest of the app can gate on
  * (`ladderCeiling` in src/core/ladder.ts).
  */
-let verdict: VoiceReport | null = null;
-let inFlight: Promise<VoiceReport> | null = null;
+/**
+ * Keyed by language, because voice availability is. R1's specific warning is
+ * that `ja-JP` is the voice most likely to be absent on a cheap Android ROM —
+ * so a device that speaks English fine may have nothing for Japanese, and a
+ * single app-wide verdict would let the English voice vouch for it. That would
+ * report audio as ready, schedule L4 dictation and mora minimal-pair drills, and
+ * then have nothing to speak them with: the silent degradation §2.6 forbids.
+ *
+ * D29's guarantee is unchanged in the sense that matters — one verdict per
+ * language per app start, so the L4 rung still cannot flicker under the learner.
+ */
+const verdicts = new Map<string, VoiceReport>();
+const inFlight = new Map<string, Promise<VoiceReport>>();
 
 /**
  * Probes on boot and caches the verdict for the session. Concurrent callers
@@ -221,15 +232,21 @@ export const probeOnBoot = async (
   language: string,
   options: ProbeOptions = {},
 ): Promise<VoiceReport> => {
-  if (verdict) return verdict;
-  inFlight ??= idle(options.deferMs)
+  const settled = verdicts.get(language);
+  if (settled) return settled;
+
+  const running = inFlight.get(language);
+  if (running) return running;
+
+  const probe = idle(options.deferMs)
     .then(() => probeVoice(language, options))
     .then((report) => {
-      verdict = report;
-      inFlight = null;
+      verdicts.set(language, report);
+      inFlight.delete(language);
       return report;
     });
-  return inFlight;
+  inFlight.set(language, probe);
+  return probe;
 };
 
 /** Long enough that the first question is painted, where there is no idle API. */
@@ -248,7 +265,8 @@ const idle = (deferMs = IDLE_FALLBACK_MS): Promise<void> =>
   });
 
 /** The session's verdict, or null if the probe has not answered yet. */
-export const ttsReport = (): VoiceReport | null => verdict;
+export const ttsReport = (language: string): VoiceReport | null =>
+  verdicts.get(language) ?? null;
 
 /**
  * SPEC §2.6: a dead engine means audio must come from a pre-cached clip or the
@@ -256,12 +274,13 @@ export const ttsReport = (): VoiceReport | null => verdict;
  * the honest default, since claiming audio we cannot deliver is the failure
  * this whole module exists to prevent.
  */
-export const isTtsLive = (): boolean => verdict?.support === 'ready';
+export const isTtsLive = (language: string): boolean =>
+  verdicts.get(language)?.support === 'ready';
 
 /** Test seam: the verdict is module state and would otherwise leak between cases. */
 export const resetTtsVerdict = (): void => {
-  verdict = null;
-  inFlight = null;
+  verdicts.clear();
+  inFlight.clear();
 };
 
 // ------------------------------------------------------------------ speaking

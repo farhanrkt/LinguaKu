@@ -98,8 +98,10 @@ needs React state to work, it is in the wrong place.
     prior and costs nothing; an e2e test holds that line. Only the `vocab`
     ability is estimated — listening and grammar rows stay absent rather than
     guessed (decision D25).
-14. **Audio must be proven before L4 is offered.** The TTS probe runs once on
-    boot and requires `onend` within 500 ms (D29); `ladderCeiling(hasAudio)` in
+14. **Audio must be proven before L4 is offered.** The TTS probe runs once per
+    language per boot and requires `onend` within 500 ms (D29) — per *language*,
+    because a device with an en-US voice and no ja-JP one is exactly what R1
+    predicts; `ladderCeiling(hasAudio)` in
     `src/core/ladder.ts` is the gate, and it defaults to *no audio* so a
     forgotten argument withholds the rung rather than faking it. A card resting
     above the ceiling is demoted visibly and logged at the rung it was actually

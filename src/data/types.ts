@@ -274,6 +274,13 @@ export interface MinedItem {
 export interface Session {
   id: string;
   profileId: string;
+  /**
+   * The target language the queue was composed from. `itemIds` only ever holds
+   * items of one language, so resuming a session under a different target would
+   * hand the learner the other language's content while the UI claims otherwise.
+   * Sessions written before v1.0.1 lack it and are simply never resumed.
+   */
+  lang: TargetLang;
   startedAt: Timestamp;
   endedAt: Timestamp | null;
   plannedMinutes: DailyMinutes;

@@ -52,6 +52,7 @@ const log = (id: string): ReviewLog => ({
 const session: Session = {
   id: 's1',
   profileId: 'p1',
+  lang: 'en',
   startedAt: NOW,
   endedAt: NOW + 60_000,
   plannedMinutes: 4,

@@ -132,8 +132,8 @@ export const SessionScreen = ({
    * condition; neither means the L4 rung is withheld for this item.
    */
   const hasAudioFor = useMemo(
-    () => (sentenceId: string) => hasAudio(clips, sentenceId),
-    [clips],
+    () => (sentenceId: string) => hasAudio(clips, sentenceId, lang),
+    [clips, lang],
   );
 
   // Load the entry at the cursor. Skipping unbuildable items keeps a single

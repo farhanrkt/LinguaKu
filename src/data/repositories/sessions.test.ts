@@ -116,7 +116,7 @@ describe('resume safety (SPEC §2.13)', () => {
     await advanceCursor(session.id, 3);
 
     // Simulate a cold start: nothing in memory, only what was persisted.
-    const resumed = await findResumable(profile.id);
+    const resumed = await findResumable(profile.id, 'en');
     expect(resumed?.id).toBe(session.id);
     expect(resumed?.resumeCursor).toBe(3);
   });
@@ -139,7 +139,7 @@ describe('resume safety (SPEC §2.13)', () => {
       await advanceCursor(session.id, index + 1);
     }
 
-    const resumed = await findResumable(profile.id);
+    const resumed = await findResumable(profile.id, 'en');
     expect(resumed?.resumeCursor).toBe(3);
     expect(await db.reviewLogs.count()).toBe(3);
     expect(sessionProgress(resumed!)).toEqual({ done: 3, total: session.itemIds.length });
@@ -150,7 +150,7 @@ describe('resume safety (SPEC §2.13)', () => {
     const session = await startSession(profile, NOW);
     await completeSession(session.id, NOW + 240_000);
 
-    expect(await findResumable(profile.id)).toBeNull();
+    expect(await findResumable(profile.id, 'en')).toBeNull();
     const stored = await db.sessions.get(session.id);
     expect(stored?.completed).toBe(1);
     expect(stored?.endedAt).toBe(NOW + 240_000);
@@ -160,7 +160,39 @@ describe('resume safety (SPEC §2.13)', () => {
     await seed(40);
     const old = await startSession(profile, NOW - 7 * 86_400_000);
     const recent = await startSession(profile, NOW);
-    expect(await findResumable(profile.id)).toMatchObject({ id: recent.id });
+    expect(await findResumable(profile.id, 'en')).toMatchObject({ id: recent.id });
     expect(old.id).not.toBe(recent.id);
+  });
+});
+
+/**
+ * A session's queue is built from one language's items, so resuming it under a
+ * different target language hands the learner the wrong content while the UI
+ * says otherwise. The session records the language it was composed for, and
+ * resume is scoped to it.
+ */
+describe('a session belongs to the language it was composed for', () => {
+  it('records the target language it was planned for', async () => {
+    await seed(10);
+    const session = await startSession(profile, NOW);
+    expect(session.lang).toBe('en');
+  });
+
+  it('does not resume an English session for a learner who switched to Japanese', async () => {
+    await seed(40);
+    const english = await startSession(profile, NOW);
+    await advanceCursor(english.id, 2);
+
+    expect(await findResumable(profile.id, 'ja')).toBeNull();
+    expect(await findResumable(profile.id, 'en')).toMatchObject({ id: english.id });
+  });
+
+  it('keeps each language its own resumable session', async () => {
+    await seed(40);
+    const english = await startSession(profile, NOW);
+    const japanese = await startSession({ ...profile, targets: ['ja'] }, NOW + 1000);
+
+    expect(await findResumable(profile.id, 'en')).toMatchObject({ id: english.id });
+    expect(await findResumable(profile.id, 'ja')).toMatchObject({ id: japanese.id });
   });
 });
