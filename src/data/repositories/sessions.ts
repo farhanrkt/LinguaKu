@@ -13,6 +13,7 @@ import { bandForAbility } from '../../core/placement.ts';
 import { DEFAULT_ITEM_DIFFICULTY, DEFAULT_RATING } from '../../core/elo.ts';
 import { vocabularyAbility } from './abilities.ts';
 import { allCategoryScores, recentDrillIds, weakestCategories } from './contrastive.ts';
+import { minedItemIds } from './mining.ts';
 import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Profile, Session, Timestamp } from '../types.ts';
@@ -66,17 +67,26 @@ const newCandidates = async (
     (await db.cards.where('profileId').equals(profile.id).toArray()).map((card) => card.itemId),
   );
 
+  // SPEC §8: a word the learner mined in the reader jumps the queue. They met
+  // it, went looking for it, and have a context for it — all of which beats
+  // being next on the frequency list.
+  const mined = await minedItemIds(profile.id);
+
   const eligible = items.filter(
     (item) =>
-      item.band <= frontier &&
+      (mined.has(item.id) || item.band <= frontier) &&
       // A lexeme needs an example sentence (SPEC §2.5); a kanji is taught by its
       // components and readings, so the rule does not apply to it.
       (item.kind === 'kanji' || item.anchorSentenceIds.length > 0) &&
       !started.has(item.id),
   );
 
-  // Nearest the frontier first: that is where the learning actually is.
-  eligible.sort((a, b) => b.band - a.band || a.freqRank - b.freqRank);
+  // Mined words first, then nearest the frontier — which is where the learning
+  // is for everything the learner did not specifically ask for.
+  eligible.sort((a, b) => {
+    const minedRank = (item: typeof a) => (mined.has(item.id) ? 0 : 1);
+    return minedRank(a) - minedRank(b) || b.band - a.band || a.freqRank - b.freqRank;
+  });
 
   return eligible.slice(0, limit).map((item) => ({
     id: item.id,

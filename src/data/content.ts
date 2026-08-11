@@ -240,6 +240,41 @@ export const getAnchor = async (
   id: string,
 ): Promise<AnchorSentence | null> => (await loadAnchors(lang, band)).get(id) ?? null;
 
+// ------------------------------------------------------- the reader's corpus
+
+const sentenceCache = new Map<string, AnchorSentence[]>();
+
+/**
+ * The **full** sentence shard for a band, for the reader (SPEC §8).
+ *
+ * Anchors are the handful of examples a band's vocabulary is taught through;
+ * these are everything. They are an order of magnitude larger (211 KB against 15
+ * KB for English band 1), which is why they are fetched on demand rather than
+ * precached with the starter bands (D20) — a learner who never opens the reader
+ * never pays for them, and once fetched the service worker keeps them offline.
+ */
+export const loadSentences = async (
+  lang: TargetLang,
+  band: FrequencyBand,
+): Promise<AnchorSentence[]> => {
+  const key = `${lang}:${band}`;
+  const cached = sentenceCache.get(key);
+  if (cached) return cached;
+
+  try {
+    const payload = await fetchJson<{ sentences: AnchorSentence[] }>(
+      `${CONTENT_BASE}/${lang}/sentences.b${band}.json`,
+    );
+    sentenceCache.set(key, payload.sentences);
+    return payload.sentences;
+  } catch {
+    // Offline before this band was ever fetched. The reader says it has nothing
+    // rather than failing to open.
+    sentenceCache.set(key, []);
+    return [];
+  }
+};
+
 /** Same-band sentences, for SPEC §2.3's multiple-choice distractors. */
 export const anchorPool = async (
   lang: TargetLang,

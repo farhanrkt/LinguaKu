@@ -28,6 +28,7 @@ interface HomeProps {
   onPlacement: () => void;
   onProgress: () => void;
   onAttribution: () => void;
+  onRead: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
 }
@@ -50,6 +51,7 @@ export const Home = ({
   onPlacement,
   onProgress,
   onAttribution,
+  onRead,
   onPractise,
   onChange,
 }: HomeProps) => {
@@ -101,6 +103,15 @@ export const Home = ({
           {copy.placement.offer}
         </button>
       )}
+
+      <button
+        type="button"
+        onClick={onRead}
+        data-testid="reader-open"
+        className="mt-4 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+      >
+        {copy.reader.open}
+      </button>
 
       <button
         type="button"

@@ -253,6 +253,24 @@ export interface DrillAttempt {
   answeredAt: Timestamp;
 }
 
+/**
+ * SPEC §8: one-tap sentence mining from the reader.
+ *
+ * Deliberately **not** a card. Invariant 0 and SPEC §2.2 say a card is created
+ * by the learner's first *answer* — tapping "add this word" is an intention, not
+ * a retrieval, and minting a card from it would put an item into the schedule
+ * that has never been responded to. So mining records the intention, and the
+ * composer introduces the word next session; the card appears when it is
+ * answered, like every other card.
+ */
+export interface MinedItem {
+  profileId: string;
+  itemId: string;
+  /** The sentence the learner mined it from, so it can be taught in context. */
+  fromSentenceId: string;
+  minedAt: Timestamp;
+}
+
 export interface Session {
   id: string;
   profileId: string;

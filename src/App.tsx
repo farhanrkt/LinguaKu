@@ -5,6 +5,7 @@ import { SessionScreen } from './features/session/SessionScreen.tsx';
 import { PlacementScreen } from './features/placement/PlacementScreen.tsx';
 import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
 import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
+import { ReaderScreen } from './features/reader/ReaderScreen.tsx';
 import { hasBeenPlaced } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import { findResumable, startSession } from './data/repositories/sessions.ts';
@@ -26,6 +27,7 @@ type Screen =
   | { name: 'placement'; profile: Profile }
   | { name: 'progress'; profile: Profile }
   | { name: 'attribution'; profile: Profile }
+  | { name: 'reader'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
 export const App = () => {
@@ -168,6 +170,13 @@ export const App = () => {
           onFinish={() => void handleFinish()}
         />
       );
+    case 'reader':
+      return (
+        <ReaderScreen
+          profile={screen.profile}
+          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+        />
+      );
     case 'attribution':
       return (
         <AttributionScreen
@@ -195,6 +204,7 @@ export const App = () => {
           onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
           onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}
           onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
+          onRead={() => setScreen({ name: 'reader', profile: screen.profile })}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}
         />

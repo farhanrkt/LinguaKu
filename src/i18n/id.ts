@@ -149,6 +149,39 @@ export const copy = {
     },
   },
 
+  /** SPEC §8: the graded reader — "the retention engine". */
+  reader: {
+    open: 'Baca',
+    heading: 'Bacaan',
+    // Honest about what this is: Tatoeba is a corpus of sentences, not
+    // documents, so we grade sentences rather than pretending to grade a text.
+    intro: 'Kalimat-kalimat yang pas dengan kemampuanmu sekarang. Ketuk kata mana pun.',
+    empty:
+      'Belum ada bacaan yang pas. Latihan beberapa sesi dulu supaya kami tahu kata apa saja yang sudah kamu kenal.',
+    loading: 'Menyiapkan bacaan…',
+    newWord: 'baru',
+    tapHint: 'Ketuk kata untuk melihat artinya.',
+
+    word: {
+      reading: 'Dibaca',
+      band: (band: number) => `Kata tingkat ${band}`,
+      known: 'Sudah kamu kenal',
+      unknown: 'Belum kamu pelajari',
+      inSentence: 'Di kalimat ini',
+      // SPEC §8: one tap, and it is in the deck.
+      mine: 'Tambahkan ke latihan',
+      mined: 'Sudah masuk daftar',
+      unmine: 'Batalkan',
+      minedNote: 'Akan muncul di sesi latihan berikutnya.',
+      // R3: no Indonesian gloss source is licence-cleared, so the reader shows
+      // what it actually has rather than inventing a definition.
+      noGloss:
+        'Kami belum punya kamus kata per kata. Sementara ini, terjemahan kalimatnya di bawah yang jadi petunjuk.',
+      components: 'Tersusun dari',
+      close: 'Tutup',
+    },
+  },
+
   /**
    * SPEC §5.2: the attribution screen. EDRDG's licence requires acknowledgement
    * in the UI, so this copy is part of a licence condition.

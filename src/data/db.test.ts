@@ -47,7 +47,7 @@ beforeEach(async () => {
 
 describe('schema', () => {
   it('opens at the current version with every SPEC §6 table', () => {
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       'abilities',
       'cards',
@@ -56,6 +56,7 @@ describe('schema', () => {
       'drillAttempts',
       'habits',
       'items',
+      'minedItems',
       'mnemonics',
       'profiles',
       'reviewLogs',
@@ -97,12 +98,13 @@ describe('schema', () => {
 
     // Upgrading must not lose a single review log.
     await db.open();
-    expect(db.verno).toBe(3);
+    expect(db.verno).toBe(4);
     expect((await db.profiles.get('p1'))?.dailyMinutes).toBe(4);
     expect(await db.cards.get('card-1')).toBeTruthy();
     expect(await db.reviewLogs.count()).toBe(1);
     expect(await db.contentShards.count()).toBe(0);
     expect(await db.drillAttempts.count()).toBe(0);
+    expect(await db.minedItems.count()).toBe(0);
   });
 
   it('backfills the v3 `correct` tally on category scores rather than inventing one', async () => {

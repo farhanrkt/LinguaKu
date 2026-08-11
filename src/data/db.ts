@@ -5,6 +5,7 @@ import type {
   CategoryScore,
   DrillAttempt,
   Habit,
+  MinedItem,
   Item,
   Mnemonic,
   Profile,
@@ -41,6 +42,7 @@ export class LinguaKuDb extends Dexie {
   habits!: Table<Habit, string>;
   contentShards!: Table<ContentShard, string>;
   drillAttempts!: Table<DrillAttempt, string>;
+  minedItems!: Table<MinedItem, [string, string]>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -94,6 +96,13 @@ export class LinguaKuDb extends Dexie {
             score.correct ??= 0;
           }),
       );
+
+    // v4 (M7): the reader's one-tap mining (SPEC §8). Additive — a mined item
+    // is an intention to learn a word, held until the composer introduces it,
+    // and no existing row changes shape.
+    this.version(4).stores({
+      minedItems: '[profileId+itemId], profileId, [profileId+minedAt]',
+    });
 
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a
     // compound index (IndexedDB cannot index a nested path inside a compound
