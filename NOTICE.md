@@ -10,6 +10,28 @@ re-verify before each release.**
 
 ---
 
+## Code and data are licensed separately
+
+**The LinguaKu source code is MIT-licensed** — see [`LICENSE`](LICENSE).
+
+**The bundled linguistic datasets are not.** They keep their own terms, and MIT
+does not reach them:
+
+| What | Terms |
+|---|---|
+| `assets/content/en/**` (Tatoeba-derived) | **CC BY 2.0 FR** — attribution required |
+| `assets/content/ja/**` (Tatoeba + EDRDG) | **CC BY-SA 4.0** — attribution **and share-alike** |
+| `assets/content/*/contrastive.json` and `data/contrastive/*.yaml` | MIT, with the code — authored for this project, nothing third-party attaches |
+
+Two consequences worth stating plainly. Reusing this repository's code is
+unrestricted; **redistributing the Japanese content shards obliges you to CC
+BY-SA 4.0**, because mixing Tatoeba with EDRDG data takes the stricter term
+rather than the more convenient one. And EDRDG's acknowledgement requirement is
+a condition of use, not a courtesy — the in-app attribution screen satisfies it
+and must not be removed from a derivative.
+
+---
+
 ## LinguaKu authored content
 
 The Indonesian-L1 contrastive taxonomy (SPEC §3): the error categories, the
@@ -18,13 +40,12 @@ list. Authored for this project and versioned in
 [`data/contrastive/`](data/contrastive/); `assets/content/*/contrastive.json` is
 generated from it.
 
-- Licence: **project-owned** — no third-party terms attach.
+- Licence: **MIT**, with the project's code — no third-party terms attach.
 - Verified: 2026-08-11
 
 The example sentences in that content are written for it, not taken from the
-corpus, so nothing here inherits Tatoeba's attribution requirement. The licence
-this content ships under follows the project's code licence, which is still
-undecided (decision D12).
+corpus, so nothing here inherits Tatoeba's attribution requirement. It ships
+under the project's code licence, settled as MIT at v1.0.0 (decision D12).
 
 ## Tatoeba
 

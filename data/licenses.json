@@ -12,7 +12,7 @@
       "attributionRequired": false,
       "shareAlike": false,
       "verifiedOn": "2026-08-11",
-      "notes": "Not a third-party dataset. Source of truth is data/contrastive/*.yaml; assets/content/*/contrastive.json is generated from it. Example sentences in that file are authored here rather than lifted from Tatoeba, so no attribution obligation attaches. Its terms follow whatever code licence the project settles on (decision D12, still open)."
+      "notes": "Not a third-party dataset. Source of truth is data/contrastive/*.yaml; assets/content/*/contrastive.json is generated from it. Example sentences in that file are authored here rather than lifted from Tatoeba, so no attribution obligation attaches. It ships under the project code licence, settled as MIT at v1.0.0 (decision D12)."
     },
     {
       "key": "tatoeba",

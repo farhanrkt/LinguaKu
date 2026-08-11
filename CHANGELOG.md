@@ -1,0 +1,148 @@
+# Changelog
+
+All notable changes to LinguaKu. Dates are ISO. This file is the release
+record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
+
+---
+
+## v1.0.0 — 2026-08-11
+
+The first release. An offline-first PWA that teaches **English and Japanese to
+Indonesian speakers**: no account, no paywall, no ads, and none of the
+engagement mechanics the category runs on.
+
+The premise the whole thing was built against: a learner in Bogor taps an icon
+on a cheap Android phone and is answering a *useful* question within three
+seconds, offline — useful because a memory model predicts they are about to
+forget it, or because it targets a mistake Indonesian speakers specifically
+make.
+
+### What ships
+
+**The practice loop.** FSRS scheduling via `ts-fsrs`, a seven-rung card ladder
+(L0 exposure → L6 free production), a session composer that interleaves card
+types, and lossless resume. One active card per item; the rung selects the task
+and FSRS state carries across promotion. Nothing advances without a learner
+response — there is no browse-the-list study mode, and that is enforced by the
+data layer rather than by convention.
+
+**Level awareness.** Adaptive placement in under 90 seconds — a 1PL item loop
+and a Yes/No pseudoword check folded into one sequence of single taps, with
+false-alarm correction for over-claiming. Placement is offered and never
+enforced; skipping costs nothing. New items come from the learner's frontier
+band, and the new-item allowance throttles itself against projected review load.
+
+**The Indonesian-L1 contrastive engine** — the differentiator. Authored
+Indonesian notes in a fixed three-part order (*what Indonesian does*, *what
+English does instead*, *one minimal pair*), targeted drills, and interference
+detection on ordinary wrong answers so the heatmap is built from what a learner
+does when they are **not** being tested on it. English: 21 categories, 116
+drills, 75 curated false friends. Japanese: 14 categories and 32 drills, six of
+which name a **positive transfer** — the shared five-vowel system, open CV
+syllables, familiar numeral classifiers, no plural/article/gender marking, topic
+fronting as a bridge into は, and politeness registers a ngoko/krama speaker
+already has the instinct for.
+
+**Japanese.** 15,324 sentence pairs (5,919 direct Indonesian, 9,405 triangulated
+through English, every one carrying its route and bridge id), 6,904 lexemes, and
+all 1,748 kanji with component breakdowns. Kana→kanji script ladder, furigana
+that fades per token as the kanji in it stabilise, and editable mnemonics that
+survive a stale backup.
+
+**The graded reader.** A feed of level-matched sentences with tap-to-gloss and
+one-tap mining, entirely local — an e2e test cuts the network before tapping.
+Mining records an intention rather than minting a card; the word arrives in the
+next session and becomes a card when it is answered.
+
+**Progress, honest by construction.** Vocabulary estimate with an asymmetric
+interval (counted floor, extrapolated middle, unsampled bands added whole),
+coverage curve, retention against target with a confidence interval, 14-day
+forecast, skill radar, and calibration. Every figure has an explicit *not
+measured yet* state and shows it. Charts take `number | null` and draw a gap for
+null, so "no data" can never render as a bar of zero.
+
+**Offline and ownership.** Installable PWA, fully functional after first load
+with the network cut. All data is local; JSON export and restore need no
+account, and a restore merges the append-only review log rather than replacing
+it, so it can never destroy history.
+
+**Optional sync**, off by default and structurally so: nothing in `src/features`
+or `src/data` imports the sync module, there is no boot registration, timer or
+listener, and no default endpoint. An e2e test drives a full session and asserts
+that **zero requests leave the origin**.
+
+### Measured, on this build
+
+| | budget | actual |
+|---|---|---|
+| icon tap → first answerable question | ≤ 3 s | **1.4 s** |
+| initial JS, gzipped | ≤ 200 KB | **125.5 KB** (63%) |
+| initial CSS, gzipped | ≤ 40 KB | **6.5 KB** (16%) |
+| first-load precache, both languages, bands 1–3 | ≤ 8 MB | **1.31 MB** gzipped (5.38 MB raw, 30 entries) |
+| unit tests | — | **596**, 39 files |
+| e2e tests | — | **29**, emulated Pixel 5 |
+| datasets declared and attributed | 100% | **7**, 38 asset files traced |
+| §2.8 interleaving over 1,000 generated sessions | 0 violations | **0**, 0 relaxations |
+| recurring cost | zero | **zero** |
+
+English corpus: 23,497 banded sentence pairs, 5,245 lexemes. Band 1 is 481 words
+and **70.3% of every token** in the corpus we teach from; mastering everything
+shipped reaches **87.3%**, not 100% — proper nouns are filtered out of the
+inventory and band 6 is not shipped, and the app says so rather than letting the
+learner infer that the last 13% is their fault.
+
+### What this release deliberately does not do
+
+No streak that can break. No lives, no gems, no leaderboards, no XP divorced
+from measured ability. No CEFR or JLPT level claim, because no licence-cleared
+alignment exists and inventing one from corpus frequency is exactly the fake
+precision the spec bans — frequency bands are the honest signal. No AI layer:
+the core loop never calls a model, and there is no flag pretending otherwise.
+See `docs/ETHICS.md`.
+
+### Known limitations, stated rather than buried
+
+- **The pre-cached audio clip set is empty.** Tatoeba audio is licensed per
+  contributor, some clips with no licence at all, so nothing may enter
+  `assets/` under it. The per-item fallback chain is built and tested and has
+  nothing to serve, so on a device whose speech engine is dead, L4 dictation is
+  withheld everywhere. The app stays fully usable: a silent device skips L4 and
+  nothing else — promotion runs 3 → 5 — and the home screen says in Indonesian
+  that listening practice is hidden and why.
+- **The speech device matrix has never been run on real hardware.** Every
+  degradation path is tested against stubs. What is unverified is whether the
+  500 ms liveness deadline is right on a cheap Android, and whether iOS
+  Safari's user-gesture requirement costs real learners their listening
+  material. See R1 in `docs/DECISIONS.md`.
+- **The sync Worker has never been deployed or run.** Client, delta format and
+  merge rules are unit-tested; the free-tier limits were read from Cloudflare's
+  documentation on 2026-08-11, not measured against a live account. The app has
+  never depended on it.
+- **No per-word dictionary.** No Indonesian gloss source is licence-cleared, so
+  meaning is anchored in translated sentences. The reader's word panel shows
+  what the app knows and says plainly that there is no dictionary.
+- **L6 grades on whether the target word was used**, and tells the learner that
+  is what it checks. There is no grammar model here and inventing a quality
+  score would add a number nobody could defend.
+- **The Indonesian copy has not had a native pass**, particularly the Japanese
+  drills, the phonology tips and the reader's word panel.
+- **Kanji component groupings are a derived heuristic** (`UNVALIDATED` in the
+  source), firing on 1,149 of 1,748. Raw KRADFILE radicals ship alongside, so
+  nothing is lost where a grouping is wrong.
+- **Frequency is type-level with no POS tagging.** The exposure card for the
+  article *a* can pick *"She got an A."* Real, visible, and not worth a tagger
+  yet.
+
+### Attribution and licences
+
+Content derives from Tatoeba (CC BY 2.0 FR), and JMdict / JMnedict / KANJIDIC2 /
+KRADFILE (EDRDG, CC BY-SA 4.0, share-alike) plus IPAdic for build-time
+tokenization. Japanese shards ship **CC BY-SA 4.0** — mixing Tatoeba with EDRDG
+takes the stricter term. EDRDG requires acknowledgement in the UI, so the
+in-app attribution screen renders from `data/licenses.json`, the same file the
+CI gate reads: a dataset cannot enter the build without appearing there, and
+sources listed as uncleared candidates never appear. Full terms in `NOTICE.md`.
+
+**The code licence is still `UNLICENSED`** (D12). EDRDG's share-alike binds the
+data, not the code, so this is a free choice — and it should be settled before
+the repo is public.
