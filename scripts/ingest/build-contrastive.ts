@@ -13,7 +13,7 @@
  * Deterministic like every other shard (invariant 10): no timestamps, and the
  * output preserves authoring order rather than depending on object iteration.
  *
- * Usage: npm run ingest:contrastive
+ * Usage: npm run ingest:contrastive [-- <lang>]   (default: every authored file)
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
@@ -22,8 +22,14 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SOURCE = join(ROOT, 'data', 'contrastive', 'en.yaml');
-const OUT_DIR = join(ROOT, 'assets', 'content', 'en');
+
+/**
+ * Languages with an authored taxonomy. English is SPEC §3.1's interference
+ * model; Japanese is §3.2, which is a different shape — it has *positive*
+ * transfer to surface as well as difficulties to drill, because an Indonesian
+ * speaker starts Japanese with real advantages nobody tells them about.
+ */
+const LANGS: readonly string[] = process.argv[2] ? [process.argv[2]] : ['en', 'ja'];
 
 /** SPEC §12 M4 acceptance. */
 const MIN_DRILLS = 100;
@@ -33,7 +39,7 @@ const MIN_FALSE_FRIENDS = 60;
 // ------------------------------------------------------------------- shapes
 
 type DrillType = 'mcq' | 'cloze' | 'minimal-pair';
-type CategoryKind = 'morphosyntax' | 'phonology' | 'lexis';
+type CategoryKind = 'morphosyntax' | 'phonology' | 'lexis' | 'script' | 'pragmatics';
 
 interface AuthoredDrill {
   id: string;
@@ -53,13 +59,19 @@ interface AuthoredCategory {
   kind: CategoryKind;
   label: string;
   summary: string;
+  /**
+   * SPEC §3.2: a category that is *easier* for an Indonesian speaker than for
+   * an English one. These carry a note and no drills — there is nothing to
+   * remediate, and the point is to say so out loud.
+   */
+  positiveTransfer?: boolean;
   note: {
     l1: string;
     target: string;
     minimalPair: { wrong: string; right: string; gloss: string };
     tip?: string;
   };
-  drills: AuthoredDrill[];
+  drills?: AuthoredDrill[];
 }
 
 interface AuthoredFile {
@@ -67,165 +79,191 @@ interface AuthoredFile {
   lang: string;
   l1: string;
   categories: AuthoredCategory[];
-  falseFriends: Array<{ en: string; idLookalike: string; enMeans: string; idWordIs: string }>;
+  falseFriends?: Array<{ en: string; idLookalike: string; enMeans: string; idWordIs: string }>;
 }
 
 // --------------------------------------------------------------- validation
 
-const errors: string[] = [];
-const fail = (message: string): void => {
-  errors.push(message);
-};
+let totalCategories = 0;
+let totalDrills = 0;
 
-const source = parse(await readFile(SOURCE, 'utf8')) as AuthoredFile;
+for (const lang of LANGS) {
+  const SOURCE = join(ROOT, 'data', 'contrastive', `${lang}.yaml`);
+  const OUT_DIR = join(ROOT, 'assets', 'content', lang);
+  const errors: string[] = [];
+  const fail = (message: string): void => {
+    errors.push(message);
+  };
 
-const seenCategories = new Set<string>();
-const seenDrills = new Set<string>();
+  const source = parse(await readFile(SOURCE, 'utf8')) as AuthoredFile;
 
-for (const category of source.categories) {
-  if (seenCategories.has(category.id)) fail(`${category.id}: duplicate category id`);
-  seenCategories.add(category.id);
+  const seenCategories = new Set<string>();
+  const seenDrills = new Set<string>();
 
-  if (!/^[A-Z][A-Z0-9_]*$/.test(category.id)) {
-    fail(`${category.id}: category ids are SCREAMING_SNAKE_CASE`);
-  }
-  for (const field of ['label', 'summary'] as const) {
-    if (!category[field]?.trim()) fail(`${category.id}: missing "${field}"`);
-  }
+  for (const category of source.categories) {
+    if (seenCategories.has(category.id)) fail(`${category.id}: duplicate category id`);
+    seenCategories.add(category.id);
 
-  // SPEC §2.9: what the L1 pattern is, why the target language differs, and one
-  // minimal pair. All three, or the note is not a contrastive note.
-  const note = category.note;
-  if (!note?.l1?.trim()) fail(`${category.id}: note.l1 missing — the L1 pattern is the point`);
-  if (!note?.target?.trim()) fail(`${category.id}: note.target missing`);
-  if (!note?.minimalPair?.wrong?.trim() || !note?.minimalPair?.right?.trim()) {
-    fail(`${category.id}: note.minimalPair needs both a wrong and a right form (SPEC §2.9)`);
-  }
-  if (note?.minimalPair?.wrong === note?.minimalPair?.right) {
-    fail(`${category.id}: the minimal pair's two sides are identical`);
-  }
-
-  if (!Array.isArray(category.drills) || category.drills.length === 0) {
-    fail(`${category.id}: no drills — an untestable category cannot be estimated (SPEC §3.3)`);
-  }
-
-  for (const drill of category.drills ?? []) {
-    if (seenDrills.has(drill.id)) fail(`${drill.id}: duplicate drill id`);
-    seenDrills.add(drill.id);
-
-    if (!drill.id.startsWith(`${category.id}-`)) {
-      fail(`${drill.id}: drill ids are prefixed with their category id`);
+    if (!/^[A-Z][A-Z0-9_]*$/.test(category.id)) {
+      fail(`${category.id}: category ids are SCREAMING_SNAKE_CASE`);
     }
-    if (!drill.prompt?.trim()) fail(`${drill.id}: missing prompt`);
-    if (!drill.answer?.trim()) fail(`${drill.id}: missing answer`);
-    // SPEC §2.9 acceptance: 100% of interference-tagged items carry an
-    // explanation. Enforced here, per item, rather than measured afterwards.
-    if (!drill.explain?.trim()) fail(`${drill.id}: missing explanation (SPEC §2.9)`);
-
-    if (drill.type === 'mcq' || drill.type === 'minimal-pair') {
-      const options = drill.options ?? [];
-      if (options.length < 2) fail(`${drill.id}: needs at least two options`);
-      if (!options.includes(drill.answer)) {
-        fail(`${drill.id}: the answer is not among its options — unanswerable`);
-      }
-      if (new Set(options).size !== options.length) fail(`${drill.id}: duplicate options`);
-    } else if (drill.options) {
-      fail(`${drill.id}: a cloze drill is typed, so it must not carry options`);
+    for (const field of ['label', 'summary'] as const) {
+      if (!category[field]?.trim()) fail(`${category.id}: missing "${field}"`);
     }
 
-    if (drill.type === 'minimal-pair') {
-      if (drill.audio !== true) fail(`${drill.id}: a minimal pair must be marked audio: true`);
-      if (!drill.say?.trim()) fail(`${drill.id}: a minimal pair needs "say"`);
-      if (drill.say !== undefined && !(drill.options ?? []).includes(drill.say)) {
-        fail(`${drill.id}: "say" must be one of the options`);
+    // SPEC §2.9: what the L1 pattern is, why the target language differs, and one
+    // minimal pair. All three, or the note is not a contrastive note.
+    const note = category.note;
+    if (!note?.l1?.trim()) fail(`${category.id}: note.l1 missing — the L1 pattern is the point`);
+    if (!note?.target?.trim()) fail(`${category.id}: note.target missing`);
+    if (!note?.minimalPair?.wrong?.trim() || !note?.minimalPair?.right?.trim()) {
+      fail(`${category.id}: note.minimalPair needs both a wrong and a right form (SPEC §2.9)`);
+    }
+    if (note?.minimalPair?.wrong === note?.minimalPair?.right) {
+      fail(`${category.id}: the minimal pair's two sides are identical`);
+    }
+
+    // A positive-transfer note has nothing to remediate, so it carries no
+    // drills by design (SPEC §3.2). Everything else must be testable, or its
+    // Elo estimate can never move.
+    if (!category.positiveTransfer && (!Array.isArray(category.drills) || category.drills.length === 0)) {
+      fail(`${category.id}: no drills — an untestable category cannot be estimated (SPEC §3.3)`);
+    }
+
+    for (const drill of category.drills ?? []) {
+      if (seenDrills.has(drill.id)) fail(`${drill.id}: duplicate drill id`);
+      seenDrills.add(drill.id);
+
+      if (!drill.id.startsWith(`${category.id}-`)) {
+        fail(`${drill.id}: drill ids are prefixed with their category id`);
       }
-      if (drill.say !== drill.answer) {
-        fail(`${drill.id}: the spoken word is the answer, by definition`);
+      if (!drill.prompt?.trim()) fail(`${drill.id}: missing prompt`);
+      if (!drill.answer?.trim()) fail(`${drill.id}: missing answer`);
+      // SPEC §2.9 acceptance: 100% of interference-tagged items carry an
+      // explanation. Enforced here, per item, rather than measured afterwards.
+      if (!drill.explain?.trim()) fail(`${drill.id}: missing explanation (SPEC §2.9)`);
+
+      if (drill.type === 'mcq' || drill.type === 'minimal-pair') {
+        const options = drill.options ?? [];
+        if (options.length < 2) fail(`${drill.id}: needs at least two options`);
+        if (!options.includes(drill.answer)) {
+          fail(`${drill.id}: the answer is not among its options — unanswerable`);
+        }
+        if (new Set(options).size !== options.length) fail(`${drill.id}: duplicate options`);
+      } else if (drill.options) {
+        fail(`${drill.id}: a cloze drill is typed, so it must not carry options`);
       }
-    } else if (drill.audio) {
-      fail(`${drill.id}: only minimal pairs require audio`);
+
+      if (drill.type === 'minimal-pair') {
+        if (drill.audio !== true) fail(`${drill.id}: a minimal pair must be marked audio: true`);
+        if (!drill.say?.trim()) fail(`${drill.id}: a minimal pair needs "say"`);
+        if (drill.say !== undefined && !(drill.options ?? []).includes(drill.say)) {
+          fail(`${drill.id}: "say" must be one of the options`);
+        }
+        if (drill.say !== drill.answer) {
+          fail(`${drill.id}: the spoken word is the answer, by definition`);
+        }
+      } else if (drill.audio) {
+        fail(`${drill.id}: only minimal pairs require audio`);
+      }
     }
   }
-}
 
-const drillCount = source.categories.reduce(
-  (total, category) => total + (category.drills?.length ?? 0),
-  0,
-);
-if (drillCount < MIN_DRILLS) {
-  fail(`only ${drillCount} drills authored; SPEC §12 M4 wants at least ${MIN_DRILLS}`);
-}
-if ((source.falseFriends?.length ?? 0) < MIN_FALSE_FRIENDS) {
-  fail(
-    `only ${source.falseFriends?.length ?? 0} false friends; SPEC §3.1 asks for ${MIN_FALSE_FRIENDS}`,
+  const drillCount = source.categories.reduce(
+    (total, category) => total + (category.drills?.length ?? 0),
+    0,
   );
-}
+  if (lang === 'en' && drillCount < MIN_DRILLS) {
+    fail(`only ${drillCount} drills authored; SPEC §12 M4 wants at least ${MIN_DRILLS}`);
+  }
+  // The false-friend list is a SPEC §3.1 requirement, i.e. English only.
+  if (lang === 'en' && (source.falseFriends?.length ?? 0) < MIN_FALSE_FRIENDS) {
+    fail(
+      `only ${source.falseFriends?.length ?? 0} false friends; SPEC §3.1 asks for ${MIN_FALSE_FRIENDS}`,
+    );
+  }
+  // SPEC §3.2 is explicit that the Japanese taxonomy must name the L1
+  // advantages, not only the difficulties. A ja.yaml with no positive-transfer
+  // note has missed the point of the section.
+  if (lang === 'ja' && !source.categories.some((category) => category.positiveTransfer)) {
+    fail('ja.yaml has no positive-transfer notes; SPEC §3.2 asks for them explicitly');
+  }
 
-if (errors.length > 0) {
-  for (const error of errors) console.error(`✗ ${error}`);
-  console.error(`\n${errors.length} problem(s) in ${SOURCE}. Nothing written.`);
-  process.exit(1);
-}
+  if (errors.length > 0) {
+    for (const error of errors) console.error(`✗ ${error}`);
+    console.error(`\n${errors.length} problem(s) in ${SOURCE}. Nothing written.`);
+    process.exit(1);
+  }
 
-// ------------------------------------------------------------------- output
+  // ------------------------------------------------------------------- output
 
-await mkdir(OUT_DIR, { recursive: true });
+  await mkdir(OUT_DIR, { recursive: true });
 
-const payload = {
-  // The licence gate's hook (SPEC §5.2, decision D9). This content is authored
-  // for LinguaKu — no third-party dataset is involved, and the example sentences
-  // are written here rather than lifted from the corpus.
-  sources: ['linguaku-authored'],
-  license: 'project-owned',
-  version: source.version,
-  lang: source.lang,
-  l1: source.l1,
-  categories: source.categories.map((category) => ({
-    id: category.id,
-    kind: category.kind,
-    label: category.label,
-    summary: category.summary,
-    note: {
-      l1: category.note.l1,
-      target: category.note.target,
-      minimalPair: category.note.minimalPair,
-      ...(category.note.tip ? { tip: category.note.tip } : {}),
-    },
-    drills: category.drills.map((drill) => ({
-      id: drill.id,
-      categoryId: category.id,
-      type: drill.type,
-      prompt: drill.prompt,
-      ...(drill.options ? { options: drill.options } : {}),
-      answer: drill.answer,
-      explain: drill.explain,
-      ...(drill.difficulty !== undefined ? { difficulty: drill.difficulty } : {}),
-      ...(drill.audio ? { audio: true as const, say: drill.say } : {}),
+  const payload = {
+    // The licence gate's hook (SPEC §5.2, decision D9). This content is authored
+    // for LinguaKu — no third-party dataset is involved, and the example sentences
+    // are written here rather than lifted from the corpus.
+    sources: ['linguaku-authored'],
+    license: 'project-owned',
+    version: source.version,
+    lang: source.lang,
+    l1: source.l1,
+    categories: source.categories.map((category) => ({
+      id: category.id,
+      kind: category.kind,
+      label: category.label,
+      summary: category.summary,
+      ...(category.positiveTransfer ? { positiveTransfer: true as const } : {}),
+      note: {
+        l1: category.note.l1,
+        target: category.note.target,
+        minimalPair: category.note.minimalPair,
+        ...(category.note.tip ? { tip: category.note.tip } : {}),
+      },
+      drills: (category.drills ?? []).map((drill) => ({
+        id: drill.id,
+        categoryId: category.id,
+        type: drill.type,
+        prompt: drill.prompt,
+        ...(drill.options ? { options: drill.options } : {}),
+        answer: drill.answer,
+        explain: drill.explain,
+        ...(drill.difficulty !== undefined ? { difficulty: drill.difficulty } : {}),
+        ...(drill.audio ? { audio: true as const, say: drill.say } : {}),
+      })),
     })),
-  })),
-  falseFriends: source.falseFriends,
-};
+    falseFriends: source.falseFriends ?? [],
+  };
 
-const body = JSON.stringify(payload);
-await writeFile(join(OUT_DIR, 'contrastive.json'), body);
+  const body = JSON.stringify(payload);
+  await writeFile(join(OUT_DIR, 'contrastive.json'), body);
 
-// ------------------------------------------------------------------- report
+  // ------------------------------------------------------------------- report
 
-const byKind = new Map<CategoryKind, number>();
-for (const category of source.categories) {
-  byKind.set(category.kind, (byKind.get(category.kind) ?? 0) + 1);
+  const byKind = new Map<CategoryKind, number>();
+  for (const category of source.categories) {
+    byKind.set(category.kind, (byKind.get(category.kind) ?? 0) + 1);
+  }
+  const audioDrills = source.categories
+    .flatMap((category) => category.drills ?? [])
+    .filter((drill) => drill.audio).length;
+  const positive = source.categories.filter((category) => category.positiveTransfer).length;
+
+  totalCategories += source.categories.length;
+  totalDrills += drillCount;
+
+  console.log(`✓ ${lang}: ${source.categories.length} categories, ${drillCount} drills`);
+  if (positive > 0) console.log(`    ${positive} positive-transfer notes (SPEC §3.2)`);
+  for (const [kind, count] of [...byKind].sort(([a], [b]) => a.localeCompare(b))) {
+    console.log(`    ${kind.padEnd(14)} ${count}`);
+  }
+  console.log(`  ${audioDrills} drills require audio (withheld without it — SPEC §2.6)`);
+  if (source.falseFriends?.length) console.log(`  ${source.falseFriends.length} false friends`);
+  console.log(
+    `  contrastive.json  ${(Buffer.byteLength(body) / 1024).toFixed(1)} KB` +
+      `  (${(gzipSync(body, { level: 9 }).length / 1024).toFixed(1)} KB gzipped)`,
+  );
+
 }
-const audioDrills = source.categories
-  .flatMap((category) => category.drills)
-  .filter((drill) => drill.audio).length;
 
-console.log(`✓ ${source.categories.length} categories, ${drillCount} drills`);
-for (const [kind, count] of [...byKind].sort(([a], [b]) => a.localeCompare(b))) {
-  console.log(`    ${kind.padEnd(14)} ${count}`);
-}
-console.log(`  ${audioDrills} drills require audio (withheld without it — SPEC §2.6)`);
-console.log(`  ${source.falseFriends.length} false friends`);
-console.log(
-  `  contrastive.json  ${(Buffer.byteLength(body) / 1024).toFixed(1)} KB` +
-    `  (${(gzipSync(body, { level: 9 }).length / 1024).toFixed(1)} KB gzipped)`,
-);
+console.log(`\n${totalCategories} categories and ${totalDrills} drills across ${LANGS.length} language(s).`);

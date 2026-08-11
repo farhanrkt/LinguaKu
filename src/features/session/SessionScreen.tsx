@@ -30,9 +30,11 @@ import {
   ClozeTask,
   DictationTask,
   ExposureTask,
+  KanjiTask,
   RecognitionTask,
   type AnswerPayload,
 } from './TaskViews.tsx';
+import { saveMnemonic } from '../../data/repositories/mnemonics.ts';
 import { ContrastiveNote, DrillPrompt } from './DrillViews.tsx';
 import type { Profile, Session } from '../../data/types.ts';
 import type { LadderDecision } from '../../core/ladder.ts';
@@ -338,6 +340,17 @@ export const SessionScreen = ({
         onAnswer={(payload) => void handleAnswer(payload)}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
+      />
+    ) : entry.task.kind === 'kanji' ? (
+      <KanjiTask
+        key={entry.task.itemId}
+        task={entry.task}
+        onAnswer={(payload) => void handleAnswer(payload)}
+        onPlayAudio={playAudio}
+        audioAvailable={false}
+        onSaveMnemonic={async (text) => {
+          await saveMnemonic(profile.id, entry.task.itemId, text, Date.now());
+        }}
       />
     ) : entry.task.kind === 'dictation' ? (
       <DictationTask

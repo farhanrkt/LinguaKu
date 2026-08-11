@@ -1,5 +1,128 @@
 # PROGRESS.md
 
+## M6 — Japanese · complete (2026-08-11)
+
+**Acceptance:** a Japanese absolute-beginner path from kana to first 100 kanji
+works offline; JA-specific tests pass. Both met.
+
+| | required | actual |
+|---|---|---|
+| JA sentences with an Indonesian translation | §2.5 | **15,324** (5,919 direct + 9,405 via English) |
+| kanji shipped, with component breakdown | §2.11: every one | **1,748 / 1,748** |
+| JA contrastive categories | §3.2 | 14, of which **6 are positive transfer** |
+| positive-transfer topics §3.2 names | all | 6 of 6 |
+| beginner first download | ≤ 8 MB | **0.49 MB** |
+| unit tests | — | 532 |
+| e2e tests | — | 23 |
+| initial JS (gzipped) | ≤ 200 KB | 120.8 KB |
+
+```
+✓ typecheck · lint · 532 unit tests · licence gate (7 datasets) · build · bundle
+✓ 23 e2e, including the attribution screen the EDRDG licence requires
+```
+
+### R2 is resolved, by measurement
+
+The risk register said Japanese might not satisfy §2.5 at all — "possibly in the
+hundreds" of JA↔ID pairs. Measured: 5,919 direct, 12,395 reachable through
+English, **15,324** after union and dedup. Pessimistic in size, right in shape.
+
+Every sentence records `via: 'direct' | 'en'`, and triangulated ones carry the
+English `bridge` id. A two-hop translation can drift in ways a direct pair
+cannot, so the route is auditable per sentence rather than invisible, and a
+direct pair always wins where one exists. No machine translation was used or
+needed (D40).
+
+### The attribution screen is a licence condition, so it went first
+
+EDRDG requires an application using JMdict, KANJIDIC2 or KRADFILE to acknowledge
+the usage and source in its UI. We now ship all three, so the screen had to exist
+before a single Japanese card could. It renders from `data/licenses.json` — the
+same file the CI gate reads — so a dataset cannot enter the build without
+appearing here, and the legal list cannot drift from the actual one.
+
+It shows `datasets` only, never `candidates`: listing a source we do not ship
+would claim a provenance the app does not have, which is the mirror of omitting
+one we do. An e2e test asserts both directions.
+
+**KRADFILE cleared** by reading both EDRDG pages: covered by the EDRDG licence,
+CC BY-SA 4.0. KRADFILE2/RADKFILE2 are a different copyright and are not used.
+Japanese shards ship CC BY-SA 4.0 — mixing Tatoeba with EDRDG takes the stricter
+term, not the more convenient one.
+
+### Three things the data decided rather than the plan
+
+**KRADFILE does not decompose 校 the way §2.11 says.** It gives the *radicals* —
+父 + 木 + 亠 — which is correct and is not what the spec asks the learner to see,
+because 交 is itself 亠 + 父. A conservative containment rule recovers the level
+the spec wants: where another kanji's radical set is a proper subset of this
+one's, the shared radicals collapse into it. That yields **校 = 木 + 交, 語 = 言 +
+吾, 時 = 日 + 寺** from licensed data rather than 1,748 hand-authored breakdowns.
+Marked `UNVALIDATED`, raw radicals ship alongside, fires on 1,149 of 1,748 (D41).
+
+**Furigana cannot fade per character, and pretending otherwise produces wrong
+furigana rather than finer furigana** (D42). Okurigana spans kanji and kana
+(行く = いく), rendaku voices a reading by position (手紙 = てがみ), and jukujikun
+has no split at all (今日 = きょう, where neither character contributes a
+syllable). So a ruby span covers a token — which is how furigana is set in real
+Japanese text — and the reading drops when *every* kanji in it is stable. 学校
+loses its furigana once both 学 and 校 are known, not half of it when one is.
+
+**A stale backup was silently undoing a newer mnemonic.** The M5 import rule
+(bundle wins for current state) is right for cards and scores and wrong for the
+one table where the learner's own authorship *is* the value. §2.11's finding is
+that self-generated mnemonics beat given ones, so mnemonics are now last-write-
+wins **by timestamp**: restoring last month's file cannot undo the version
+rewritten yesterday. Found by writing the round-trip test the invariant demands,
+not by inspection (D43).
+
+### Positive transfer is the part of §3.2 that makes it unusual
+
+Every language course lists what is hard. §3.2 asks for the opposite as well:
+*"naming the parallel is elaborative encoding, and it is a real morale advantage
+this audience is never told about."* So `ja.yaml` has two kinds of entry, and the
+build **fails** if the positive half is missing.
+
+Six advantages are named explicitly: the shared five-vowel system, open CV
+syllables, familiar numeral classifiers (ekor/buah/orang/batang → 匹/個/人/本),
+no plural marking or articles or gender, topic fronting as a bridge into は, and
+politeness registers that a ngoko/krama speaker already has the instinct for.
+They carry a note and no drills, because there is nothing to remediate — and the
+compiler special-cases exactly that rather than demanding drills for them.
+
+The eight difficulties are drilled: は/が, に/で, SOV and modifier-before-noun,
+mora timing with the spec's own minimal pairs (おばさん/おばあさん, きて/きって),
+verb and adjective conjugation, kana script, and あげる/くれる/もらう.
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| Furigana fades per token, not per character | A per-character split of a reading is not generally possible — okurigana, rendaku, jukujikun. Stated in the module header and pinned by a test rather than left as a surprise (D42). |
+| Japanese has 32 drills against English's 116 | §12's ≥100 bar is M4's, for English. §3.2's requirement is coverage of the named categories plus the positive-transfer notes, and both are complete. The drill count should grow with use, not be padded to hit a number set for a different milestone. |
+| No false-friend list for Japanese | §3.1 asks for one for English. §3.2 does not, and Indonesian–Japanese false friends are a much thinner phenomenon. |
+| Kanji are exempt from §2.5's anchor rule | §2.5 is about lexemes — a word must be met in a sentence. A kanji is taught by its components and readings, which is what §2.11 specifies, so requiring an example sentence for 校 would be applying the wrong rule. |
+| Old JLPT levels ship, current N1–N5 do not | KANJIDIC2 carries the pre-2010 four-level scale. Mapping it onto N1–N5 would be inventing an alignment, which is what D16 refused to do for CEFR. `jlpt-wordlists` is still an uncleared candidate. |
+
+### Next decision I need from you
+
+**1. R1 — the device matrix, now blocking more than before.** Japanese needs
+`ja-JP` voices, which §3.2's mora-timing drills depend on entirely, and R1 notes
+those are the *most* likely to be missing on a cheap Android. Three of the
+Japanese drills are withheld without audio today.
+
+**2. Piper audio.** Your lazy-band design is approved and unblocks the payload
+question. Piper is not installed here, and the voice-model licence still needs
+choosing and dating before a clip enters `assets/` — for Japanese as well as
+English now.
+
+**3. The Japanese drills want a native reviewer more than the English ones did.**
+I am more confident about the Indonesian in the positive-transfer notes than
+about the Japanese example sentences in the drills. Worth a pass before anyone
+learns from them.
+
+---
+
 ## M5 — Progress and analytics · complete (2026-08-11)
 
 **Acceptance:** every §9 item renders from real local data; export round-trips

@@ -8,6 +8,8 @@ import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.t
 import { selectGraded } from '../../core/coverage.ts';
 import { tokenizeLatin } from '../../core/tokenize.ts';
 import { TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
+import { getMnemonic } from '../../data/repositories/mnemonics.ts';
+import { baselineMnemonic } from './mnemonic.ts';
 import type { LadderLevel } from '../../data/types.ts';
 
 /**
@@ -31,7 +33,8 @@ export type TaskKind =
   | 'recognition'
   | 'cloze-supported'
   | 'cloze-unaided'
-  | 'dictation';
+  | 'dictation'
+  | 'kanji';
 
 export interface Task {
   itemId: string;
@@ -45,6 +48,8 @@ export interface Task {
   options?: string[];
   /** Cloze rungs only. */
   cloze?: Cloze;
+  /** Kanji cards only (SPEC §2.11). */
+  kanji?: KanjiFace;
   /** What a typed answer is graded against. */
   answer: string;
   /** SPEC §2.12: confidence is asked before the reveal on recall rungs. */
@@ -81,6 +86,17 @@ const kindForLevel = (level: LadderLevel): TaskKind => {
  * and is held at L3 by the same mechanism that withholds it for missing audio.
  */
 export const DICTATION_MAX_TOKENS = 10;
+
+/** What a kanji card shows (SPEC §2.11). */
+export interface KanjiFace {
+  literal: string;
+  /** The component breakdown, e.g. 校 → 木 + 交 (decision D41). */
+  components: string[];
+  reading: string | null;
+  /** The learner's own mnemonic if they wrote one, otherwise the baseline. */
+  mnemonic: string;
+  mnemonicIsMine: boolean;
+}
 
 const DISTRACTORS = 3;
 
@@ -126,6 +142,32 @@ export const buildTask = async (
   const card = await db.cards.get(cardIdFor(profileId, itemId));
   const level = card?.ladderLevel ?? 0;
   const hasAudioFor = options.hasAudioFor ?? (() => false);
+
+  // SPEC §2.11: a kanji is taught by its components and readings, not through an
+  // example sentence, so it never goes down the anchor path below — and §2.5's
+  // "every lexeme needs a sentence" rule is about lexemes, not characters.
+  if (item.kind === 'kanji') {
+    const mine = await getMnemonic(profileId, itemId);
+    return {
+      itemId,
+      cardId: cardIdFor(profileId, itemId),
+      headword: item.headword,
+      ladderLevel: Math.min(level, TEXT_ONLY_MAX_LEVEL) as LadderLevel,
+      ceiling: TEXT_ONLY_MAX_LEVEL,
+      kind: 'kanji',
+      sentence: { id: item.id, text: item.headword },
+      translation: '',
+      answer: item.headword,
+      asksConfidence: false,
+      kanji: {
+        literal: item.headword,
+        components: item.componentsOf ?? [],
+        reading: item.reading ?? null,
+        mnemonic: mine?.text ?? baselineMnemonic(item.headword, item.componentsOf ?? []),
+        mnemonicIsMine: mine !== null,
+      },
+    };
+  }
 
   // Which example sentence teaches this word is an i+1 decision (SPEC §2.4):
   // among the anchors, pick the one whose coverage best fits what this learner

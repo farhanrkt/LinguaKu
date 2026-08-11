@@ -56,14 +56,23 @@ const newCandidates = async (
   if (limit <= 0) return [];
   const lang = profile.targets[0] ?? 'en';
 
-  const items = await db.items.where('[lang+kind]').equals([lang, 'lexeme']).sortBy('freqRank');
+  // Kanji are items too (SPEC §2.11), and they share the frontier gate: a
+  // learner is not shown rare characters before common ones.
+  const items = [
+    ...(await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray()),
+    ...(await db.items.where('[lang+kind]').equals([lang, 'kanji']).toArray()),
+  ].sort((a, b) => a.freqRank - b.freqRank);
   const started = new Set(
     (await db.cards.where('profileId').equals(profile.id).toArray()).map((card) => card.itemId),
   );
 
   const eligible = items.filter(
     (item) =>
-      item.band <= frontier && item.anchorSentenceIds.length > 0 && !started.has(item.id),
+      item.band <= frontier &&
+      // A lexeme needs an example sentence (SPEC §2.5); a kanji is taught by its
+      // components and readings, so the rule does not apply to it.
+      (item.kind === 'kanji' || item.anchorSentenceIds.length > 0) &&
+      !started.has(item.id),
   );
 
   // Nearest the frontier first: that is where the learning actually is.
@@ -78,6 +87,7 @@ const newCandidates = async (
     clusterId: `b${item.band}`,
     retrievability: 0,
     lapses: 0,
+    itemKind: item.kind === 'kanji' ? ('kanji' as const) : ('lexeme' as const),
   }));
 };
 
@@ -164,6 +174,7 @@ const dueCandidates = async (profile: Profile, now: Timestamp): Promise<Candidat
         clusterId: `b${item.band}`,
         retrievability: retrievability(card.fsrs, now),
         lapses: card.fsrs.lapses,
+        itemKind: item.kind === 'kanji' ? ('kanji' as const) : ('lexeme' as const),
       },
     ];
   });

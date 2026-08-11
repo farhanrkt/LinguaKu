@@ -11,6 +11,7 @@ import { createProfile } from './repositories/profiles.ts';
 import { recordReview } from './repositories/reviews.ts';
 import { recordDrillAnswer } from './repositories/contrastive.ts';
 import { saveAbility } from './repositories/abilities.ts';
+import { getMnemonic, saveMnemonic } from './repositories/mnemonics.ts';
 
 /**
  * M5 acceptance (SPEC §12): *"export round-trips into a fresh install."*
@@ -294,5 +295,44 @@ describe('the append-only invariant survives an import', () => {
 
     await importProfile(parseBundle(text));
     expect(await db.reviewLogs.count()).toBe(12);
+  });
+});
+
+/**
+ * SPEC §2.11: *"user-authored mnemonics persist and survive sync"*. Sync is M7,
+ * but export/import is the round trip that exists now, and the finding behind
+ * the requirement — self-generated mnemonics beat given ones — is exactly why
+ * losing one in a restore would matter.
+ */
+describe('user-authored mnemonics survive the round trip (SPEC §2.11)', () => {
+  it('carries an edited mnemonic through export and back', async () => {
+    const profile = await createProfile({ targets: ['ja'], dailyMinutes: 4, now: NOW });
+    await saveMnemonic(profile.id, 'ja:kanji:校', '校 = pohon (木) di persimpangan (交) jalan', NOW);
+
+    const text = JSON.stringify(await exportProfile(profile.id, NOW));
+    db.close();
+    await db.delete();
+    await db.open();
+
+    await importProfile(parseBundle(text));
+    const restored = await getMnemonic(profile.id, 'ja:kanji:校');
+    expect(restored?.text).toBe('校 = pohon (木) di persimpangan (交) jalan');
+    // The flag is what makes it win over a shipped baseline, so it has to survive.
+    expect(restored?.authoredByUser).toBe(1);
+  });
+
+  it('keeps the learner’s version when a bundle would overwrite it', async () => {
+    const profile = await createProfile({ targets: ['ja'], dailyMinutes: 4, now: NOW });
+    await saveMnemonic(profile.id, 'ja:kanji:校', 'versi lama', NOW);
+    const stale = await exportProfile(profile.id, NOW);
+
+    await saveMnemonic(profile.id, 'ja:kanji:校', 'versi baru yang lebih bagus', NOW + DAY);
+    await importProfile(stale);
+
+    // Cards and scores are current state and the bundle wins (D37) — but a
+    // mnemonic the learner rewrote after the backup is the thing §2.11 says is
+    // working. Restoring an older file must not silently undo it.
+    const kept = await getMnemonic(profile.id, 'ja:kanji:校');
+    expect(kept?.text).toBe('versi baru yang lebih bagus');
   });
 });

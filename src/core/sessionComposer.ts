@@ -18,7 +18,8 @@ export type CardType =
   | 'recall'
   | 'cloze'
   | 'dictation'
-  | 'drill';
+  | 'drill'
+  | 'kanji';
 
 export const cardTypeForLevel = (level: LadderLevel): CardType => {
   switch (level) {
@@ -48,6 +49,8 @@ export const SECONDS_PER_CARD_TYPE: Record<CardType, number> = {
   // Listen, then write a whole sentence back: the slowest rung there is.
   dictation: 24,
   drill: 12,
+  // Read the breakdown, then write or edit a mnemonic (SPEC §2.11).
+  kanji: 20,
 };
 
 export type SessionSlice = 'review' | 'new' | 'drill';
@@ -86,6 +89,12 @@ export interface Candidate {
   /** Reviews: 0..1, lower means closer to being forgotten. Ignored for new items. */
   retrievability: number;
   lapses: number;
+  /**
+   * Kanji are their own card type for the §2.8 spacing rule, whatever rung they
+   * sit at: four characters in a row is blocked practice however varied their
+   * ladder levels are.
+   */
+  itemKind?: 'lexeme' | 'kanji';
 }
 
 export interface ComposeInput {
@@ -120,7 +129,11 @@ export interface ComposedSession {
  * SPEC §2.8 exists to prevent.
  */
 export const cardTypeFor = (candidate: Candidate): CardType =>
-  candidate.slice === 'drill' ? 'drill' : cardTypeForLevel(candidate.ladderLevel);
+  candidate.slice === 'drill'
+    ? 'drill'
+    : candidate.itemKind === 'kanji'
+      ? 'kanji'
+      : cardTypeForLevel(candidate.ladderLevel);
 
 const secondsFor = (candidate: Candidate): number =>
   SECONDS_PER_CARD_TYPE[cardTypeFor(candidate)];

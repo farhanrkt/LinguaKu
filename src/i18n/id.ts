@@ -102,6 +102,26 @@ export const copy = {
       done: 'Kembali',
     },
 
+    kanji: {
+      heading: 'Kenali hurufnya',
+      instruction: 'Perhatikan bagian-bagiannya — itu yang bikin huruf gampang diingat.',
+      componentsHeading: 'Tersusun dari',
+      readingHeading: 'Dibaca',
+      mnemonicHeading: 'Cara mengingat',
+      // SPEC §2.11: the learner's own mnemonic beats a given one, so the copy
+      // invites editing rather than presenting ours as the answer.
+      mnemonicHint: 'Ubah jadi versimu sendiri — yang kamu karang sendiri jauh lebih nempel.',
+      mnemonicPlaceholder: 'Tulis caramu mengingat huruf ini',
+      save: 'Simpan',
+      saved: 'Tersimpan.',
+      mine: 'Versimu',
+      confirm: 'Oke, paham',
+      baseline: (literal: string, components: string[]) =>
+        `${literal} tersusun dari ${components.join(' + ')}. Coba karang ceritamu sendiri dari bagian-bagian itu.`,
+      baselineAtomic: (literal: string) =>
+        `${literal} adalah bentuk dasar. Coba karang caramu sendiri untuk mengingatnya.`,
+    },
+
     dictation: {
       heading: 'Tulis yang kamu dengar',
       instruction: 'Boleh diputar ulang sebanyak yang kamu mau.',

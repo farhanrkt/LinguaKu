@@ -1,0 +1,569 @@
+# Japanese for Indonesian speakers — the contrastive taxonomy (SPEC §3.2).
+#
+# This file has a shape the English one does not, and the difference is the
+# point of §3.2. English is a list of interference patterns: things Indonesian
+# does that English punishes. Japanese is two lists.
+#
+#   * `positiveTransfer: true` categories are **advantages**. Indonesian
+#     speakers start Japanese ahead of English speakers in several concrete,
+#     nameable ways, and SPEC §3.2 says to surface them explicitly: "naming the
+#     parallel is elaborative encoding, and it is a real morale advantage this
+#     audience is never told about". They carry a note and no drills — there is
+#     nothing to remediate.
+#
+#   * everything else is a genuine difficulty, drilled like the English ones.
+#
+# Authoring rules, as for en.yaml: the note explains what Indonesian does, then
+# what Japanese does, then one minimal pair. Copy addresses the learner as
+# "kamu" and never frames a difficulty as a personal failing.
+
+version: 1
+lang: ja
+l1: id
+
+categories:
+  # ------------------------------------------------- positive transfer (§3.2)
+
+  - id: VOWELS_MATCH
+    kind: phonology
+    positiveTransfer: true
+    label: "Vokalnya sama persis"
+    summary: "a i u e o — lima vokal yang sudah kamu pakai seumur hidup."
+    note:
+      l1: >-
+        Bahasa Indonesia punya lima vokal: a, i, u, e, o. Kamu mengucapkannya
+        setiap hari tanpa berpikir.
+      target: >-
+        Bahasa Jepang punya lima vokal yang sama, diucapkan dengan cara yang
+        praktis sama. Ini keuntungan besar yang jarang disebut: penutur bahasa
+        Inggris harus belajar ulang setiap vokal Jepang karena bahasa mereka
+        punya belasan bunyi vokal yang berbeda. Kamu tidak. Kata seperti neko,
+        sushi, atau tanoshii sudah keluar hampir benar dari mulutmu sejak hari
+        pertama.
+      minimalPair:
+        wrong: "Penutur Inggris sering bilang “soo-SHEE” dengan bunyi yang meleset."
+        right: "su-shi — persis seperti kamu membaca tulisan Indonesia."
+        gloss: "Baca saja apa adanya. Untuk vokal, instingmu sudah benar."
+      tip: >-
+        Kalau kamu ragu cara membaca kata Jepang dalam romaji, baca saja seperti
+        tulisan Indonesia. Sembilan dari sepuluh kali itu sudah tepat.
+
+  - id: OPEN_SYLLABLES
+    kind: phonology
+    positiveTransfer: true
+    label: "Pola suku katanya mirip"
+    summary: "Konsonan-vokal, konsonan-vokal — sama seperti bahasa Indonesia."
+    note:
+      l1: >-
+        Suku kata bahasa Indonesia hampir selalu berakhir vokal: ma-kan, ki-ta,
+        se-mu-a. Tumpukan konsonan seperti "strengths" tidak ada.
+      target: >-
+        Bahasa Jepang bekerja dengan cara yang sama: ka-ki-ku-ke-ko, semuanya
+        terbuka. Tidak ada gugus konsonan yang harus kamu latih, dan tidak ada
+        nada seperti bahasa Mandarin atau Thailand. Struktur mulutmu untuk
+        bahasa Indonesia langsung terpakai.
+      minimalPair:
+        wrong: "Bahasa Inggris: “strengths” — delapan huruf, satu suku kata."
+        right: "Bahasa Jepang: すきです su-ki-de-su — empat suku kata, semuanya terbuka."
+        gloss: "Ritmenya jauh lebih dekat ke bahasa Indonesia daripada ke bahasa Inggris."
+
+  - id: NO_PLURAL_NO_ARTICLE
+    kind: morphosyntax
+    positiveTransfer: true
+    label: "Tidak ada jamak, tidak ada a/the"
+    summary: "Tiga hal yang bikin bahasa Inggris susah, tidak ada di bahasa Jepang."
+    note:
+      l1: >-
+        Bahasa Indonesia tidak menandai jamak di kata bendanya, tidak punya kata
+        sandang seperti a/the, dan tidak punya jenis kelamin untuk "dia".
+      target: >-
+        Bahasa Jepang juga tidak — ketiganya. Semua yang bikin kamu kepeleset di
+        bahasa Inggris (book/books, a/the, he/she) tidak ada di sini. 本 bisa
+        berarti satu buku atau banyak buku, persis seperti "buku" di bahasa
+        Indonesia.
+      minimalPair:
+        wrong: "Bahasa Inggris menuntut: “I bought two books.”"
+        right: "Bahasa Jepang: 本を二冊買いました — kata bendanya tidak berubah."
+        gloss: "Saya beli dua buku. Sama seperti bahasa Indonesia."
+      tip: >-
+        Kalau kamu pernah frustrasi dengan -s dan a/the di bahasa Inggris,
+        anggap ini hadiah. Waktu belajarmu bisa dipakai untuk hal lain.
+
+  - id: CLASSIFIERS_FAMILIAR
+    kind: morphosyntax
+    positiveTransfer: true
+    label: "Kata bantu bilangan sudah kamu punya"
+    summary: "ekor, buah, orang, batang → 匹, 個, 人, 本."
+    note:
+      l1: >-
+        Bahasa Indonesia sudah memakai kata bantu bilangan: dua ekor kucing,
+        tiga buah apel, lima orang teman, sebatang rokok. Kamu memakainya tanpa
+        pernah diajari aturannya.
+      target: >-
+        Bahasa Jepang bekerja dengan konsep yang sama persis, cuma katanya
+        berbeda. 匹 untuk hewan kecil (ekor), 個 untuk benda kecil (buah), 人
+        untuk orang (orang), 本 untuk benda panjang (batang). Penutur bahasa
+        Inggris harus belajar konsep ini dari nol dan sering merasa aneh; kamu
+        tinggal mengganti kosakatanya.
+      minimalPair:
+        wrong: "Bukan konsep baru yang harus dipahami dari awal."
+        right: "dua ekor kucing → 猫が二匹 (neko ga ni-hiki)"
+        gloss: "Sama polanya: bilangan + kata bantu, dipilih menurut jenis bendanya."
+      tip: >-
+        Cocokkan saja: ekor→匹, buah→個, orang→人, batang→本, lembar→枚. Sisanya
+        pelan-pelan.
+
+  - id: TOPIC_FRONTING
+    kind: morphosyntax
+    positiveTransfer: true
+    label: "Menaruh topik di depan"
+    summary: "“Buku itu, saya sudah baca” — itu adalah は."
+    note:
+      l1: >-
+        Bahasa Indonesia sering menaruh topik di depan kalimat: "Buku itu, saya
+        sudah baca." "Nasi goreng, saya suka." Terdengar wajar, dan tidak ada
+        yang aneh.
+      target: >-
+        Itu persis pekerjaan partikel は. Bahasa Jepang menandai topik dengan
+        cara yang sudah ada di kepalamu — sementara penutur bahasa Inggris harus
+        membangun intuisi ini dari nol, karena bahasa Inggris tidak punya cara
+        alami untuk melakukannya.
+      minimalPair:
+        wrong: "Bahasa Inggris memaksa: “As for that book, I have already read it.” — kaku."
+        right: "その本は、もう読みました (sono hon wa, mou yomimashita)"
+        gloss: "Buku itu, saya sudah baca. Struktur yang sama."
+      tip: >-
+        Waktu ketemu は, terjemahkan dalam hati jadi "kalau soal ___" atau
+        "___ itu,". Rasanya langsung klik.
+
+  - id: POLITENESS_REGISTERS
+    kind: pragmatics
+    positiveTransfer: true
+    label: "Tingkat kesopanan sudah kamu kuasai"
+    summary: "kamu/Anda, ngoko/krama → biasa/丁寧/敬語."
+    note:
+      l1: >-
+        Kamu sudah otomatis mengganti cara bicara tergantung lawan bicara: kamu
+        atau Anda, bahasa santai atau bahasa halus. Kalau kamu bisa bahasa Jawa
+        atau Sunda, kamu bahkan sudah terbiasa dengan tingkatan ngoko dan krama
+        yang lebih rumit dari itu.
+      target: >-
+        Bahasa Jepang punya tingkatan yang sama: bentuk biasa, bentuk 丁寧
+        (sopan, pakai です／ます), dan 敬語 (sangat hormat). Buat penutur bahasa
+        Inggris ini konsep asing yang sering bikin salah langkah. Buat kamu ini
+        cuma kosakata baru untuk kebiasaan yang sudah kamu punya.
+      minimalPair:
+        wrong: "Bukan aturan baru yang harus dihafal dari nol."
+        right: "行く (biasa) → 行きます (sopan) — seperti “pergi” → “berangkat, Pak”."
+        gloss: "Naluri kapan harus sopan sudah ada. Tinggal ganti bentuknya."
+      tip: >-
+        Kalau ragu, pakai bentuk ます. Itu setara "Anda" — aman untuk hampir
+        semua situasi dengan orang yang belum akrab.
+
+  # ---------------------------------------------- genuine difficulties (§3.2)
+
+  - id: PARTICLES_WA_GA
+    kind: morphosyntax
+    label: "は dan が"
+    summary: "Topik versus subjek — beda yang tidak ada di bahasa Indonesia."
+    note:
+      l1: >-
+        Bahasa Indonesia tidak menandai topik maupun subjek dengan partikel.
+        "Saya suka kopi" — tidak ada yang menempel di "saya".
+      target: >-
+        Bahasa Jepang membedakan は (topik: "kalau soal ini") dari が (subjek:
+        "yang melakukan / yang dimaksud, dan itu informasi barunya"). Kabar
+        baiknya, kamu sudah punya jembatan untuk は lewat kebiasaan menaruh
+        topik di depan. Yang perlu dilatih adalah kapan が dipakai untuk
+        menunjuk yang baru atau yang membedakan.
+      minimalPair:
+        wrong: "私はコーヒーがすきです — “kalau soal saya, kopi yang disukai”"
+        right: "誰がしましたか → 私がしました (bukan 私は)"
+        gloss: "Pertanyaan “siapa” menuntut が, karena jawabannya informasi baru."
+      tip: >-
+        Pola cepat: jawaban dari pertanyaan “siapa/apa yang…” hampir selalu が.
+        Kalimat yang memperkenalkan topik dan membicarakannya pakai は.
+    drills:
+      - id: PARTICLES_WA_GA-1
+        type: mcq
+        prompt: "誰___ 来ましたか。(Siapa yang datang?)"
+        options: ["が", "は", "を", "に"]
+        answer: "が"
+        explain: "Pertanyaan “siapa” menanyakan informasi baru, jadi が — bukan は."
+        difficulty: 1220
+      - id: PARTICLES_WA_GA-2
+        type: mcq
+        prompt: "私___ 学生です。(Saya seorang pelajar.)"
+        options: ["は", "が", "を", "で"]
+        answer: "は"
+        explain: "Memperkenalkan diri sebagai topik: “kalau soal saya…”. Ini pola topik-di-depan yang sudah kamu punya."
+        difficulty: 1080
+      - id: PARTICLES_WA_GA-3
+        type: mcq
+        prompt: "Mana yang benar untuk menjawab 「誰がしましたか」?"
+        options: ["私がしました。", "私はしました。", "私をしました。", "私でしました。"]
+        answer: "私がしました。"
+        explain: "Jawaban atas pertanyaan “siapa” memakai が, karena yang ditanya justru pelakunya."
+        difficulty: 1280
+      - id: PARTICLES_WA_GA-4
+        type: cloze
+        prompt: "象___ 鼻が長い。(Gajah itu, belalainya panjang.) — isi yang pertama"
+        answer: "は"
+        explain: "Topik dulu (gajah), lalu subjek di dalamnya (belalai). Persis “gajah itu, belalainya panjang”."
+        difficulty: 1340
+      - id: PARTICLES_WA_GA-5
+        type: mcq
+        prompt: "空___ 青いです。(Langitnya biru — sekadar menyatakan.)"
+        options: ["は", "が", "も", "を"]
+        answer: "は"
+        explain: "Pernyataan umum tentang sebuah topik memakai は."
+        difficulty: 1180
+
+  - id: PARTICLES_NI_DE
+    kind: morphosyntax
+    label: "に dan で"
+    summary: "Dua “di” yang berbeda tugas."
+    note:
+      l1: >-
+        Satu kata "di" di bahasa Indonesia menutupi tempat berada, tempat
+        beraktivitas, dan waktu sekaligus. "Di rumah" bisa berarti apa saja.
+      target: >-
+        Bahasa Jepang memisahkannya. に menandai tempat keberadaan, tujuan, dan
+        titik waktu. で menandai tempat sesuatu *dilakukan*, dan juga alat atau
+        cara. Kalimat "saya belajar di rumah" dan "saya ada di rumah" memakai
+        partikel yang berbeda.
+      minimalPair:
+        wrong: "家に勉強します"
+        right: "家で勉強します"
+        gloss: "Belajar adalah kegiatan, jadi tempatnya pakai で. Tapi 家にいます (ada di rumah) pakai に."
+      tip: >-
+        Tanya dirimu: ini tempat *ada*, atau tempat *melakukan*? Ada → に.
+        Melakukan → で.
+    drills:
+      - id: PARTICLES_NI_DE-1
+        type: mcq
+        prompt: "図書館___ 本を読みます。(Membaca buku di perpustakaan.)"
+        options: ["で", "に", "を", "へ"]
+        answer: "で"
+        explain: "Membaca adalah kegiatan, jadi tempat kegiatan → で."
+        difficulty: 1200
+      - id: PARTICLES_NI_DE-2
+        type: mcq
+        prompt: "教室___ 学生がいます。(Ada murid di kelas.)"
+        options: ["に", "で", "を", "と"]
+        answer: "に"
+        explain: "います menyatakan keberadaan, jadi tempatnya → に."
+        difficulty: 1210
+      - id: PARTICLES_NI_DE-3
+        type: cloze
+        prompt: "七時___ 起きます。(Bangun jam tujuh.)"
+        answer: "に"
+        explain: "Titik waktu yang spesifik memakai に — mirip aturan “at” di bahasa Inggris."
+        difficulty: 1250
+      - id: PARTICLES_NI_DE-4
+        type: mcq
+        prompt: "バス___ 行きます。(Pergi naik bus.)"
+        options: ["で", "に", "を", "が"]
+        answer: "で"
+        explain: "で juga menandai alat atau cara — naik bus, pakai pulpen, dengan tangan."
+        difficulty: 1290
+      - id: PARTICLES_NI_DE-5
+        type: mcq
+        prompt: "Mana yang benar untuk “Saya ada di rumah”?"
+        options: ["家にいます。", "家でいます。", "家をいます。", "家へいます。"]
+        answer: "家にいます。"
+        explain: "Keberadaan → に. Bandingkan 家で勉強します (belajar di rumah), yang pakai で."
+        difficulty: 1230
+
+  - id: WORD_ORDER_SOV
+    kind: morphosyntax
+    label: "Kata kerja di akhir"
+    summary: "Bahasa Jepang menaruh kata kerja paling belakang."
+    note:
+      l1: >-
+        Bahasa Indonesia menyusun kalimat subjek–kata kerja–objek: "Saya makan
+        nasi." Kata kerjanya di tengah, dan yang menerangkan datang setelah
+        yang diterangkan (nasi goreng, mobil merah).
+      target: >-
+        Bahasa Jepang kebalikannya di dua hal sekaligus. Kata kerja selalu
+        paling akhir (私はご飯を食べます — "saya nasi makan"), dan yang
+        menerangkan selalu datang **sebelum** yang diterangkan. Kalimat panjang
+        harus kamu tahan sampai ujung sebelum tahu apa yang terjadi.
+      minimalPair:
+        wrong: "私は食べますご飯を"
+        right: "私はご飯を食べます"
+        gloss: "Saya makan nasi. Kata kerjanya menutup kalimat, bukan di tengah."
+      tip: >-
+        Waktu menyusun kalimat Jepang, tulis dulu apa yang mau kamu katakan
+        dalam bahasa Indonesia, lalu pindahkan kata kerjanya ke paling belakang.
+    drills:
+      - id: WORD_ORDER_SOV-1
+        type: mcq
+        prompt: "Mana urutan yang benar untuk “Saya minum air”?"
+        options: ["私は水を飲みます。", "私は飲みます水を。", "飲みます私は水を。", "水を私は飲みます飲みます。"]
+        answer: "私は水を飲みます。"
+        explain: "Subjek, objek, lalu kata kerja di ujung."
+        difficulty: 1120
+      - id: WORD_ORDER_SOV-2
+        type: mcq
+        prompt: "Mana yang benar untuk “buku merah”?"
+        options: ["赤い本", "本赤い", "本が赤い本", "赤い が本"]
+        answer: "赤い本"
+        explain: "Yang menerangkan di depan — kebalikan dari “buku merah” di bahasa Indonesia."
+        difficulty: 1150
+      - id: WORD_ORDER_SOV-3
+        type: mcq
+        prompt: "“Orang yang saya temui kemarin” disusun jadi?"
+        options: ["昨日会った人", "人昨日会った", "会った昨日人", "人が昨日会った"]
+        answer: "昨日会った人"
+        explain: "Seluruh anak kalimat pun ditaruh di depan kata bendanya. Ini bagian yang paling perlu dibiasakan."
+        difficulty: 1380
+      - id: WORD_ORDER_SOV-4
+        type: mcq
+        prompt: "Mana yang benar untuk “Saya tidak makan nasi”?"
+        options: ["私はご飯を食べません。", "私は食べませんご飯を。", "私はご飯を食べますません。", "食べません私はご飯を。"]
+        answer: "私はご飯を食べません。"
+        explain: "Bentuk negatif tetap menempel di kata kerja, dan kata kerjanya tetap di akhir."
+        difficulty: 1240
+
+  - id: MORA_TIMING
+    kind: phonology
+    label: "Panjang pendek bunyi"
+    summary: "おばさん dan おばあさん adalah dua kata yang berbeda."
+    note:
+      l1: >-
+        Bahasa Indonesia tidak pernah membedakan arti lewat panjang pendek
+        bunyi. "Sapi" diucapkan agak panjang atau agak pendek tetap sapi.
+      target: >-
+        Di bahasa Jepang, panjang bunyi **mengubah arti**. Setiap mora dihitung
+        sama panjang, dan vokal panjang, konsonan rangkap (っ), serta ん
+        masing-masing memakan satu ketukan penuh. Ini satu-satunya bagian
+        fonologi Jepang yang benar-benar baru buat kamu — sisanya justru lebih
+        mudah daripada untuk penutur bahasa Inggris.
+      minimalPair:
+        wrong: "おばさん (bibi)"
+        right: "おばあさん (nenek)"
+        gloss: "Satu ketukan lebih panjang, dan orangnya beda satu generasi."
+      tip: >-
+        Hitung ketukan seperti ketukan lagu: o-ba-a-sa-n itu lima ketukan,
+        o-ba-sa-n empat. Ucapkan sambil mengetuk meja.
+    drills:
+      - id: MORA_TIMING-1
+        type: minimal-pair
+        audio: true
+        prompt: "Kata mana yang kamu dengar?"
+        say: "おばあさん"
+        options: ["おばあさん", "おばさん"]
+        answer: "おばあさん"
+        explain: "Vokal a yang ditahan satu ketukan lebih lama: nenek, bukan bibi."
+      - id: MORA_TIMING-2
+        type: minimal-pair
+        audio: true
+        prompt: "Kata mana yang kamu dengar?"
+        say: "きって"
+        options: ["きって", "きて"]
+        answer: "きって"
+        explain: "っ menahan konsonan satu ketukan: きって (perangko), きて (datanglah)."
+      - id: MORA_TIMING-3
+        type: minimal-pair
+        audio: true
+        prompt: "Kata mana yang kamu dengar?"
+        say: "ビル"
+        options: ["ビル", "ビール"]
+        answer: "ビル"
+        explain: "ビル gedung, ビール bir. Beda satu ketukan."
+      - id: MORA_TIMING-4
+        type: mcq
+        prompt: "Ada berapa ketukan (mora) di 「がっこう」?"
+        options: ["empat", "tiga", "dua", "lima"]
+        answer: "empat"
+        explain: "が・っ・こ・う — っ dan う masing-masing satu ketukan penuh, walaupun tidak berbunyi sendiri."
+        difficulty: 1310
+      - id: MORA_TIMING-5
+        type: mcq
+        prompt: "「ん」 di 「にほん」 dihitung berapa ketukan?"
+        options: ["satu", "nol — cuma penutup", "setengah", "dua"]
+        answer: "satu"
+        explain: "ん adalah mora penuh. Ini yang bikin ritme Jepang terdengar rata."
+        difficulty: 1280
+
+  - id: SCRIPT_KANA
+    kind: script
+    label: "Hiragana dan katakana"
+    summary: "Dua set huruf untuk bunyi yang sama."
+    note:
+      l1: >-
+        Bahasa Indonesia memakai satu set huruf latin, dan hubungannya dengan
+        bunyi hampir sempurna satu-satu — itu sebabnya membaca bahasa Indonesia
+        mudah.
+      target: >-
+        Bahasa Jepang punya dua set huruf untuk bunyi yang sama: hiragana untuk
+        kata Jepang asli dan tata bahasa, katakana untuk kata serapan dan
+        penekanan. Kabar baiknya, keduanya sama teraturnya dengan huruf latin
+        Indonesia — satu huruf, satu bunyi, tanpa kejutan seperti bahasa
+        Inggris. Yang perlu waktu cuma menghafalnya.
+      minimalPair:
+        wrong: "すし ditulis begitu; コーヒー tidak bisa ditulis pakai hiragana dalam pemakaian biasa."
+        right: "すし (kata Jepang) · コーヒー (kata serapan)"
+        gloss: "Bentuknya beda, bunyinya sama. Yang membedakan adalah asal katanya."
+      tip: >-
+        Kalau sebuah kata terasa seperti serapan dari bahasa asing (kopi, roti,
+        komputer), kemungkinan besar ditulis katakana.
+    drills:
+      - id: SCRIPT_KANA-1
+        type: mcq
+        prompt: "Kata serapan seperti “kopi” biasanya ditulis dengan?"
+        options: ["katakana", "hiragana", "kanji", "romaji"]
+        answer: "katakana"
+        explain: "Katakana menandai kata dari bahasa asing — コーヒー."
+        difficulty: 1090
+      - id: SCRIPT_KANA-2
+        type: mcq
+        prompt: "「ねこ」 ditulis dengan huruf apa?"
+        options: ["hiragana", "katakana", "romaji", "kanji"]
+        answer: "hiragana"
+        explain: "Kata Jepang asli memakai hiragana (atau kanji: 猫)."
+        difficulty: 1060
+      - id: SCRIPT_KANA-3
+        type: mcq
+        prompt: "Mana pasangan hiragana–katakana untuk bunyi yang sama?"
+        options: ["か – カ", "か – コ", "き – カ", "く – ケ"]
+        answer: "か – カ"
+        explain: "Setiap bunyi punya bentuk hiragana dan katakana-nya sendiri."
+        difficulty: 1140
+
+  - id: VERB_CONJUGATION
+    kind: morphosyntax
+    label: "Kata kerja berubah bentuk"
+    summary: "Kata kerja Indonesia tidak berubah; kata kerja Jepang berubah banyak."
+    note:
+      l1: >-
+        Kata kerja bahasa Indonesia tidak pernah berubah karena waktu. "Saya
+        pergi" bisa kemarin, sekarang, atau besok — yang berubah cuma kata
+        keterangannya.
+      target: >-
+        Kata kerja Jepang berubah bentuk untuk waktu, negatif, sopan, dan untuk
+        menyambung kalimat. 行く jadi 行きます, 行きません, 行った, 行って.
+        Untungnya perubahannya jauh lebih teratur daripada bahasa Inggris —
+        hampir tidak ada bentuk tak beraturan, jadi begitu polanya kamu pegang,
+        semuanya ikut.
+      minimalPair:
+        wrong: "昨日行きます"
+        right: "昨日行きました"
+        gloss: "Kemarin saya pergi. Kata kerjanya sendiri yang menandai lampau."
+      tip: >-
+        Mulai dari dua bentuk saja: ます (sopan sekarang) dan ました (sopan
+        lampau). Itu sudah cukup untuk percakapan sehari-hari.
+    drills:
+      - id: VERB_CONJUGATION-1
+        type: mcq
+        prompt: "昨日、映画を___。(Kemarin menonton film.)"
+        options: ["見ました", "見ます", "見ません", "見て"]
+        answer: "見ました"
+        explain: "Lampau sopan: ます → ました."
+        difficulty: 1130
+      - id: VERB_CONJUGATION-2
+        type: mcq
+        prompt: "Bentuk negatif sopan dari 食べます adalah?"
+        options: ["食べません", "食べました", "食べない です", "食べません でした"]
+        answer: "食べません"
+        explain: "ます → ません untuk negatif sekarang."
+        difficulty: 1170
+      - id: VERB_CONJUGATION-3
+        type: cloze
+        prompt: "毎日日本語を勉強___。(Belajar bahasa Jepang setiap hari — bentuk sopan.)"
+        answer: "します"
+        explain: "勉強 + します. Banyak kata benda jadi kata kerja dengan menambahkan します."
+        difficulty: 1210
+      - id: VERB_CONJUGATION-4
+        type: mcq
+        prompt: "Mana bentuk lampau negatif sopan dari 行きます?"
+        options: ["行きませんでした", "行きました", "行きません", "行かない"]
+        answer: "行きませんでした"
+        explain: "Lampau + negatif digabung: ませんでした. Polanya tetap, tidak perlu dihafal per kata."
+        difficulty: 1330
+
+  - id: ADJ_CONJUGATION
+    kind: morphosyntax
+    label: "Kata sifat ikut berubah"
+    summary: "い-adjective berubah bentuk seperti kata kerja."
+    note:
+      l1: >-
+        Kata sifat bahasa Indonesia tidak pernah berubah. "Mahal" tetap "mahal",
+        mau kemarin atau sekarang, mau positif atau negatif.
+      target: >-
+        Di bahasa Jepang, kata sifat berakhiran い berubah seperti kata kerja:
+        高い → 高くない → 高かった. Ini benar-benar tidak ada padanannya di
+        bahasa Indonesia, jadi wajar kalau awalnya terasa aneh.
+      minimalPair:
+        wrong: "高いでした"
+        right: "高かったです"
+        gloss: "Dulu mahal. Yang berubah kata sifatnya sendiri, bukan です-nya."
+      tip: >-
+        Untuk い-adjective, buang い lalu tempel: くない (negatif), かった
+        (lampau). です ditambahkan di belakang untuk sopan, tapi tidak ikut
+        berubah.
+    drills:
+      - id: ADJ_CONJUGATION-1
+        type: mcq
+        prompt: "Bentuk lampau sopan dari 高いです adalah?"
+        options: ["高かったです", "高いでした", "高くでした", "高いました"]
+        answer: "高かったです"
+        explain: "Kata sifatnya yang berubah: 高い → 高かった. です tetap."
+        difficulty: 1290
+      - id: ADJ_CONJUGATION-2
+        type: mcq
+        prompt: "Bentuk negatif dari 面白い adalah?"
+        options: ["面白くない", "面白いない", "面白ではない", "面白まない"]
+        answer: "面白くない"
+        explain: "Buang い, tambahkan くない."
+        difficulty: 1250
+      - id: ADJ_CONJUGATION-3
+        type: cloze
+        prompt: "この本は面白___ ないです。(Buku ini tidak menarik.)"
+        answer: "く"
+        explain: "面白い → 面白くない. Perhatikan い berubah jadi く."
+        difficulty: 1270
+
+  - id: GIVING_RECEIVING
+    kind: pragmatics
+    label: "あげる, くれる, もらう"
+    summary: "Arah pemberian ikut menentukan kata kerjanya."
+    note:
+      l1: >-
+        Bahasa Indonesia punya satu kata "memberi" dan satu "menerima". Siapa
+        memberi kepada siapa tidak mengubah kata kerjanya.
+      target: >-
+        Bahasa Jepang memilih kata kerja menurut arah pemberian dilihat dari
+        posisi pembicara. あげる kalau kamu memberi ke orang lain, くれる kalau
+        orang lain memberi ke kamu, もらう kalau kamu menerima. Konsep ini
+        memang asing — tidak ada di bahasa Indonesia maupun bahasa Inggris.
+      minimalPair:
+        wrong: "友達が私に本をあげました"
+        right: "友達が私に本をくれました"
+        gloss: "Teman memberi buku ke saya. Karena arahnya ke saya, pakai くれる."
+      tip: >-
+        Tanyakan: arahnya menuju saya atau menjauh dari saya? Menuju saya →
+        くれる／もらう. Menjauh → あげる.
+    drills:
+      - id: GIVING_RECEIVING-1
+        type: mcq
+        prompt: "友達が私にプレゼントを___。(Teman memberi saya hadiah.)"
+        options: ["くれました", "あげました", "もらいました", "しました"]
+        answer: "くれました"
+        explain: "Arahnya menuju pembicara, jadi くれる."
+        difficulty: 1320
+      - id: GIVING_RECEIVING-2
+        type: mcq
+        prompt: "私は友達にプレゼントを___。(Saya memberi hadiah ke teman.)"
+        options: ["あげました", "くれました", "もらいました", "いました"]
+        answer: "あげました"
+        explain: "Arahnya menjauh dari pembicara, jadi あげる."
+        difficulty: 1300
+      - id: GIVING_RECEIVING-3
+        type: mcq
+        prompt: "私は友達にプレゼントを___。(Saya menerima hadiah dari teman.)"
+        options: ["もらいました", "あげました", "くれました", "やりました"]
+        answer: "もらいました"
+        explain: "Dilihat dari sisi penerima: もらう."
+        difficulty: 1340

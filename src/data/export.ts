@@ -167,8 +167,23 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       await db.cards.bulkPut(bundle.cards ?? []);
       await db.categoryScores.bulkPut(bundle.categoryScores ?? []);
       await db.sessions.bulkPut(bundle.sessions ?? []);
-      await db.mnemonics.bulkPut(bundle.mnemonics ?? []);
       await db.habits.bulkPut(bundle.habits ?? []);
+
+      // Mnemonics are last-write-wins **by timestamp**, not "the bundle wins".
+      // SPEC §2.11 requires user-authored mnemonics to persist, and the finding
+      // behind it is that a learner's own mnemonic works better than any we
+      // ship — so restoring last month's backup must not silently undo the
+      // version they rewrote yesterday. This is the one table where the
+      // incoming row can lose.
+      const mnemonics = bundle.mnemonics ?? [];
+      const current = await db.mnemonics.bulkGet(
+        mnemonics.map((row) => [row.profileId, row.itemId] as [string, string]),
+      );
+      const newer = mnemonics.filter((row, index) => {
+        const existing = current[index];
+        return !existing || row.updatedAt > existing.updatedAt;
+      });
+      if (newer.length > 0) await db.mnemonics.bulkPut(newer);
 
       const logs = bundle.reviewLogs ?? [];
       const knownLogs = new Set(

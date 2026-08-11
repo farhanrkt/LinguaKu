@@ -1,5 +1,5 @@
 import { db } from './db.ts';
-import type { FrequencyBand } from '../core/frequency.ts';
+import { bandForRank, type FrequencyBand } from '../core/frequency.ts';
 import type { Item, TargetLang } from './types.ts';
 
 /**
@@ -30,11 +30,28 @@ export interface AnchorSentence {
   difficulty: number;
   maxRank: number;
   tr: { id: string; text: string };
+  /**
+   * Japanese only: build-time morphological tokens and their readings (D10).
+   * The reader never tokenizes — a bundled dictionary is an order of magnitude
+   * over the whole content budget — so furigana is assembled from these.
+   */
+  tokens?: string[];
+  readings?: string[];
+  /**
+   * How this sentence reached Indonesian. `en` means it was triangulated
+   * through English and has been through two translators (risk R2, D40); the
+   * `bridge` is the English sentence it came via, so a two-hop translation is
+   * auditable rather than indistinguishable from a direct one.
+   */
+  via?: 'direct' | 'en';
+  bridge?: string;
 }
 
 interface WireLexeme {
   id: string;
   headword: string;
+  /** Japanese only: the dictionary reading, from JMdict. */
+  reading?: string;
   freqRank: number;
   band: FrequencyBand;
   anchors: string[];
@@ -42,8 +59,25 @@ interface WireLexeme {
   share?: number;
 }
 
+/** A kanji, from KANJIDIC2 and KRADFILE (SPEC §2.11). */
+export interface WireKanji {
+  id: string;
+  literal: string;
+  grade: number | null;
+  strokes: number | null;
+  freq: number | null;
+  jlpt: number | null;
+  on: string[];
+  kun: string[];
+  meanings: string[];
+  /** KRADFILE's radicals — authoritative. */
+  components: string[];
+  /** Grouped one level up, so 校 reads as 木 + 交 (decision D41). */
+  breakdown: string[];
+}
+
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -85,14 +119,40 @@ const toItem = (wire: WireLexeme, lang: TargetLang): Item => ({
   kind: 'lexeme',
   headword: wire.headword,
   anchorSentenceIds: wire.anchors,
+  ...(wire.reading !== undefined ? { reading: wire.reading } : {}),
   freqRank: wire.freqRank,
   band: wire.band,
   ...(wire.share !== undefined ? { share: wire.share } : {}),
   interferenceTags: [],
-  // Derived from the Tatoeba English corpus rather than lifted from one
-  // sentence, so the external id is the surface form itself.
+  // Derived from the corpus rather than lifted from one sentence, so the
+  // external id is the surface form itself.
   sourceRef: { dataset: 'tatoeba', externalId: wire.headword },
 });
+
+/**
+ * A kanji becomes an `Item` like any other, so it gets a card, a schedule and a
+ * place in the session — SPEC §2.11 teaches kanji, it does not merely display
+ * them. `componentsOf` carries the breakdown the card renders, and the anchors
+ * are left empty: a kanji is taught by its components and readings, not by an
+ * example sentence, which is why §2.5's anchor rule does not apply to it.
+ */
+const toKanjiItem = (wire: WireKanji, lang: TargetLang): Item => ({
+  id: wire.id,
+  lang,
+  kind: 'kanji',
+  headword: wire.literal,
+  ...(wire.kun[0] ?? wire.on[0] ? { reading: wire.kun[0] ?? wire.on[0]! } : {}),
+  anchorSentenceIds: [],
+  componentsOf: wire.breakdown,
+  // KANJIDIC2's newspaper frequency where it has one; otherwise the tail.
+  freqRank: wire.freq ?? UNKNOWN_KANJI_RANK,
+  band: bandForRank(wire.freq ?? UNKNOWN_KANJI_RANK),
+  interferenceTags: [],
+  sourceRef: { dataset: 'kanjidic2', externalId: wire.literal },
+});
+
+/** Past every band: a kanji with no newspaper frequency is not early material. */
+const UNKNOWN_KANJI_RANK = 9_000;
 
 export interface ImportResult {
   imported: string[];
@@ -113,7 +173,12 @@ export const ensureBands = async (
   const result: ImportResult = { imported: [], skipped: [], items: 0 };
 
   for (const shard of resolved.shards) {
-    if (shard.kind !== 'lexemes' || !bands.includes(shard.band)) continue;
+    // Kanji ship as one shard rather than per band: a learner's kanji path does
+    // not follow the vocabulary bands, and 1,748 records is small enough that
+    // splitting it would cost more requests than it saves bytes.
+    const wanted =
+      shard.kind === 'kanji' ? true : shard.kind === 'lexemes' && bands.includes(shard.band);
+    if (!wanted) continue;
 
     const existing = await db.contentShards.get(shard.path);
     if (existing?.sha256 === shard.sha256) {
@@ -121,10 +186,13 @@ export const ensureBands = async (
       continue;
     }
 
-    const payload = await fetchJson<{ lexemes: WireLexeme[] }>(
+    const payload = await fetchJson<{ lexemes?: WireLexeme[]; kanji?: WireKanji[] }>(
       `${CONTENT_BASE}/${lang}/${shard.path}`,
     );
-    const rows = payload.lexemes.map((wire) => toItem(wire, lang));
+    const rows =
+      shard.kind === 'kanji'
+        ? (payload.kanji ?? []).map((wire) => toKanjiItem(wire, lang))
+        : (payload.lexemes ?? []).map((wire) => toItem(wire, lang));
     await db.items.bulkPut(rows);
     await db.contentShards.put({
       path: shard.path,

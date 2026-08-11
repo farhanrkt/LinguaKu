@@ -236,3 +236,106 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskP
     </div>
   );
 };
+
+/**
+ * The kanji card (SPEC §2.11): component breakdown, readings, and a mnemonic the
+ * learner can rewrite.
+ *
+ * The editable field is the point, not a nicety. §2.11's finding is that
+ * self-generated mnemonics are stronger than given ones, so the baseline is
+ * deliberately thin and the copy invites replacing it.
+ */
+export const KanjiTask = ({
+  task,
+  onAnswer,
+  onSaveMnemonic,
+}: TaskProps & { onSaveMnemonic: (text: string) => Promise<void> }) => {
+  const face = task.kanji;
+  const [text, setText] = useState(face?.mnemonic ?? '');
+  const [saved, setSaved] = useState(false);
+  if (!face) return null;
+
+  return (
+    <div>
+      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
+        {copy.session.kanji.heading}
+      </p>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {copy.session.kanji.instruction}
+      </p>
+
+      <p className="mt-6 text-center text-7xl leading-none font-bold" data-testid="kanji-literal">
+        {face.literal}
+      </p>
+
+      {face.components.length > 0 ? (
+        <div className="mt-6">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+            {copy.session.kanji.componentsHeading}
+          </p>
+          <p className="mt-1 text-2xl" data-testid="kanji-components">
+            {face.components.join('  +  ')}
+          </p>
+        </div>
+      ) : null}
+
+      {face.reading ? (
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+            {copy.session.kanji.readingHeading}
+          </p>
+          <p className="mt-1 text-xl">{face.reading}</p>
+        </div>
+      ) : null}
+
+      <div className="mt-6">
+        <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+          {copy.session.kanji.mnemonicHeading}
+          {face.mnemonicIsMine ? (
+            <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+              {copy.session.kanji.mine}
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+          {copy.session.kanji.mnemonicHint}
+        </p>
+        <textarea
+          value={text}
+          onChange={(event) => {
+            setText(event.target.value);
+            setSaved(false);
+          }}
+          aria-label={copy.session.kanji.mnemonicPlaceholder}
+          placeholder={copy.session.kanji.mnemonicPlaceholder}
+          rows={3}
+          data-testid="mnemonic-input"
+          className="mt-2 w-full rounded-2xl border-2 border-stone-300 p-3 focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+        />
+        <div className="mt-2 flex items-center gap-3">
+          <Button
+            variant="quiet"
+            data-testid="mnemonic-save"
+            className="w-auto border-2 border-stone-300 px-4 dark:border-slate-700"
+            onClick={() => {
+              void onSaveMnemonic(text).then(() => setSaved(true));
+            }}
+          >
+            {copy.session.kanji.save}
+          </Button>
+          {saved ? (
+            <span className="text-sm text-teal-800 dark:text-teal-300" role="status">
+              {copy.session.kanji.saved}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <Button onClick={() => onAnswer({ raw: face.literal, confidence: null })}>
+          {copy.session.kanji.confirm}
+        </Button>
+      </div>
+    </div>
+  );
+};
