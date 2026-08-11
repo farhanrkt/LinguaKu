@@ -1,0 +1,25 @@
+{
+  // Static hosting for the LinguaKu build (SPEC §5.1, decision D2).
+  //
+  // This is an assets-only Worker: there is no `main`, so no Worker script
+  // runs and no request is ever billed as an invocation — static asset
+  // requests are free and unlimited on the Workers free plan. That is what
+  // keeps invariant 4 (zero recurring cost) true for hosting.
+  //
+  // Unrelated to `workers/sync/wrangler.toml`, which configures the optional
+  // sync Worker. That one is deployed separately, on purpose, and nothing in
+  // `src/` depends on it.
+  "name": "linguaku",
+  "compatibility_date": "2026-08-11",
+  "assets": {
+    "directory": "./dist",
+
+    // Deliberately NOT "single-page-application". LinguaKu is one page with
+    // no path routing — the launcher shortcut is a query param (`/?latihan=4`)
+    // — so an SPA fallback buys nothing and costs something: it would answer
+    // a missing content shard with index.html and a 200, turning a clean 404
+    // into a JSON parse error somewhere further down. A missing shard should
+    // fail as a missing shard.
+    "not_found_handling": "none"
+  }
+}

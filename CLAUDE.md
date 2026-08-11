@@ -158,7 +158,15 @@ requirement to its implementation and acceptance test.
 
 ## Hosting
 
-Static build (`dist/`) → Cloudflare Pages, connected from the repo:
-build command `npm run build`, output directory `dist`. No secrets, no server.
-Optional sync (Workers + D1) is M7 and behind a flag; the app must stay fully
+Static build (`dist/`) → **Cloudflare Workers Static Assets**, connected from
+the repo via Workers Builds: build `npm run build`, deploy `npx wrangler deploy`,
+configured by `wrangler.jsonc` at the root. No secrets, no server.
+
+D2 said "Cloudflare Pages"; Cloudflare now routes Git-connected static sites
+through Workers instead. Same account, same free tier, and an assets-only
+Worker has no `main`, so nothing is billed as an invocation and invariant 4
+holds unchanged.
+
+Optional sync (Workers + D1) is M7 and behind a flag; `workers/sync/` is a
+*separate* deployment with its own config, and the app must stay fully
 functional with it disabled.

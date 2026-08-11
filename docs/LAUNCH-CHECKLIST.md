@@ -171,13 +171,18 @@ Three specific questions the matrix has to answer:
 
 ---
 
-## 6. Deploy — Cloudflare Pages
+## 6. Deploy — Cloudflare Workers Static Assets
+
+D2 said "Cloudflare Pages"; Cloudflare now routes Git-connected static sites
+through **Workers Builds**. Same account, same free tier, and an assets-only
+Worker (no `main`) is never billed as an invocation — invariant 4 is unaffected.
 
 | | Check | Expected |
 |---|---|---|
-| 6.1 | Build command | `npm run build`, output directory `dist`, Node 22. |
-| 6.2 | No environment variables | There are none. No secrets, no server. If the dashboard has any, something is wrong. |
-| 6.3 | Routing | Single page, query-param driven (`/?latihan=4`) — no path routing, so no SPA rewrite is required. |
+| 6.1 | Workers Builds settings | Build `npm run build` · deploy `npx wrangler deploy` · path empty · `NODE_VERSION` = `22`. |
+| 6.2 | Only one variable | `NODE_VERSION`. There are no secrets and no server; anything else in that panel is wrong. |
+| 6.3 | Routing | Single page, query-param driven (`/?latihan=4`) — no path routing, so `not_found_handling` is `"none"`, **not** `"single-page-application"`. An SPA fallback would answer a missing content shard with `index.html` and a 200, turning a clean 404 into a JSON parse error further down. |
+| 6.3b | `wrangler.jsonc` | At the repo root, assets-only, pointing at `./dist`. Distinct from `workers/sync/wrangler.toml`, which is the optional sync Worker and is deployed separately. Validate with `npx wrangler deploy --dry-run`. |
 | 6.4 | HTTPS + HSTS | Service workers require a secure context. |
 | 6.5 | `sw.js` not long-cached | The service worker must be revalidated or a stale one pins learners to an old build. Content shards are hash-named and may be cached hard. |
 | 6.6 | Custom domain | DNS resolves, certificate valid, `start_url` (`/`) and `scope` (`/`) match the deployed origin. |
