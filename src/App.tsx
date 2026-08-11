@@ -7,9 +7,13 @@ import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
 import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
 import { ReaderScreen } from './features/reader/ReaderScreen.tsx';
 import { SyncScreen } from './features/settings/SyncScreen.tsx';
+import { HabitScreen } from './features/habit/HabitScreen.tsx';
+import { copy } from './i18n/id.ts';
 import { hasBeenPlaced } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import { findResumable, startSession } from './data/repositories/sessions.ts';
+import { getHabit, lastPractisedAt } from './data/repositories/habits.ts';
+import { cueIsDue, scheduleReminder } from './platform/notifications.ts';
 import { ensureBands, STARTER_BANDS } from './data/content.ts';
 import { loadContrastive } from './data/contrastive.ts';
 import {
@@ -30,6 +34,7 @@ type Screen =
   | { name: 'attribution'; profile: Profile }
   | { name: 'reader'; profile: Profile }
   | { name: 'sync'; profile: Profile }
+  | { name: 'habit'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
 export const App = () => {
@@ -39,6 +44,8 @@ export const App = () => {
   const [voice, setVoice] = useState<VoiceReport | null>(null);
   const [resumable, setResumable] = useState<Session | null>(null);
   const [placementOffered, setPlacementOffered] = useState(true);
+  /** SPEC §2.13: the in-app cue, for every device that cannot schedule one. */
+  const [cueDue, setCueDue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   /**
@@ -53,6 +60,37 @@ export const App = () => {
    */
   const probeAudio = useCallback((lang: TargetLang) => {
     void probeOnBoot(lang).then(setVoice);
+  }, []);
+
+  /**
+   * SPEC §2.13, both halves of the reminder.
+   *
+   * Rescheduling on open is what makes a local `TimestampTrigger` behave like a
+   * daily cue: the API has no repeat, so each open books the next one. A learner
+   * who stops opening the app stops being reminded, which is the right failure —
+   * a reminder that outlives their interest is spam, not a habit.
+   *
+   * The in-app cue is the fallback for every browser without that API, and it is
+   * suppressed for anyone who has already practised today (§2.14: no guilt).
+   */
+  const refreshHabitCue = useCallback(async (profile: Profile) => {
+    const habit = await getHabit(profile.id);
+    if (!habit || habit.enabled === 0) {
+      setCueDue(null);
+      return;
+    }
+    const practised = await lastPractisedAt(profile.id);
+    const due = cueIsDue({
+      time: habit.notificationTime,
+      now: Date.now(),
+      lastPractisedAt: practised,
+    });
+    setCueDue(due ? habit.cue : null);
+    void scheduleReminder({
+      time: habit.notificationTime,
+      title: copy.session.start(profile.dailyMinutes),
+      body: copy.habit.summary(habit.cue, habit.place, habit.notificationTime),
+    });
   }, []);
 
   /** Starts or resumes a session. The only path into the practice loop. */
@@ -89,8 +127,9 @@ export const App = () => {
       setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
       setPlacementOffered(await hasBeenPlaced(profile.id, profile.targets[0] ?? 'en'));
       setScreen({ name: 'home', profile });
+      void refreshHabitCue(profile);
     })();
-  }, [beginSession]);
+  }, [beginSession, refreshHabitCue]);
 
   // Content is fetched once and cached by the service worker. Kicked off as
   // soon as there is a profile so the first session does not wait on it.
@@ -158,6 +197,8 @@ export const App = () => {
     const profile = await getCurrentProfile();
     if (!profile) return;
     setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
+    // They just practised, so the cue has been answered (§2.14).
+    setCueDue(null);
     setScreen({ name: 'home', profile });
   }, []);
 
@@ -193,6 +234,16 @@ export const App = () => {
         <ReaderScreen
           profile={screen.profile}
           onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+        />
+      );
+    case 'habit':
+      return (
+        <HabitScreen
+          profile={screen.profile}
+          onDone={() => {
+            setCueDue(null);
+            setScreen({ name: 'home', profile: screen.profile });
+          }}
         />
       );
     case 'sync':
@@ -231,6 +282,9 @@ export const App = () => {
           onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
           onRead={() => setScreen({ name: 'reader', profile: screen.profile })}
           onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
+          cueDue={cueDue}
+          onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
+          onDismissCue={() => setCueDue(null)}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}
         />

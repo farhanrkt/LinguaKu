@@ -33,6 +33,13 @@ interface HomeProps {
   onSync: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => void;
+  /**
+   * SPEC §2.13: the learner's own cue word when it has passed and today holds
+   * no practice, otherwise null. Their words, not ours — that is the mechanism.
+   */
+  cueDue: string | null;
+  onHabit: () => void;
+  onDismissCue: () => void;
 }
 
 const offlineLabel: Record<OfflineStatus, string> = {
@@ -57,6 +64,9 @@ export const Home = ({
   onSync,
   onPractise,
   onChange,
+  cueDue,
+  onHabit,
+  onDismissCue,
 }: HomeProps) => {
   // Sessions, content, drills and the ability estimate all follow `targets[0]`,
   // so this control switches *which language you are learning now* rather than
@@ -104,6 +114,25 @@ export const Home = ({
         </strong>
         .
       </p>
+
+      {/* SPEC §2.13's in-app cue. An invitation with a way out, never a
+          reprimand (§2.14) — and it names the learner's own words back. */}
+      {cueDue !== null ? (
+        <div
+          data-testid="habit-cue-banner"
+          className="mt-4 rounded-2xl bg-teal-50 p-4 dark:bg-teal-950"
+        >
+          <p className="text-sm text-teal-900 dark:text-teal-200">{copy.habit.cueNudge(cueDue)}</p>
+          <button
+            type="button"
+            onClick={onDismissCue}
+            data-testid="habit-cue-dismiss"
+            className="mt-2 min-h-12 text-sm text-teal-800 underline underline-offset-4 dark:text-teal-300"
+          >
+            {copy.habit.cueDismiss}
+          </button>
+        </div>
+      ) : null}
 
       {placementOffered ? null : (
         // SPEC §4.2: offered, never enforced — a quiet link, not a gate.
@@ -186,9 +215,18 @@ export const Home = ({
           reachable from the app, not only from the repository. */}
       <button
         type="button"
+        onClick={onHabit}
+        data-testid="habit-open"
+        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+      >
+        {copy.habit.open}
+      </button>
+
+      <button
+        type="button"
         onClick={onSync}
         data-testid="sync-open"
-        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+        className="mt-2 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
       >
         {copy.sync.open}
       </button>

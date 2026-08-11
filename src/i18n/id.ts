@@ -431,4 +431,45 @@ export const copy = {
       begin: 'Mulai latihan',
     },
   },
+
+  /**
+   * SPEC §2.13. The learner writes the plan in their own words — that is the
+   * mechanism, not the reminder. Copy addresses "kamu" and never implies that
+   * a missed day is a failure (§2.14).
+   */
+  habit: {
+    open: 'Atur pengingat',
+    heading: 'Kapan waktu latihanmu?',
+    intro:
+      'Kebiasaan paling gampang nempel kalau ditempelkan ke hal yang sudah kamu lakukan tiap hari. Tulis sendiri, pakai kata-katamu.',
+    // The sentence frame is the implementation intention itself.
+    sentenceBefore: 'Setiap hari setelah',
+    sentenceMiddle: ', saya latihan di',
+    sentenceAfter: '.',
+    cuePlaceholder: 'makan malam',
+    placePlaceholder: 'kamar',
+    cueLabel: 'Sesudah apa?',
+    placeLabel: 'Di mana?',
+    timeLabel: 'Ingatkan jam berapa?',
+    save: 'Simpan',
+    skip: 'Nanti saja',
+    skipNote: 'Bisa diatur kapan saja, dan tidak diatur pun aplikasinya jalan penuh.',
+    off: 'Matikan pengingat',
+    saved: 'Tersimpan.',
+    summary: (cue: string, place: string, time: string) =>
+      `Setiap hari setelah ${cue}, kamu latihan di ${place}. Pengingat jam ${time}.`,
+
+    // Each of these is a real, different capability level. §2.6's rule applied
+    // to notifications: say what this device can do rather than imply more.
+    supportScheduled: 'HP ini bisa mengingatkan walau aplikasinya tertutup.',
+    supportInApp:
+      'HP ini belum bisa mengingatkan kalau aplikasinya tertutup, jadi pengingatnya kami tampilkan pas kamu buka aplikasi.',
+    supportNone: 'Peramban ini tidak punya pengingat, jadi catatan ini cuma buat kamu sendiri.',
+    permissionDenied:
+      'Izin notifikasi ditolak, jadi pengingatnya kami tampilkan di dalam aplikasi saja.',
+
+    // The in-app cue. An invitation, never an accusation (§2.14).
+    cueNudge: (cue: string) => `Sudah lewat ${cue}. Mau latihan sekarang?`,
+    cueDismiss: 'Nanti',
+  },
 } as const;
