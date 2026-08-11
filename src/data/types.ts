@@ -271,6 +271,24 @@ export interface MinedItem {
   minedAt: Timestamp;
 }
 
+/**
+ * SPEC §2.14: *"can always skip an item (belum perlu)"*.
+ *
+ * A skip is not an answer, so it writes no card, no FSRS state and no review
+ * log — invariant 0 and §2.2 both forbid that. What it records is a request not
+ * to be shown this for a while, which the composer honours for both new items
+ * and cards already due.
+ */
+export interface DeferredItem {
+  profileId: string;
+  itemId: string;
+  deferredAt: Timestamp;
+  /** The composer skips this item until this instant. */
+  until: Timestamp;
+  /** How many times running it has been declined; each skip defers it longer. */
+  times: number;
+}
+
 export interface Session {
   id: string;
   profileId: string;

@@ -14,6 +14,7 @@ import { DEFAULT_ITEM_DIFFICULTY, DEFAULT_RATING } from '../../core/elo.ts';
 import { vocabularyAbility } from './abilities.ts';
 import { allCategoryScores, recentDrillIds, weakestCategories } from './contrastive.ts';
 import { minedItemIds } from './mining.ts';
+import { deferredItemIds } from './deferrals.ts';
 import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Profile, Session, TargetLang, Timestamp } from '../types.ts';
@@ -63,6 +64,7 @@ const newCandidates = async (
   profile: Profile,
   limit: number,
   frontier: FrequencyBand,
+  deferred: Set<string>,
 ): Promise<Candidate[]> => {
   if (limit <= 0) return [];
   const lang = profile.targets[0] ?? 'en';
@@ -84,6 +86,9 @@ const newCandidates = async (
 
   const eligible = items.filter(
     (item) =>
+      // SPEC §2.14: a word the learner has declined is not offered again until
+      // its window lapses — including one they mined and then thought better of.
+      !deferred.has(item.id) &&
       (mined.has(item.id) || item.band <= frontier) &&
       // A lexeme needs an example sentence (SPEC §2.5); a kanji is taught by its
       // components and readings, so the rule does not apply to it.
@@ -177,13 +182,20 @@ const drillCandidates = async (
   return chosen;
 };
 
-const dueCandidates = async (profile: Profile, now: Timestamp): Promise<Candidate[]> => {
+const dueCandidates = async (
+  profile: Profile,
+  now: Timestamp,
+  deferred: Set<string>,
+): Promise<Candidate[]> => {
   const cards = await dueCards(profile.id, now);
   const items = await db.items.bulkGet(cards.map((card) => card.itemId));
 
   return cards.flatMap((card, index) => {
     const item = items[index];
     if (!item) return [];
+    // A due card the learner declined stays due — the skip changes what is
+    // *shown*, never the schedule. Nothing about its FSRS state is touched.
+    if (deferred.has(item.id)) return [];
     return [
       {
         id: card.id,
@@ -238,9 +250,10 @@ export const planSession = async (
     baseNewItems: BASE_NEW_ITEMS,
   });
 
+  const deferred = await deferredItemIds(profile.id, now);
   const [due, fresh, drills] = await Promise.all([
-    dueCandidates(profile, now),
-    newCandidates(profile, throttle.allowed, frontier),
+    dueCandidates(profile, now, deferred),
+    newCandidates(profile, throttle.allowed, frontier, deferred),
     drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false),
   ]);
 

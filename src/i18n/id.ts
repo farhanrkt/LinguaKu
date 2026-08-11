@@ -55,6 +55,10 @@ export const copy = {
   session: {
     start: (minutes: number) => `Latihan ${minutes} menit`,
     resume: 'Lanjutkan latihan',
+    // SPEC §2.14: declining is a first-class action, not a hidden escape. The
+    // wording is the spec's own — "belum perlu", not "lewati" — because it says
+    // the word is fine and the timing is not.
+    skipItem: 'Belum perlu kata ini',
     preparing: 'Menyiapkan materi…',
     downloading: 'Mengunduh materi sekali saja…',
     empty: 'Semua materi sudah kamu kerjakan hari ini. Sampai besok!',

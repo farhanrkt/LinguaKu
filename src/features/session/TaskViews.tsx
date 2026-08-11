@@ -51,7 +51,10 @@ export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: Ta
     <p className="mt-6 text-2xl leading-snug font-bold">{task.sentence.text}</p>
     <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
     <p className="mt-4">
-      <span className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+      <span
+        data-testid="task-headword"
+        className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200"
+      >
         {task.headword}
       </span>
     </p>

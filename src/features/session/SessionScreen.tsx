@@ -15,6 +15,7 @@ import { speak } from '../../platform/speech.ts';
 import { recordReview } from '../../data/repositories/reviews.ts';
 import { recordCategoryAttempt, recordDrillAnswer } from '../../data/repositories/contrastive.ts';
 import { advanceCursor, completeSession } from '../../data/repositories/sessions.ts';
+import { deferItem } from '../../data/repositories/deferrals.ts';
 import {
   EMPTY_PACK,
   loadContrastive,
@@ -307,6 +308,21 @@ export const SessionScreen = ({
     setCursor(next);
   }, [cursor, session.id, session.itemIds.length]);
 
+  /**
+   * SPEC §2.14, autonomy: *"can always skip an item (belum perlu)"*.
+   *
+   * A skip is not an answer, so nothing here touches the scheduler — no
+   * `recordReview`, no rating, no card. It records a request not to be shown
+   * this for a while and moves on, and the window grows each time the same item
+   * is declined. A drill has no item to defer, so it is simply passed over.
+   */
+  const handleSkip = useCallback(async () => {
+    if (entry?.kind === 'item') {
+      await deferItem(profile.id, entry.task.itemId, Date.now());
+    }
+    await handleNext();
+  }, [entry, profile.id, handleNext]);
+
   const handleQuit = useCallback(async () => {
     await advanceCursor(session.id, cursor);
     onFinish();
@@ -402,13 +418,24 @@ export const SessionScreen = ({
         ) : drillReveal ? (
           <DrillFeedback reveal={drillReveal} onNext={() => void handleNext()} />
         ) : (
-          <button
-            type="button"
-            onClick={() => void handleQuit()}
-            className="min-h-12 w-full text-sm text-stone-500 underline-offset-4 hover:underline dark:text-slate-500"
-          >
-            {copy.session.quit}
-          </button>
+          <>
+            {/* §2.14: declining is always available, and costs nothing. */}
+            <button
+              type="button"
+              onClick={() => void handleSkip()}
+              data-testid="session-skip"
+              className="min-h-12 w-full rounded-2xl text-sm font-semibold text-stone-600 underline-offset-4 hover:underline dark:text-slate-400"
+            >
+              {copy.session.skipItem}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleQuit()}
+              className="min-h-12 w-full text-sm text-stone-500 underline-offset-4 hover:underline dark:text-slate-500"
+            >
+              {copy.session.quit}
+            </button>
+          </>
         )
       }
     >

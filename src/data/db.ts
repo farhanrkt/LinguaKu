@@ -4,6 +4,7 @@ import type {
   Card,
   CategoryScore,
   DrillAttempt,
+  DeferredItem,
   Habit,
   MinedItem,
   Item,
@@ -43,6 +44,7 @@ export class LinguaKuDb extends Dexie {
   contentShards!: Table<ContentShard, string>;
   drillAttempts!: Table<DrillAttempt, string>;
   minedItems!: Table<MinedItem, [string, string]>;
+  deferredItems!: Table<DeferredItem, [string, string]>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -102,6 +104,13 @@ export class LinguaKuDb extends Dexie {
     // and no existing row changes shape.
     this.version(4).stores({
       minedItems: '[profileId+itemId], profileId, [profileId+minedAt]',
+    });
+
+    // v5 (v2.0.0): SPEC §2.14's "belum perlu". Additive, and deliberately its
+    // own table rather than a flag on `Card` — a learner may decline a word
+    // they have never answered, which has no card to carry a flag.
+    this.version(5).stores({
+      deferredItems: '[profileId+itemId], profileId, [profileId+until]',
     });
 
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
 import { advanceCursor, completeSession, findResumable, sessionProgress, startSession } from './sessions.ts';
 import { recordReview } from './reviews.ts';
+import { deferItem } from './deferrals.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Profile } from '../types.ts';
 
@@ -162,6 +163,66 @@ describe('resume safety (SPEC §2.13)', () => {
     const recent = await startSession(profile, NOW);
     expect(await findResumable(profile.id, 'en')).toMatchObject({ id: recent.id });
     expect(old.id).not.toBe(recent.id);
+  });
+});
+
+describe('a skipped item is left alone (SPEC §2.14)', () => {
+  it('drops a declined word out of the next session', async () => {
+    await seed(40);
+    const before = await startSession(profile, NOW);
+    const declined = before.itemIds[0];
+    expect(declined).toBeDefined();
+
+    await deferItem(profile.id, declined!, NOW);
+    await db.sessions.clear();
+
+    const after = await startSession(profile, NOW + 1000);
+    expect(after.itemIds).not.toContain(declined);
+    // And the session is still a full one — declining costs the learner nothing.
+    expect(after.itemIds.length).toBeGreaterThan(5);
+  });
+
+  it('brings it back once the window lapses', async () => {
+    // A corpus small enough to fit in one session, so what is being measured is
+    // eligibility rather than the composer's day-seeded choice of which
+    // eligible items to spend the budget on.
+    await seed(6);
+    const declined = 'en:lex:word0';
+
+    await deferItem(profile.id, declined, NOW);
+    const during = await startSession(profile, NOW + 1000);
+    expect(during.itemIds).not.toContain(declined);
+
+    await db.sessions.clear();
+    const after = await startSession(profile, NOW + 5 * 86_400_000);
+    expect(after.itemIds).toContain(declined);
+  });
+
+  it('hides a due card without touching its schedule', async () => {
+    await seed(10);
+    await recordReview({
+      profileId: profile.id,
+      itemId: 'en:lex:word0',
+      grade: 1,
+      confidence: null,
+      latencyMs: 900,
+      answerRaw: 'wrong',
+      correct: false,
+      now: NOW,
+    });
+    const card = await db.cards.where('itemId').equals('en:lex:word0').first();
+    const dueBefore = card?.dueAt;
+
+    await deferItem(profile.id, 'en:lex:word0', NOW + 60_000);
+    await db.sessions.clear();
+    const session = await startSession(profile, NOW + 120_000);
+
+    expect(session.itemIds).not.toContain('en:lex:word0');
+    // The skip changed what is *shown*. The memory model is untouched.
+    const after = await db.cards.where('itemId').equals('en:lex:word0').first();
+    expect(after?.dueAt).toBe(dueBefore);
+    expect(after?.fsrs.reps).toBe(card?.fsrs.reps);
+    expect(await db.reviewLogs.count()).toBe(1);
   });
 });
 
