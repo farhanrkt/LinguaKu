@@ -23,7 +23,8 @@
     "verify": "npm run typecheck && npm run lint && npm run test && npm run check:licenses && npm run build && npm run check:bundle",
     "ingest:fetch": "node scripts/ingest/fetch.ts",
     "ingest:en": "node scripts/ingest/build-en.ts",
-    "ingest:contrastive": "node scripts/ingest/build-contrastive.ts"
+    "ingest:contrastive": "node scripts/ingest/build-contrastive.ts",
+    "ingest:ja": "node --max-old-space-size=6144 scripts/ingest/build-ja.ts"
   },
   "dependencies": {
     "dexie": "^4.4.4",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
+    "@sglkc/kuromoji": "^1.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
@@ -42,6 +44,7 @@
     "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "fake-indexeddb": "^6.2.5",
+    "fast-xml-parser": "^5.10.1",
     "globals": "^17.9.0",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",

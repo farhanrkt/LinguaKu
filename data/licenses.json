@@ -61,6 +61,30 @@
       "shareAlike": true,
       "verifiedOn": "2026-08-10",
       "notes": "Same EDRDG terms as JMdict. Radical decomposition for §2.11 is NOT in KANJIDIC2 — that needs a separate source (see the `kradfile` candidate)."
+    },
+    {
+      "key": "kradfile",
+      "name": "KRADFILE / RADKFILE (Electronic Dictionary Research and Development Group)",
+      "url": "https://www.edrdg.org/krad/kradinf.html",
+      "use": "Kanji decomposition into visible components, for SPEC §2.11 (校 = 木 + 交).",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://www.edrdg.org/edrdg/licence.html",
+      "attributionRequired": true,
+      "shareAlike": true,
+      "verifiedOn": "2026-08-11",
+      "notes": "Cleared at M6 by reading both pages: kradinf.html states the files are 'available under the EDRDG Licence', and licence.html lists RADKFILE/KRADFILE among the covered files under CC BY-SA 4.0. NB the licence covers KRADFILE and RADKFILE only — KRADFILE2/RADKFILE2 are copyright Jim Rose and are NOT used here."
+    },
+    {
+      "key": "ipadic",
+      "name": "IPAdic, via kuromoji (Nara Institute of Science and Technology)",
+      "url": "https://github.com/takuyaa/kuromoji.js",
+      "use": "Build-time morphological tokenization of Japanese sentences (SPEC §5.1, decision D10).",
+      "license": "Apache-2.0 (kuromoji) with the IPAdic BSD-style notice",
+      "licenseUrl": "https://github.com/takuyaa/kuromoji.js/blob/master/LICENSE-2.0.txt",
+      "attributionRequired": true,
+      "shareAlike": false,
+      "verifiedOn": "2026-08-11",
+      "notes": "A build-time tool, not shipped content: the dictionary never reaches the browser (D10). What ships is token boundaries and readings derived from it, so it is attributed here rather than treated as a shard source."
     }
   ],
   "candidates": [
@@ -87,12 +111,6 @@
       "name": "English frequency list",
       "url": "https://github.com/rspeer/wordfreq",
       "blocker": "Source not chosen. Each candidate list (wordfreq, OpenSubtitles/OPUS derivatives, SUBTLEX) carries its own terms and some are non-commercial or unstated. M1 cannot band by frequency until one is cleared."
-    },
-    {
-      "key": "kradfile",
-      "name": "KRADFILE / RADKFILE",
-      "url": "https://www.edrdg.org/krad/kradinf.html",
-      "blocker": "Needed for kanji component decomposition (SPEC §2.11). EDRDG-adjacent but has its own notice; verify before M6."
     },
     {
       "key": "jlpt-wordlists",

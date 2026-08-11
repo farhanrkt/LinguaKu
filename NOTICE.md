@@ -64,6 +64,32 @@ Japanese proper names.
 - Licence: **CC BY-SA 4.0** — <https://www.edrdg.org/edrdg/licence.html>
 - Verified: 2026-08-10
 
+## KRADFILE / RADKFILE (Electronic Dictionary Research and Development Group)
+
+Kanji decomposition into visible components — what makes SPEC §2.11's
+`校 = 木 + 交` breakdown possible.
+
+- Source: <https://www.edrdg.org/krad/kradinf.html>
+- Licence: **CC BY-SA 4.0** — <https://www.edrdg.org/edrdg/licence.html>
+- Verified: 2026-08-11
+
+Cleared at M6 by reading both pages. `kradinf.html` states the files are
+available under the EDRDG Licence, and `licence.html` lists RADKFILE/KRADFILE
+among the files it covers. **KRADFILE2 / RADKFILE2 are copyright Jim Rose and
+are not used here.**
+
+## IPAdic, via kuromoji (Nara Institute of Science and Technology)
+
+Build-time morphological tokenization of Japanese sentences.
+
+- Source: <https://github.com/takuyaa/kuromoji.js>
+- Licence: **Apache-2.0**, with the IPAdic BSD-style notice
+- Verified: 2026-08-11
+
+A build tool rather than shipped content: the dictionary never reaches the
+browser (decision D10). What ships is the token boundaries and readings derived
+from it, which is why it is acknowledged here.
+
 ## KANJIDIC2 (Electronic Dictionary Research and Development Group)
 
 Kanji readings, grades, stroke counts and frequency data.

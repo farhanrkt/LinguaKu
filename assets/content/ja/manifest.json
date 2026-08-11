@@ -1,0 +1,209 @@
+{
+  "sources": [
+    "tatoeba",
+    "jmdict",
+    "kanjidic2",
+    "kradfile",
+    "ipadic"
+  ],
+  "license": "CC BY-SA 4.0",
+  "version": 1,
+  "lang": "ja",
+  "corpus": {
+    "japaneseSentences": 248849,
+    "directPairs": 5919,
+    "triangulatedPairs": 9405,
+    "pairs": 15324,
+    "distinctLemmas": 6904,
+    "tokenTotal": 63065,
+    "lexemes": 6904,
+    "kanji": 1748,
+    "kanjiWithComponents": 1748,
+    "maxLexemeRank": 8000
+  },
+  "coverage": {
+    "teachableShare": 1,
+    "bandShare": [
+      {
+        "band": 1,
+        "share": 0.696345,
+        "lexemes": 500
+      },
+      {
+        "band": 2,
+        "share": 0.101879,
+        "lexemes": 500
+      },
+      {
+        "band": 3,
+        "share": 0.0884802,
+        "lexemes": 1000
+      },
+      {
+        "band": 4,
+        "share": 0.0672481,
+        "lexemes": 2000
+      },
+      {
+        "band": 5,
+        "share": 0.0460479,
+        "lexemes": 2904
+      }
+    ]
+  },
+  "shards": [
+    {
+      "kind": "anchors",
+      "band": 1,
+      "path": "anchors.b1.json",
+      "count": 2152,
+      "bytes": 600047,
+      "gzipBytes": 132091,
+      "sha256": "9fcfadbe31e248fc3566c1ad895ac8b084577f485ea0c2a0bd7dfd47290f2c61"
+    },
+    {
+      "kind": "anchors",
+      "band": 2,
+      "path": "anchors.b2.json",
+      "count": 2305,
+      "bytes": 737113,
+      "gzipBytes": 170285,
+      "sha256": "5801fa35db5f57ac33b75c89e0665639cc7021e10d3d703a2fa03db953da6b51"
+    },
+    {
+      "kind": "anchors",
+      "band": 3,
+      "path": "anchors.b3.json",
+      "count": 4058,
+      "bytes": 1524424,
+      "gzipBytes": 375434,
+      "sha256": "dc914275eab2d935fbdd18810453c7b925476d2be2b6f3067723d6aae9543093"
+    },
+    {
+      "kind": "anchors",
+      "band": 4,
+      "path": "anchors.b4.json",
+      "count": 3547,
+      "bytes": 1394855,
+      "gzipBytes": 353817,
+      "sha256": "4bdc6fb009ac3adb85ca15144d637bfcbaf28b45dd667e722733bcb84c25a266"
+    },
+    {
+      "kind": "anchors",
+      "band": 5,
+      "path": "anchors.b5.json",
+      "count": 2429,
+      "bytes": 975480,
+      "gzipBytes": 259873,
+      "sha256": "6d8e4cb6e4ca8ee763b00abb4ea38943ecbefb71d124f3df8ad071da16ef7409"
+    },
+    {
+      "kind": "kanji",
+      "band": 1,
+      "path": "kanji.b1.json",
+      "count": 1748,
+      "bytes": 419664,
+      "gzipBytes": 95124,
+      "sha256": "6a4e4d2f607dd0a7fa1e57295406146b6ca867d8feeca48f8ec2ca647ec3bbbe"
+    },
+    {
+      "kind": "lexemes",
+      "band": 1,
+      "path": "lexemes.b1.json",
+      "count": 500,
+      "bytes": 112214,
+      "gzipBytes": 20111,
+      "sha256": "16c32f9cc71a00587e24932669d5468bba739494605a24280efe0e65281aef83"
+    },
+    {
+      "kind": "lexemes",
+      "band": 2,
+      "path": "lexemes.b2.json",
+      "count": 500,
+      "bytes": 113976,
+      "gzipBytes": 20094,
+      "sha256": "4ed42de777a6e07c1002cc06d442053162f268ddd8c2c4d8c5cf15b34d686070"
+    },
+    {
+      "kind": "lexemes",
+      "band": 3,
+      "path": "lexemes.b3.json",
+      "count": 1000,
+      "bytes": 222754,
+      "gzipBytes": 37855,
+      "sha256": "e4da1054385888f4a4eb263a4d88a87eb921d26f728444d8cfa1b034d0458b71"
+    },
+    {
+      "kind": "lexemes",
+      "band": 4,
+      "path": "lexemes.b4.json",
+      "count": 2000,
+      "bytes": 338983,
+      "gzipBytes": 52519,
+      "sha256": "93ef39e8d1f589dad0d17abb2ef471a5b82cffa879484233fd4c1dff9732df5b"
+    },
+    {
+      "kind": "lexemes",
+      "band": 5,
+      "path": "lexemes.b5.json",
+      "count": 2904,
+      "bytes": 428563,
+      "gzipBytes": 60358,
+      "sha256": "d5576a70bc0e2a9cb74eb193ff869b29acc0ec49be73ecee1f2c893720b5d750"
+    },
+    {
+      "kind": "sentences",
+      "band": 1,
+      "path": "sentences.b1.json",
+      "count": 4305,
+      "bytes": 1382023,
+      "gzipBytes": 273361,
+      "sha256": "11deb660354012b4d51532fde4a6787d520b7b5b42387f8673432d32ebf3b045"
+    },
+    {
+      "kind": "sentences",
+      "band": 2,
+      "path": "sentences.b2.json",
+      "count": 2770,
+      "bytes": 968820,
+      "gzipBytes": 217076,
+      "sha256": "054fbe74547075983738879e422266dc2305ad7a968a7ca4a019f589d6e6cc5f"
+    },
+    {
+      "kind": "sentences",
+      "band": 3,
+      "path": "sentences.b3.json",
+      "count": 2988,
+      "bytes": 1085791,
+      "gzipBytes": 257225,
+      "sha256": "76e6442ab750b44072f3a96e90cc9fec6eeb8dc92337d05d72b447c22432755e"
+    },
+    {
+      "kind": "sentences",
+      "band": 4,
+      "path": "sentences.b4.json",
+      "count": 2847,
+      "bytes": 1073538,
+      "gzipBytes": 265483,
+      "sha256": "22cbc60d0ee3cc42ec746c81d43c9b2ec293bff209e6388812fabf4befa4f1ad"
+    },
+    {
+      "kind": "sentences",
+      "band": 5,
+      "path": "sentences.b5.json",
+      "count": 2383,
+      "bytes": 937251,
+      "gzipBytes": 248307,
+      "sha256": "b31fa44aa621951b0049aa0223eb86d92a85df4c0119b3b6d08f0513936016b1"
+    },
+    {
+      "kind": "sentences",
+      "band": 6,
+      "path": "sentences.b6.json",
+      "count": 31,
+      "bytes": 6696,
+      "gzipBytes": 1561,
+      "sha256": "8644f7f9f413cfeac691584309a3a5af73603d261b7a5644a94fe1a78309060d"
+    }
+  ]
+}

@@ -100,7 +100,29 @@ get recorded in Part 3 of this file.
 
 ### R2 — Indonesian-translated corpus is a hard ceiling, and it binds Japanese
 
-**Status:** measured for English (comfortable). Still decisive for M6.
+**Status:** **resolved** (M6). Measured, not guessed — and the prediction was
+pessimistic in size but right in shape.
+
+| | |
+|---|---|
+| Japanese sentences on Tatoeba | 248,849 |
+| with a **direct** Indonesian pair | 5,919 |
+| reachable **through English** | 12,395 |
+| union, after dedup and tokenization | **15,324** |
+
+Direct pairs alone would have cleared M1's 5,000-sentence bar, but only just, and
+with no room to select for difficulty. Triangulating JA→EN→ID roughly triples the
+corpus to 15,324 — option (a) from the M0 list, chosen because the measurement
+showed the other two were not needed.
+
+**The cost, recorded rather than waved away:** a triangulated sentence has been
+through two translators, and drift is real. So every sentence carries `via:
+'direct' | 'en'` and triangulated ones carry the English `bridge` id. That makes
+the route auditable per sentence, lets the reviewer spot-check the two-hop ones,
+and leaves the door open for the UI to weight them differently. A direct pair
+always wins where one exists; triangulation never overwrites.
+
+**No machine translation was needed, and none was used.** See D40.
 
 SPEC §2.5 requires every lexical item to be anchored to an example sentence
 **with an Indonesian translation**. Measured at tatoeba.org/en/stats on
@@ -275,6 +297,8 @@ memory model.
 | D37 | **Import merges the append-only log by id; everything else is overwritten** | SPEC §6's own sentence, read literally: *"last-write-wins per card with the log as tiebreaker."* `ReviewLog` and `DrillAttempt` are UUID-keyed and append-only, so a restore adds what it lacks and touches nothing else — re-importing is a no-op, two devices' histories union, and a restore can never destroy review history. Cards, abilities and scores are current state, so the bundle wins; interleaving two schedules for one card after the fact is not something we can do correctly. Discovered the hard way: the first implementation deleted logs to replace them, and the Dexie hook refused. |
 | D38 | **No charting library; five figures of inline SVG** | The smallest credible charting library is a meaningful slice of a 200 KB budget (invariant 6) for bars, a polygon and a marker. `charts.tsx` is under 200 lines. Every component takes `number \| null` and draws an explicit gap for null, so "not measured" cannot render as a bar of zero — the easiest way to break §2.15 by accident. |
 | D39 | **A retention verdict comes from the confidence interval, never the point estimate — and retuning is a nudge, not a fit** | 51 of 60 is 85% and is not evidence the scheduler is mistuned. Only an interval that excludes the target justifies saying so, and only then does §9's "offer to retune" appear. The retune moves `request_retention` one bounded step (±0.03, clamped to 0.80–0.95) in the direction the evidence points, and is labelled a nudge everywhere: a real per-user parameter fit needs the FSRS optimizer and far more history than a learner has when they first notice the number. |
+| D40 | **Japanese translations come from triangulation only; no machine translation** | Two reasons, in order. First, it is not needed: JA→EN→ID yields 15,324 sentences against a 5,000 bar, and the gap it would fill is the rare tail rather than the N5–N4 core. Second, there is no free path to it — §0 rule 1 bans a paid API and D4 defers the AI layer to post-M7, so a translation step would mean either a recurring bill or a large local model in the build. And a generated Indonesian sentence shipped as ground truth is a different kind of content from a human translation with a Tatoeba id behind it, however it is flagged. If the tail ever needs filling, hand-authoring a small core (M0's option c) keeps the provenance honest. |
+| D41 | **Kanji ship both KRADFILE's radicals and a derived one-level grouping** | SPEC §2.11 wants the learner to see 校 as 木 + 交. KRADFILE gives the *radicals* — 父 + 木 + 亠 — which is correct, licensed, and not what the spec asks for, because 交 is itself 亠 + 父. The pipeline therefore also computes a grouping: where another kanji's radical set is a proper subset of this one's, the shared radicals collapse into it. That recovers 校 = 木 + 交, 語 = 言 + 吾, 時 = 日 + 寺 from licensed data instead of hand-authoring 1,748 breakdowns. Marked `UNVALIDATED` in the source: the subset rule is a heuristic, deliberately conservative (one level, largest match, kanji only), and the raw radical list ships alongside so nothing is lost when a grouping is wrong. It fires on 1,149 of 1,748. |
 | D23 | **Lighthouse PWA gate replaced with direct installability assertions** | §13 asks for "Lighthouse PWA score ≥ 90", but Lighthouse removed the PWA category in v12 (Chrome 126) when Chrome revised its installability criteria. `e2e/coldstart.spec.ts` asserts what the score measured — manifest validity, icon resolution, maskable icon, service-worker control, offline start_url — with no new dependency. |
 
 ---
