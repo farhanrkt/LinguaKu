@@ -25,6 +25,7 @@ import { categoryStandings } from './contrastive.ts';
 import { vocabularyAbility } from './abilities.ts';
 import { rankForAbility } from '../../core/placement.ts';
 import { isMastered } from '../../core/ladder.ts';
+import { buildRecap, type Recap } from '../../core/recap.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Profile, TargetLang, Timestamp } from '../types.ts';
 
@@ -55,6 +56,8 @@ export interface SkillPoint {
 // ---------------------------------------------------------------- the whole
 
 export interface ProgressReport {
+  /** SPEC §9's weekly recap — capability over the last 7 days. */
+  recap: Recap;
   vocabulary: VocabularyEstimate;
   coverage: CoverageEstimate;
   bands: BandRate[];
@@ -119,6 +122,7 @@ export const buildProgressReport = async (
   const bandEvidence = [...evidence.values()].sort((a, b) => a.band - b.band);
 
   // ------------------------------------------------------------- skills
+  const drillAttempts = await db.drillAttempts.where('profileId').equals(profile.id).toArray();
   const standings = await categoryStandings(
     profile.id,
     lang,
@@ -166,7 +170,38 @@ export const buildProgressReport = async (
   const ability = await vocabularyAbility(profile.id, lang);
   const placed = await db.abilities.get([profile.id, lang, 'vocab']);
 
+  // SPEC §9's recap. `firstSeenAt` is the learner's whole history, not the
+  // window: a word met months ago and reviewed today is strengthened, not new.
+  const firstSeenAt = new Map<string, number>();
+  const cardById = new Map(cards.map((card) => [card.id, card]));
+  for (const log of logs) {
+    const itemId = cardById.get(log.cardId)?.itemId;
+    if (itemId === undefined) continue;
+    const seen = firstSeenAt.get(itemId);
+    if (seen === undefined || log.reviewedAt < seen) firstSeenAt.set(itemId, log.reviewedAt);
+  }
+
   return {
+    recap: buildRecap(
+      {
+        reviews: logs.flatMap((log) => {
+          const itemId = cardById.get(log.cardId)?.itemId;
+          return itemId === undefined
+            ? []
+            : [{ at: log.reviewedAt, itemId, correct: log.correct === 1 }];
+        }),
+        drillsAt: drillAttempts.map((attempt) => attempt.answeredAt),
+        // A card's mastery date is not recorded, so the honest proxy is the
+        // last review that could have crossed the bar. Cards not mastered
+        // contribute nothing.
+        masteredAt: cards
+          .filter((card) => isMastered(card.ladderLevel, card.fsrs.stability))
+          .flatMap((card) => (card.fsrs.lastReviewAt === null ? [] : [card.fsrs.lastReviewAt])),
+        now,
+      },
+      firstSeenAt,
+      profile.createdAt,
+    ),
     vocabulary: estimateVocabulary(bandEvidence),
     coverage: estimateCoverage(bandEvidence, teachableShare, knownShare),
     bands: bandRates(bandEvidence),

@@ -402,6 +402,21 @@ export const copy = {
       },
     },
   },
+  recap: {
+    heading: 'Seminggu terakhir',
+    // SPEC §9 + §2.14: capability, never a score. Each line is a thing the
+    // learner can now do, and there is no total to compare against anyone.
+    empty: 'Belum ada latihan minggu ini. Nanti di sini ada ringkasannya.',
+    met: (count: number) => `${count} kata baru kamu temui.`,
+    strengthened: (count: number) => `${count} kata kamu kuatkan lagi.`,
+    mastered: (count: number) => `${count} kata sudah benar-benar nempel.`,
+    drills: (count: number) => `${count} pola tata bahasa kamu latih.`,
+    days: (days: number) => `Kamu latihan di ${days} hari.`,
+    // A direction, never a verdict — and deliberately not phrased as a loss.
+    comparedSame: 'Sama seperti minggu sebelumnya.',
+    comparedMore: (previous: number) => `Minggu sebelumnya ${previous} hari.`,
+    comparedFewer: (previous: number) => `Minggu sebelumnya ${previous} hari.`,
+  },
   placement: {
     offer: 'Cek kemampuan (1 menit)',
     heading: 'Kata mana yang kamu tahu?',

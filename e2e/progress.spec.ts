@@ -114,3 +114,35 @@ test('exports a JSON backup with no account, and restores it', async ({ page }) 
   await page.getByTestId('import-file').setInputFiles(path);
   await expect(page.getByTestId('data-notice')).toContainText('tidak ada yang berubah');
 });
+
+/**
+ * SPEC §9's weekly recap — the last §9 line to ship.
+ *
+ * Its whole risk is tone: every honest summary of a week is one sentence away
+ * from a scoreboard. What is asserted here is the restraint, not the numbers.
+ */
+test('the weekly recap says nothing rather than inventing encouragement', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('progress-open').click();
+
+  const recap = page.getByTestId('recap');
+  await expect(recap).toBeVisible();
+  // Invariant 18: an empty week is shown as empty.
+  await expect(recap).toContainText('Belum ada latihan minggu ini');
+});
+
+test('the recap reports capability, never a score', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
+  for (let i = 0; i < 3; i++) await answerOne(page);
+  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+
+  await page.getByTestId('progress-open').click();
+  const recap = page.getByTestId('recap');
+  await expect(recap).toContainText(/kata/);
+  await expect(recap).toContainText(/Kamu latihan di \d+ hari/);
+
+  // §2.14 and docs/ETHICS.md: no points, no XP, no streak, no target missed.
+  await expect(recap).not.toContainText(/XP|poin|skor|nilai|beruntun|gagal/i);
+});

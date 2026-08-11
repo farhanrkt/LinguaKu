@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { firstRun } from './helpers.ts';
 
 /**
@@ -10,7 +10,7 @@ import { firstRun } from './helpers.ts';
  * recorded as a lapse would let autonomy damage the learner's own schedule.
  */
 
-const countRows = (page: import('@playwright/test').Page, table: string) =>
+const countRows = (page: Page, table: string) =>
   page.evaluate(async (name) => {
     const req = indexedDB.open('linguaku');
     const db: IDBDatabase = await new Promise((resolve) => {

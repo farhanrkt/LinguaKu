@@ -111,6 +111,7 @@ export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
           <Skills report={report} />
           <Calibration report={report} />
           <Consistency report={report} />
+          <WeeklyRecap report={report} />
           <Heatmap rows={rows} drills={drills} />
         </>
       )}
@@ -401,6 +402,50 @@ const Consistency = ({ report }: { report: ProgressReport }) => (
     </p>
   </section>
 );
+
+/**
+ * SPEC §9's weekly recap — the last §9 line to be built.
+ *
+ * Every line is a capability. There is no total, no score and no target: a
+ * quiet week is a fact here, not a shortfall (§2.14, docs/ETHICS.md). The
+ * comparison to last week is a direction and is never labelled good or bad.
+ */
+const WeeklyRecap = ({ report }: { report: ProgressReport }) => {
+  const { recap } = report;
+  const lines = [
+    recap.met > 0 ? copy.recap.met(recap.met) : null,
+    recap.strengthened > 0 ? copy.recap.strengthened(recap.strengthened) : null,
+    recap.mastered > 0 ? copy.recap.mastered(recap.mastered) : null,
+    recap.drills > 0 ? copy.recap.drills(recap.drills) : null,
+  ].filter((line): line is string => line !== null);
+
+  return (
+    <section data-testid="recap">
+      <h2 className="mt-8 text-lg font-bold">{copy.recap.heading}</h2>
+      {recap.hasData ? (
+        <>
+          <ul className="mt-2 flex flex-col gap-1">
+            {lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="mt-2">{copy.recap.days(recap.daysPractised)}</p>
+          {recap.previousDaysPractised !== null ? (
+            <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+              {recap.previousDaysPractised === recap.daysPractised
+                ? copy.recap.comparedSame
+                : copy.recap.comparedMore(recap.previousDaysPractised)}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        // Invariant 18: the empty state is shown, not hidden — and not dressed
+        // up as encouragement.
+        <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.recap.empty}</p>
+      )}
+    </section>
+  );
+};
 
 // ----------------------------------------------------------------- heatmap
 
