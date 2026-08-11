@@ -105,6 +105,21 @@ for await (const line of readLines(localPath(EXPORTS.engSentences))) {
 }
 const ranks = rankTokens(counts);
 const rankOf = (token: string): number | undefined => ranks.get(token);
+
+/**
+ * Total tokens in the corpus the ranks were derived from.
+ *
+ * This is what turns "you know 2,400 words" into "you understand ~86% of the
+ * words you meet" (SPEC §9). Because the ranks come from Tatoeba's own English
+ * corpus (D13), that percentage is *exact* over the text we teach from rather
+ * than borrowed from someone else's frequency list — no extrapolation, no Zipf
+ * approximation standing in for a measurement.
+ */
+const totalTokens = [...counts.values()].reduce((sum, count) => sum + count, 0);
+
+/** Share of all corpus tokens this word accounts for. */
+const shareOf = (token: string): number =>
+  Number(((counts.get(token) ?? 0) / totalTokens).toPrecision(6));
 console.log(
   `  ${englishLines.toLocaleString()} sentences, ${ranks.size.toLocaleString()} distinct tokens`,
 );
@@ -176,6 +191,8 @@ interface Lexeme {
   freqRank: number;
   band: FrequencyBand;
   anchors: string[];
+  /** Fraction of corpus tokens this word accounts for (SPEC §9, §2.10). */
+  share: number;
 }
 
 /** Easiest examples first: a learner meeting a word wants the simplest sentence. */
@@ -220,6 +237,7 @@ for (const [token, rank] of ranks) {
     freqRank: rank,
     band: bandForRank(rank),
     anchors,
+    share: shareOf(token),
   });
 }
 lexemes.sort((a, b) => a.freqRank - b.freqRank);
@@ -370,10 +388,33 @@ const manifest = {
     indonesianSentences: indonesian.size,
     links: links.length,
     distinctTokens: ranks.size,
+    tokenTotal: totalTokens,
     pairs: pairs.length,
     lexemes: lexemes.length,
     pseudowords: pseudowords.length,
     maxLexemeRank: MAX_LEXEME_RANK,
+  },
+  /**
+   * The ceiling on the capability figure in SPEC §9. A learner who mastered
+   * every word we ship would still not reach 100%: proper nouns are filtered
+   * from the inventory (D14) and band 6 is not shipped at all, and both still
+   * turn up in real sentences. Reporting a percentage without saying what it is
+   * a percentage *of* would overstate it.
+   */
+  coverage: {
+    teachableShare: Number(
+      lexemes.reduce((sum, lexeme) => sum + lexeme.share, 0).toPrecision(6),
+    ),
+    bandShare: BANDS.map((band) => ({
+      band,
+      share: Number(
+        lexemes
+          .filter((lexeme) => lexeme.band === band)
+          .reduce((sum, lexeme) => sum + lexeme.share, 0)
+          .toPrecision(6),
+      ),
+      lexemes: lexemes.filter((lexeme) => lexeme.band === band).length,
+    })).filter((entry) => entry.lexemes > 0),
   },
   shards: shards.sort((a, b) => a.kind.localeCompare(b.kind) || a.band - b.band),
 };

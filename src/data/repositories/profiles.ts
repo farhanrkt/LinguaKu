@@ -40,7 +40,7 @@ export const getCurrentProfile = async (): Promise<Profile | null> => {
 
 export const updateProfile = async (
   id: string,
-  changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>,
+  changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'requestRetention'>>,
 ): Promise<void> => {
   await db.profiles.update(id, changes);
 };

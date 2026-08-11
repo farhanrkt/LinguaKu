@@ -33,6 +33,7 @@ src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   
                  scheduler · ladder · sessionComposer · grader · cloze · rng
                  coverage · forecast · placement · pseudoword · difficulty
                  frequency · tokenize · properNoun · elo · interference
+                 vocabulary · retention
 src/data/        Dexie schema, migrations, repositories. The source of truth.
 src/features/    session, reader, placement, progress, settings — screens.
 src/ui/          presentational primitives.
@@ -113,6 +114,16 @@ needs React state to work, it is in the wrong place.
     `data/contrastive/*.yaml` is the source of truth; the compiler fails the
     build on an MCQ whose answer is missing from its options, a category with no
     minimal pair, or a drill with no explanation. No YAML parser ships.
+18. **Every progress figure has an explicit "not measured yet" state, and it is
+    shown rather than hidden** (§2.15, D35). Estimates carry an interval;
+    unsampled bands widen it rather than being read as zero. Chart components
+    take `number | null` and draw a gap for null — never a bar of zero.
+19. **An import merges the append-only log and overwrites current state**
+    (D37). `ReviewLog` and `DrillAttempt` are UUID-keyed, so a restore adds what
+    it lacks and can never destroy review history; cards and scores are replaced.
+20. **No charting or plotting dependency.** Five figures of inline SVG in
+    `src/features/progress/charts.tsx` (D38). The budget in invariant 6 is the
+    reason.
 
 ## Conventions
 

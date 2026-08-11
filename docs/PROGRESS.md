@@ -1,5 +1,136 @@
 # PROGRESS.md
 
+## M5 — Progress and analytics · complete (2026-08-11)
+
+**Acceptance:** every §9 item renders from real local data; export round-trips
+into a fresh install. Both met.
+
+| | required | actual |
+|---|---|---|
+| §9 items rendering from local data | all | 10 of 10 |
+| export → fresh install → identical state | round-trips | asserted through a JSON string |
+| unit tests | — | 468 |
+| e2e tests | — | 21 |
+| initial JS (gzipped) | ≤ 200 KB | 119.2 KB |
+| charting dependencies added | — | none |
+
+```
+✓ typecheck · lint · 468 unit tests · licence gate · build · bundle budget
+✓ 21 e2e: offline session, resume, cold start, installability, placement,
+  contrastive drills, heatmap, every §9 section, JSON export and restore
+```
+
+### The number this milestone is really about
+
+**Band 1 is 481 words and 70.3% of every token in the corpus.** The pipeline now
+emits per-word corpus share, so §9's capability sentence — *"kamu mengenali
+sekitar N kata… kira-kira X% dari kata yang muncul di kalimat yang kami
+ajarkan"* — is **measured, not modelled**. No Zipf approximation, no borrowed
+frequency list: the ranks came from the corpus we teach from (D13), so the
+percentage is exact over that corpus and the copy says exactly which corpus.
+
+It also produces an honest ceiling. Master every word we ship and you reach
+**87.3%**, not 100% — proper nouns are filtered out of the inventory (D14) and
+band 6 is not shipped, and both still turn up in real sentences. The screen says
+so rather than letting the learner infer that the last 13% is their fault.
+
+Regenerating the shards was also an unplanned check of invariant 10: rerunning
+the unchanged pipeline first produced byte-identical output, which is the
+property the whole cache-busting story rests on.
+
+### The vocabulary interval is asymmetric, on purpose
+
+SPEC §9 wants a vocabulary-size estimate *with a confidence interval*. The
+tempting version is a symmetric ± around an extrapolation, and it would be
+dishonest here: new items come from the learner's frontier band, nearest the
+frontier first (D27), so within a band they have met the commoner words and not
+the rarer ones, and a band they have never been shown tells us nothing at all.
+
+So the interval is built out of what each piece of evidence actually supports
+(D35):
+
+- the **floor** is the count of words demonstrably retained — no inference;
+- the **middle** extrapolates only bands with a real sample, using a Wilson
+  score interval, which unlike the normal approximation does not produce bounds
+  above 1 when a learner gets ten out of ten;
+- the **ceiling** adds every unsampled band *whole*, because "we have not tested
+  you on 3,400 words" is exactly that wide.
+
+A learner three sessions in gets a very wide band. That is the correct answer.
+
+### Retention audits the scheduler, and the audit can act
+
+`measureRetention` counts **only cards that were genuinely due after an
+interval** — a card still in learning has not been left alone, so answering it
+says nothing about whether the interval was right, and counting those would push
+the number towards 100% and make a mistuned scheduler look perfect.
+
+The verdict comes from the confidence interval, not the point estimate (D39): 51
+of 60 is 85% on its face and nowhere near enough evidence to accuse the
+scheduler of anything, and there is a test that says so.
+
+§9 asks the app to *"say so and offer to retune"*, so it does — the offer appears
+only when the evidence rules the target out, and it moves
+`request_retention` one bounded step in the direction the evidence points. It is
+a **nudge, not an optimization**, and the code says so: a real per-user parameter
+fit is what §2.1 buys the review log for, and it needs the FSRS optimizer and far
+more history. Retuning upward shortens intervals for someone who keeps
+forgetting; retuning downward hands time back to someone who barely does.
+
+### Four more things worth flagging
+
+**The append-only hook caught the import path, and it was right.** Restore
+originally deleted the profile's review logs and laid the bundle down whole;
+the Dexie hook rejected it. The fix is better than the original: `ReviewLog` and
+`DrillAttempt` are keyed by UUID, so an import **merges** — it adds the rows it
+does not have and touches nothing else — while cards, abilities and scores are
+current state and get overwritten (D37). That is SPEC §6's own sentence read
+literally, it makes re-importing a no-op, it unions two devices' histories, and
+it means a restore can never destroy review history.
+
+**No charting library.** Five small figures — bars, a polygon, a marker — against
+a 200 KB budget. `charts.tsx` is under 200 lines of inline SVG, and every
+component takes `number | null` so that "not measured" cannot accidentally render
+as a bar of zero (D38). The bundle went 113.7 → 119.2 KB for the whole milestone.
+
+**The radar has five axes and three of them are honest gaps.** Reading and free
+production have no items until M7, so they are drawn as hollow markers on empty
+spokes rather than points at the origin — a polygon pulled to zero reads as "you
+scored nothing at reading" when the truth is that reading has never been tested.
+An e2e test asserts the screen never shows 0% for them.
+
+**The empty state is most of the work.** The first thing every §9 section needed
+was a truthful way to say it has nothing yet, and the first e2e test asserts
+exactly that — before any answer, vocabulary, retention and calibration all say
+so in Indonesian, and no level label appears anywhere.
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| Retuning is a bounded nudge to `request_retention`, not a parameter fit | §2.1's real optimizer needs `@open-spaced-repetition/binding` and a long history. One honest step per look at the evidence is what the data supports now; the log keeps accumulating for the real thing. |
+| The capability percentage is over *our* corpus, not "everyday conversation" | We can measure the first exactly and cannot measure the second at all. The copy names the corpus rather than making a claim about the language (D36). |
+| `mastered` and `placedAtRank` are computed but not yet shown | Both are in `ProgressReport` for the weekly recap; the recap is the one §9 line that reads better with a week of data behind it than with an empty state. Flagged rather than half-built. |
+| Reading and production score `null` forever until M7 | D25's rule, applied to the radar: a missing measurement reads as "not measured", a fabricated one reads as a measurement. |
+| Lexeme shards changed hash to carry `share` | A real content change, so the re-download is earned rather than churn. Pre-release, so nobody pays for it twice. |
+
+### Next decision I need from you
+
+**1. R1, unchanged and now the longest-standing open item.** The device matrix in
+`docs/DECISIONS.md` Part 3 is still empty. M5 added nothing to this except one
+more consumer: the listening axis of the radar stays `null` on any device where
+the probe says the engine is dead.
+
+**2. Pre-cached audio — still a licence question, not a code one.** Unchanged
+from M4, and it now gates two visible things rather than one.
+
+**3. The weekly recap (§9's last line) is deliberately unbuilt.** Everything it
+would summarise is computed; what I do not know is whether you want it as a
+screen, a card on the home screen, or the body of the local notification the
+habit cue (§2.13) already schedules. That is a product call.
+
+---
+
 ## M4 — The contrastive engine · complete (2026-08-11)
 
 **Acceptance:** ≥100 authored contrastive items; wrong answers on tagged items

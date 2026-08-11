@@ -201,3 +201,65 @@ describe('interference tagging (SPEC §3.3)', () => {
     expect(logs[0]?.interferenceHit).toBeUndefined();
   });
 });
+
+describe('per-learner scheduler parameters (SPEC §2.1, §9)', () => {
+  it('uses the published defaults when the learner has not retuned', async () => {
+    await db.profiles.add({
+      id: PROFILE,
+      uiLang: 'id',
+      targets: ['en'],
+      dailyMinutes: 4,
+      scriptMode: 'kanji',
+      createdAt: NOW,
+    });
+    const { card } = await answer(3, NOW);
+    expect(card.fsrs.dueAt).toBeGreaterThan(NOW);
+  });
+
+  it('schedules more tightly for a learner who retuned upwards', async () => {
+    // A higher `request_retention` means the scheduler aims to catch the card
+    // sooner — which is what "I keep forgetting" should buy (SPEC §9).
+    //
+    // Measured on a *graduated* card: a card's first answers run on short-term
+    // learning steps, which are fixed minutes and say nothing about the
+    // retention target.
+    await db.profiles.add({
+      id: PROFILE,
+      uiLang: 'id',
+      targets: ['en'],
+      dailyMinutes: 4,
+      scriptMode: 'kanji',
+      createdAt: NOW,
+    });
+
+    /** Answers until the card leaves learning, then returns the next interval. */
+    const graduate = async (): Promise<number> => {
+      let last = 0;
+      for (let i = 0; i < 4; i++) {
+        const { card } = await answer(3, NOW + i * 30 * DAY);
+        last = card.fsrs.scheduledDays;
+      }
+      return last;
+    };
+
+    await db.profiles.update(PROFILE, { requestRetention: 0.95 });
+    const tight = await graduate();
+
+    await db.cards.clear();
+    await db.reviewLogs.clear().catch(() => undefined);
+    await db.delete();
+    await db.open();
+    await db.profiles.add({
+      id: PROFILE,
+      uiLang: 'id',
+      targets: ['en'],
+      dailyMinutes: 4,
+      scriptMode: 'kanji',
+      createdAt: NOW,
+      requestRetention: 0.8,
+    });
+    const loose = await graduate();
+
+    expect(tight).toBeLessThan(loose);
+  });
+});

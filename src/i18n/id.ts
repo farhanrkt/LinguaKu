@@ -129,11 +129,110 @@ export const copy = {
     },
   },
 
-  /** SPEC §3.3 step 4 and §9: the interference heatmap. */
+  /** SPEC §9: honest, capability-framed, all local. */
   progress: {
     open: 'Lihat kemajuanmu',
     heading: 'Kemajuanmu',
     back: 'Kembali',
+    // SPEC §9: every number here comes from this phone. Say so once, plainly.
+    localOnly: 'Semua angka di sini dihitung dari jawabanmu sendiri, di HP ini saja.',
+    notYet: 'Belum cukup data',
+
+    vocab: {
+      heading: 'Kosakata',
+      // SPEC §9: "Kamu mengenali ~2.400 kata — cukup untuk memahami sekitar 86%…"
+      headline: (words: number) => `Kamu mengenali sekitar ${words.toLocaleString('id-ID')} kata.`,
+      range: (low: number, high: number) =>
+        `Perkiraan kami antara ${low.toLocaleString('id-ID')} dan ${high.toLocaleString('id-ID')} kata.`,
+      floor: (count: number) =>
+        `${count.toLocaleString('id-ID')} kata sudah kamu buktikan sendiri lewat latihan.`,
+      // The capability sentence — and it says what the percentage is *of*.
+      capability: (percent: number) =>
+        `Itu kira-kira ${percent}% dari kata yang muncul di kalimat yang kami ajarkan.`,
+      ceiling: (percent: number) =>
+        `Kalau semua kata yang kami punya kamu kuasai, angkanya sampai ${percent}%. Sisanya nama orang dan kata yang sangat jarang.`,
+      empty:
+        'Latihan dulu beberapa sesi. Setelah itu kami bisa memperkirakan berapa kata yang kamu kenali.',
+      wide: 'Rentangnya masih lebar karena banyak tingkat yang belum pernah kamu temui.',
+    },
+
+    curve: {
+      heading: 'Sebaran per tingkat kata',
+      hint: 'Tingkat 1 adalah kata yang paling sering dipakai.',
+      band: (band: number) => `Tingkat ${band}`,
+      known: (known: number, seen: number) => `${known} dari ${seen} yang pernah kamu temui`,
+      untouched: 'Belum kamu temui',
+    },
+
+    retention: {
+      heading: 'Seberapa sering kamu masih ingat',
+      target: (percent: number) => `Target kami ${percent}%`,
+      actual: (percent: number) => `Kamu ${percent}%`,
+      reviews: (count: number) => `dari ${count.toLocaleString('id-ID')} ulangan terjadwal`,
+      onTarget: 'Pas. Jarak ulangannya sudah cocok buat kamu.',
+      // SPEC §9: "if actual retention is far off 90%, say so and offer to retune."
+      below:
+        'Agak sering lupa. Jarak ulangan kami rapatkan sedikit supaya tidak terlalu berat.',
+      above:
+        'Kamu hampir selalu ingat — berarti ulangannya bisa lebih jarang, dan waktumu lebih hemat.',
+      unknown: 'Belum cukup ulangan terjadwal untuk dinilai.',
+      retune: 'Sesuaikan jarak ulangan',
+      retuned: 'Sudah kami sesuaikan.',
+    },
+
+    forecast: {
+      heading: 'Perkiraan beban 14 hari',
+      hint: 'Berapa kartu yang jatuh tempo tiap hari, kalau kamu latihan tiap hari.',
+      today: 'Hari ini',
+      cards: (count: number) => `${count} kartu`,
+      quiet: 'Belum ada yang jatuh tempo. Santai dulu.',
+    },
+
+    skills: {
+      heading: 'Peta kemampuan',
+      hint: 'Yang belum pernah diukur kami biarkan kosong, bukan diisi nol.',
+      names: {
+        vocab: 'Kosakata',
+        grammar: 'Tata bahasa',
+        listening: 'Mendengar',
+        reading: 'Membaca',
+        production: 'Berbicara & menulis',
+      },
+      unmeasured: 'Belum diukur',
+      answers: (count: number) => `${count} jawaban`,
+    },
+
+    calibration: {
+      heading: 'Seberapa kenal kamu dengan dirimu sendiri',
+      hint: 'Waktu kamu bilang “Yakin”, seberapa sering ternyata benar?',
+      sure: 'Saat bilang Yakin',
+      unsure: 'Saat bilang Ragu',
+      good:
+        'Tebakanmu soal apa yang kamu kuasai cukup tepat. Itu keterampilan tersendiri, dan berguna.',
+      weak:
+        'Rasa yakin dan hasilnya masih mirip-mirip saja. Wajar di awal — makin lama biasanya makin peka.',
+      unknown: 'Belum cukup jawaban untuk dibandingkan.',
+    },
+
+    consistency: {
+      heading: 'Kebiasaan',
+      // SPEC §2.14: a band that heals, never a streak that breaks.
+      days: (days: number, window: number) => `${days} dari ${window} hari terakhir`,
+      note: 'Bukan rentetan yang bisa putus. Kalau bolong, tinggal lanjut lagi.',
+    },
+
+    data: {
+      heading: 'Datamu',
+      note: 'Semua ini milikmu. Bisa kamu simpan sendiri kapan saja, tanpa akun.',
+      export: 'Simpan salinan (JSON)',
+      exported: 'Tersimpan.',
+      importLabel: 'Pulihkan dari salinan',
+      imported: (logs: number) =>
+        logs === 0
+          ? 'Salinan itu sudah ada di HP ini — tidak ada yang berubah.'
+          : `Dipulihkan: ${logs.toLocaleString('id-ID')} riwayat latihan ditambahkan.`,
+      importFailed: 'File itu bukan salinan LinguaKu.',
+    },
 
     heatmap: {
       heading: 'Pola bahasa Inggrismu',

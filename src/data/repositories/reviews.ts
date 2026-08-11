@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 import { db } from '../db.ts';
 import { emptyFsrsState } from '../fsrsState.ts';
-import { applyRating } from '../../core/scheduler.ts';
+import { applyRating, DEFAULT_PARAMETERS } from '../../core/scheduler.ts';
 import {
   nextLadderLevel,
   TEXT_ONLY_MAX_LEVEL,
@@ -84,7 +84,22 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
   // rung the log has to record. Same clamp the task builder applied.
   const answeredAt = Math.min(card.ladderLevel, ceiling) as LadderLevel;
 
-  const scheduled = applyRating(card.fsrs, input.grade, input.now);
+  // SPEC §2.1's per-user parameter slot, set by the retune offer in SPEC §9.
+  // Absent means the published defaults, which is what every learner starts on.
+  const profile = await db.profiles.get(input.profileId);
+  const scheduled = applyRating(
+    card.fsrs,
+    input.grade,
+    input.now,
+    profile?.requestRetention !== undefined
+      ? {
+          parameters: {
+            ...DEFAULT_PARAMETERS,
+            request_retention: profile.requestRetention,
+          },
+        }
+      : undefined,
+  );
 
   // Promotion looks at the last three answers *at this rung* (SPEC §2.3), which
   // is why ReviewLog carries the level it was answered at.

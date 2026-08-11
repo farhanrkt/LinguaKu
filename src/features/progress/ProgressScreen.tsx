@@ -1,29 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { MIN_ATTEMPTS_TO_CLAIM, type CategoryStanding } from '../../core/elo.ts';
 import { loadContrastive, type Category } from '../../data/contrastive.ts';
-import {
-  categoryStandings,
-  drillAttemptCount,
-} from '../../data/repositories/contrastive.ts';
+import { categoryStandings, drillAttemptCount } from '../../data/repositories/contrastive.ts';
+import { buildProgressReport, type ProgressReport } from '../../data/repositories/progress.ts';
+import { retuneTarget } from '../../core/retention.ts';
+import { updateProfile } from '../../data/repositories/profiles.ts';
+import { exportFilename, exportProfile, importProfile, parseBundle } from '../../data/export.ts';
+import { BarRow, Columns, Radar, TargetMeter } from './charts.tsx';
 import type { Profile } from '../../data/types.ts';
 
 /**
- * SPEC §3.3 step 4 and §9: the interference heatmap — *"the most actionable
- * screen in the app."*
+ * SPEC §9: honest, capability-framed, all local.
  *
- * Three rules it holds to, all of them SPEC §2.15:
+ * The rule the whole screen is built around: **nothing is claimed that the
+ * learner's own answers do not support.** Every section has an explicit
+ * "not measured yet" state, and those states are *shown* rather than hidden —
+ * hiding them would let the screen read as complete when it is not.
  *
- *  1. **Nothing is claimed without evidence.** A category with fewer than
- *     `MIN_ATTEMPTS_TO_CLAIM` answers renders as "belum cukup data" with the
- *     number of answers still needed — not as a middling score, and not hidden.
- *     Hiding it would let the learner read the screen as complete when it is not.
- *  2. **No composite score.** There is no single "grammar level" here. Twenty
- *     categories are twenty separate measurements and they stay separate.
- *  3. **Capability framing.** The lead line names what to work on next, never
- *     what is wrong with the learner (docs/ETHICS.md).
+ * There is no composite score anywhere, and no level label. SPEC §2.15 bans
+ * fake-precision level claims, and a single number over five separately measured
+ * skills would be exactly that.
  */
 
 interface ProgressScreenProps {
@@ -31,37 +30,388 @@ interface ProgressScreenProps {
   onBack: () => void;
 }
 
-interface Row {
+interface HeatRow {
   standing: CategoryStanding;
   category: Category;
 }
 
+const percent = (value: number): number => Math.round(value * 100);
+
 export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [attempts, setAttempts] = useState(0);
+  const [report, setReport] = useState<ProgressReport | null>(null);
+  const [rows, setRows] = useState<HeatRow[] | null>(null);
+  const [drills, setDrills] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
+  const load = useCallback(async () => {
+    const pack = await loadContrastive(lang);
+    const [built, standings, count] = await Promise.all([
+      buildProgressReport(profile, Date.now()),
+      categoryStandings(profile.id, lang, pack.categories.map((category) => category.id)),
+      drillAttemptCount(profile.id),
+    ]);
+    setReport(built);
+    setDrills(count);
+    setRows(
+      standings.flatMap((standing) => {
+        const category = pack.byCategory.get(standing.categoryId);
+        return category ? [{ standing, category }] : [];
+      }),
+    );
+  }, [profile, lang]);
+
+  // `load` is a useCallback over stable inputs, so this runs once per profile.
   useEffect(() => {
     void (async () => {
-      const pack = await loadContrastive(lang);
-      const [standings, count] = await Promise.all([
-        categoryStandings(profile.id, lang, pack.categories.map((category) => category.id)),
-        drillAttemptCount(profile.id),
-      ]);
-      const byId = pack.byCategory;
-      setRows(
-        standings.flatMap((standing) => {
-          const category = byId.get(standing.categoryId);
-          return category ? [{ standing, category }] : [];
-        }),
-      );
-      setAttempts(count);
+      await load();
     })();
-  }, [profile.id, lang]);
+  }, [load]);
 
+  // SPEC §9: no account required to export. A blob and a link — nothing leaves
+  // the device unless the learner puts it somewhere themselves.
+  const handleExport = useCallback(async () => {
+    const bundle = await exportProfile(profile.id, Date.now());
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = exportFilename(Date.now());
+    link.click();
+    URL.revokeObjectURL(url);
+    setNotice(copy.progress.data.exported);
+  }, [profile.id]);
+
+  const handleImport = useCallback(
+    async (file: File) => {
+      try {
+        const result = await importProfile(parseBundle(await file.text()));
+        setNotice(copy.progress.data.imported(result.reviewLogs));
+        await load();
+      } catch {
+        setNotice(copy.progress.data.importFailed);
+      }
+    },
+    [load],
+  );
+
+  return (
+    <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
+      <h1 className="text-2xl font-bold">{copy.progress.heading}</h1>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.localOnly}</p>
+
+      {report === null ? null : (
+        <>
+          <Vocabulary report={report} />
+          <CoverageCurve report={report} />
+          <Retention report={report} profile={profile} onRetune={() => void load()} />
+          <Forecast report={report} />
+          <Skills report={report} />
+          <Calibration report={report} />
+          <Consistency report={report} />
+          <Heatmap rows={rows} drills={drills} />
+        </>
+      )}
+
+      <h2 className="mt-8 text-lg font-bold">{copy.progress.data.heading}</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.data.note}</p>
+      <div className="mt-3 flex flex-col gap-3">
+        <Button variant="quiet" onClick={() => void handleExport()} data-testid="export"
+          className="border-2 border-stone-300 dark:border-slate-700">
+          {copy.progress.data.export}
+        </Button>
+        <Button
+          variant="quiet"
+          onClick={() => fileInput.current?.click()}
+          data-testid="import"
+          className="border-2 border-stone-300 dark:border-slate-700"
+        >
+          {copy.progress.data.importLabel}
+        </Button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          className="sr-only"
+          data-testid="import-file"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleImport(file);
+          }}
+        />
+      </div>
+      {notice ? (
+        <p className="mt-3 rounded-2xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950 dark:text-teal-200"
+          role="status" data-testid="data-notice">
+          {notice}
+        </p>
+      ) : null}
+    </Screen>
+  );
+};
+
+// --------------------------------------------------------------- vocabulary
+
+const Vocabulary = ({ report }: { report: ProgressReport }) => {
+  const { vocabulary, coverage } = report;
+
+  return (
+    <section data-testid="vocab">
+      <h2 className="mt-8 text-lg font-bold">{copy.progress.vocab.heading}</h2>
+      {vocabulary.measured ? (
+        <>
+          <p className="mt-2 text-xl font-bold">
+            {copy.progress.vocab.headline(vocabulary.estimate)}
+          </p>
+          {/* SPEC §9: an estimate always carries its band. */}
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+            {copy.progress.vocab.range(vocabulary.low, vocabulary.high)}
+          </p>
+          <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+            {copy.progress.vocab.floor(vocabulary.floor)}
+          </p>
+          {coverage.share > 0 ? (
+            <>
+              <p className="mt-3">{copy.progress.vocab.capability(percent(coverage.share))}</p>
+              <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+                {copy.progress.vocab.ceiling(percent(coverage.teachableShare))}
+              </p>
+            </>
+          ) : null}
+          {vocabulary.unsampledBands.length > 0 ? (
+            <p className="mt-2 text-sm text-stone-500 dark:text-slate-500">
+              {copy.progress.vocab.wide}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.progress.vocab.empty}</p>
+      )}
+    </section>
+  );
+};
+
+/** SPEC §2.10's acceptance: a coverage-vs-frequency-band curve from real state. */
+const CoverageCurve = ({ report }: { report: ProgressReport }) => (
+  <section data-testid="coverage-curve">
+    <h2 className="mt-8 text-lg font-bold">{copy.progress.curve.heading}</h2>
+    <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.curve.hint}</p>
+    <ul className="mt-2 divide-y divide-stone-200 dark:divide-slate-800">
+      {report.bands.map((band) => (
+        <BarRow
+          key={band.band}
+          label={copy.progress.curve.band(band.band)}
+          value={band.rate}
+          backdrop={band.sampled}
+          detail={
+            band.seen === 0
+              ? copy.progress.curve.untouched
+              : copy.progress.curve.known(band.known, band.seen)
+          }
+        />
+      ))}
+    </ul>
+  </section>
+);
+
+// ---------------------------------------------------------------- retention
+
+const Retention = ({
+  report,
+  profile,
+  onRetune,
+}: {
+  report: ProgressReport;
+  profile: Profile;
+  onRetune: () => void;
+}) => {
+  const { retention } = report;
+  const [retuned, setRetuned] = useState(false);
+
+  // SPEC §9: *"say so and offer to retune"*. The offer only appears when the
+  // evidence actually rules the target out — never as a permanent knob inviting
+  // a learner to fiddle with their own forgetting curve.
+  const offerRetune = retention.verdict === 'below' || retention.verdict === 'above';
+
+  const handleRetune = async () => {
+    const next = retuneTarget(retention.target, retention.verdict);
+    await updateProfile(profile.id, { requestRetention: next });
+    setRetuned(true);
+    onRetune();
+  };
+
+  const message =
+    retention.verdict === 'on-target'
+      ? copy.progress.retention.onTarget
+      : retention.verdict === 'below'
+        ? copy.progress.retention.below
+        : retention.verdict === 'above'
+          ? copy.progress.retention.above
+          : copy.progress.retention.unknown;
+
+  return (
+    <section data-testid="retention">
+      <h2 className="mt-8 text-lg font-bold">{copy.progress.retention.heading}</h2>
+      {retention.measured ? (
+        <>
+          <TargetMeter
+            value={retention.rate}
+            low={retention.low}
+            high={retention.high}
+            target={retention.target}
+          />
+          <p className="mt-2">
+            <strong>{copy.progress.retention.actual(percent(retention.rate))}</strong>{' '}
+            <span className="text-stone-600 dark:text-slate-400">
+              {copy.progress.retention.reviews(retention.reviews)} ·{' '}
+              {copy.progress.retention.target(percent(retention.target))}
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{message}</p>
+          {offerRetune && !retuned ? (
+            <div className="mt-3">
+              <Button
+                variant="quiet"
+                onClick={() => void handleRetune()}
+                data-testid="retune"
+                className="border-2 border-stone-300 dark:border-slate-700"
+              >
+                {copy.progress.retention.retune}
+              </Button>
+            </div>
+          ) : null}
+          {retuned ? (
+            <p className="mt-2 text-sm text-teal-800 dark:text-teal-300" role="status">
+              {copy.progress.retention.retuned}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="mt-2 text-stone-600 dark:text-slate-400">
+          {copy.progress.retention.unknown}
+        </p>
+      )}
+    </section>
+  );
+};
+
+const Forecast = ({ report }: { report: ProgressReport }) => (
+  <section data-testid="forecast-section">
+    <h2 className="mt-8 text-lg font-bold">{copy.progress.forecast.heading}</h2>
+    <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.forecast.hint}</p>
+    <Columns
+      values={report.forecast.map((day) => day.dueCount)}
+      labelFor={(index) => (index === 0 ? '•' : String(index))}
+      emptyLabel={copy.progress.forecast.quiet}
+    />
+  </section>
+);
+
+// ------------------------------------------------------------------ skills
+
+const Skills = ({ report }: { report: ProgressReport }) => (
+  <section data-testid="skills">
+    <h2 className="mt-8 text-lg font-bold">{copy.progress.skills.heading}</h2>
+    <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.skills.hint}</p>
+    <Radar
+      axes={report.skills.map((skill) => ({
+        label: copy.progress.skills.names[skill.skill],
+        value: skill.score,
+      }))}
+    />
+    <ul className="mt-2 divide-y divide-stone-200 dark:divide-slate-800">
+      {report.skills.map((skill) => (
+        <li key={skill.skill} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+          <span className="font-semibold">{copy.progress.skills.names[skill.skill]}</span>
+          <span className="text-stone-600 tabular-nums dark:text-slate-400">
+            {skill.score === null
+              ? copy.progress.skills.unmeasured
+              : `${percent(skill.score)}% · ${copy.progress.skills.answers(skill.answers)}`}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </section>
+);
+
+const Calibration = ({ report }: { report: ProgressReport }) => {
+  const { calibration } = report;
+  const [sure, unsure] = calibration.buckets;
+
+  return (
+    <section data-testid="calibration">
+      <h2 className="mt-8 text-lg font-bold">{copy.progress.calibration.heading}</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {copy.progress.calibration.hint}
+      </p>
+      {calibration.measured && sure && unsure ? (
+        <>
+          <ul className="mt-2 divide-y divide-stone-200 dark:divide-slate-800">
+            <BarRow
+              label={copy.progress.calibration.sure}
+              value={sure.accuracy}
+              tone="good"
+              detail={copy.progress.skills.answers(sure.answers)}
+            />
+            <BarRow
+              label={copy.progress.calibration.unsure}
+              value={unsure.accuracy}
+              tone="warn"
+              detail={copy.progress.skills.answers(unsure.answers)}
+            />
+          </ul>
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+            {calibration.discriminating
+              ? copy.progress.calibration.good
+              : copy.progress.calibration.weak}
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-stone-600 dark:text-slate-400">
+          {copy.progress.calibration.unknown}
+        </p>
+      )}
+    </section>
+  );
+};
+
+/** SPEC §2.14: a rolling band that heals, never a streak that breaks. */
+const Consistency = ({ report }: { report: ProgressReport }) => (
+  <section data-testid="consistency">
+    <h2 className="mt-8 text-lg font-bold">{copy.progress.consistency.heading}</h2>
+    <div aria-hidden className="mt-2 flex gap-1">
+      {Array.from({ length: report.consistency.window }, (_, index) => (
+        <div
+          key={index}
+          className={`h-3 flex-1 rounded-full ${
+            index < report.consistency.days
+              ? 'bg-teal-700 dark:bg-teal-400'
+              : 'bg-stone-200 dark:bg-slate-800'
+          }`}
+        />
+      ))}
+    </div>
+    <p className="mt-2">
+      {copy.progress.consistency.days(report.consistency.days, report.consistency.window)}
+    </p>
+    <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+      {copy.progress.consistency.note}
+    </p>
+  </section>
+);
+
+// ----------------------------------------------------------------- heatmap
+
+/**
+ * SPEC §3.3 step 4: the interference heatmap. Shipped in M4; the rules it holds
+ * to are the same ones the rest of this screen follows — no claim under
+ * `MIN_ATTEMPTS_TO_CLAIM` answers, no composite score, and "not measured yet"
+ * shown rather than hidden.
+ */
+const Heatmap = ({ rows, drills }: { rows: HeatRow[] | null; drills: number }) => {
   const measured = (rows ?? []).filter((row) => row.standing.measured);
-  // Weakest first among the measured; unmeasured trail behind in a stable order
-  // so the screen does not reshuffle between visits.
   const ordered = [
     ...measured.sort((a, b) => a.standing.rating - b.standing.rating),
     ...(rows ?? [])
@@ -71,19 +421,14 @@ export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
   const weakest = measured.filter((row) => row.standing.weak).slice(0, 2);
 
   return (
-    <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
-      <h1 className="text-2xl font-bold">{copy.progress.heading}</h1>
-
-      <h2 className="mt-6 text-lg font-bold">{copy.progress.heatmap.heading}</h2>
+    <section>
+      <h2 className="mt-8 text-lg font-bold">{copy.progress.heatmap.heading}</h2>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
         {copy.progress.heatmap.intro}
       </p>
 
       {weakest.length > 0 ? (
-        <div
-          className="mt-4 rounded-2xl bg-amber-50 p-4 dark:bg-amber-950"
-          data-testid="heatmap-weakest"
-        >
+        <div className="mt-4 rounded-2xl bg-amber-50 p-4 dark:bg-amber-950" data-testid="heatmap-weakest">
           <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
             {copy.progress.heatmap.weakestLead}
           </p>
@@ -103,22 +448,15 @@ export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
         </ul>
       )}
 
-      <p className="mt-6 text-sm text-stone-500 dark:text-slate-500">
-        {copy.progress.heatmap.attemptsSoFar(attempts)}
+      <p className="mt-4 text-sm text-stone-500 dark:text-slate-500">
+        {copy.progress.heatmap.attemptsSoFar(drills)}
       </p>
-    </Screen>
+    </section>
   );
 };
 
-/**
- * One category. The bar is the expected-accuracy figure, which is what the Elo
- * rating actually means — not the rating itself, which would be a number with no
- * interpretation a learner could act on.
- */
-const HeatmapRow = ({ row }: { row: Row }) => {
+const HeatmapRow = ({ row }: { row: HeatRow }) => {
   const { standing, category } = row;
-  const percent = Math.round(standing.expected * 100);
-
   const tone = !standing.measured
     ? 'bg-stone-300 dark:bg-slate-700'
     : standing.weak
@@ -136,13 +474,10 @@ const HeatmapRow = ({ row }: { row: Row }) => {
 
       {standing.measured ? (
         <>
-          <div
-            aria-hidden
-            className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-slate-800"
-          >
+          <div aria-hidden className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200 dark:bg-slate-800">
             <div
               className={`h-2 rounded-full motion-safe:transition-all ${tone}`}
-              style={{ width: `${percent}%` }}
+              style={{ width: `${percent(standing.expected)}%` }}
             />
           </div>
           <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">

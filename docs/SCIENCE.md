@@ -215,6 +215,12 @@ vocabulary list but not from the ranks (D14).
 **Acceptance:** the known-words dashboard renders a coverage-vs-band curve from
 real learner state.
 
+**Status:** **shipped** (M5). The curve is per band: known share, with how much
+of the band has been sampled behind it. The pipeline also emits per-word corpus
+share, so the capability figure is measured rather than modelled — band 1 is 481
+words and **70.3% of all tokens**, which is this requirement's whole argument
+made concrete (D36).
+
 **Status:** **shipped for English** (M1), and level-gated in M3 — new items are
 drawn from the learner's frontier band, nearest the frontier first, so an
 intermediate learner is not marched through the 500 commonest words again. The

@@ -47,6 +47,12 @@ export interface Profile {
   dailyMinutes: DailyMinutes;
   scriptMode: ScriptMode;
   createdAt: Timestamp;
+  /**
+   * FSRS `request_retention` for this learner (SPEC §2.1's per-user parameter
+   * slot, §9's "offer to retune"). Absent means the published default — an
+   * older profile needs no backfill, because absent already means "the default".
+   */
+  requestRetention?: number;
 }
 
 /** SPEC §4.2: three abilities are estimated separately, never collapsed. */
@@ -86,6 +92,12 @@ export interface Item {
   anchorSentenceIds: string[];
   freqRank: number;
   band: FrequencyBand;
+  /**
+   * Share of corpus tokens this word accounts for, from the pipeline (SPEC §9).
+   * Optional: it is what turns "you know N words" into "you understand X% of
+   * what you read", and only the English pipeline emits it so far.
+   */
+  share?: number;
   /**
    * CEFR (`A1`…`C2`) or JLPT (`N5`…`N1`) tag — SPEC §4.1. Optional, and absent
    * for everything M1 ships: no licence-cleared CEFR-aligned wordlist exists

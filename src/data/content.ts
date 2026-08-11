@@ -38,6 +38,8 @@ interface WireLexeme {
   freqRank: number;
   band: FrequencyBand;
   anchors: string[];
+  /** Fraction of corpus tokens this word accounts for (SPEC §9). */
+  share?: number;
 }
 
 interface ShardRecord {
@@ -55,6 +57,15 @@ export interface ContentManifest {
   lang: TargetLang;
   corpus: Record<string, number>;
   shards: ShardRecord[];
+  /**
+   * Token-share bookkeeping for the SPEC §9 capability figure. Optional because
+   * only the English pipeline emits it so far.
+   */
+  coverage?: {
+    /** Share of corpus tokens covered by everything we ship — the ceiling. */
+    teachableShare: number;
+    bandShare: Array<{ band: FrequencyBand; share: number; lexemes: number }>;
+  };
 }
 
 const fetchJson = async <T>(url: string): Promise<T> => {
@@ -76,6 +87,7 @@ const toItem = (wire: WireLexeme, lang: TargetLang): Item => ({
   anchorSentenceIds: wire.anchors,
   freqRank: wire.freqRank,
   band: wire.band,
+  ...(wire.share !== undefined ? { share: wire.share } : {}),
   interferenceTags: [],
   // Derived from the Tatoeba English corpus rather than lifted from one
   // sentence, so the external id is the surface form itself.
