@@ -4,7 +4,7 @@ import { emptyFsrsState } from '../fsrsState.ts';
 import { applyRating, DEFAULT_PARAMETERS } from '../../core/scheduler.ts';
 import {
   nextLadderLevel,
-  TEXT_ONLY_MAX_LEVEL,
+  presentableLevel,
   type LadderDecision,
 } from '../../core/ladder.ts';
 import type {
@@ -44,11 +44,11 @@ export interface RecordReviewInput {
   correct: boolean;
   now: Timestamp;
   /**
-   * Highest rung this item may occupy — `ladderCeiling(hasAudio)` (SPEC §2.6).
-   * The *presented* rung is clamped to it here rather than by the caller, so
-   * the level in the log is always the level the learner actually answered at.
+   * Whether this item can be heard (SPEC §2.6). The *presented* rung is derived
+   * from it here rather than by the caller, so the level in the log is always
+   * the level the learner actually answered at.
    */
-  maxLadderLevel?: LadderLevel;
+  audioAvailable?: boolean;
   /** SPEC §3.3: interference categories this answer matched. */
   interferenceHit?: string[];
 }
@@ -79,10 +79,10 @@ const loadOrCreateCard = async (
 
 export const recordReview = async (input: RecordReviewInput): Promise<RecordReviewResult> => {
   const card = await loadOrCreateCard(input.profileId, input.itemId, input.now);
-  const ceiling = input.maxLadderLevel ?? TEXT_ONLY_MAX_LEVEL;
-  // A card parked above the ceiling was presented one rung down, so that is the
-  // rung the log has to record. Same clamp the task builder applied.
-  const answeredAt = Math.min(card.ladderLevel, ceiling) as LadderLevel;
+  const audioAvailable = input.audioAvailable ?? false;
+  // A dictation card on a silent device was presented one rung down, so that is
+  // the rung the log has to record. Same rule the task builder applied.
+  const answeredAt = presentableLevel(card.ladderLevel, audioAvailable);
 
   // SPEC §2.1's per-user parameter slot, set by the retune offer in SPEC §9.
   // Absent means the published defaults, which is what every learner starts on.
@@ -122,7 +122,7 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
     stabilityDays: scheduled.state.stability,
     recentGrades,
     lapses: scheduled.state.lapses,
-    maxLevel: ceiling,
+    audioAvailable,
   });
 
   const log: ReviewLog = {

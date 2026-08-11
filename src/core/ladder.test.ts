@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   isMastered,
-  ladderCeiling,
   LEECH_LAPSE_THRESHOLD,
   MAX_ENABLED_LEVEL,
   nextLadderLevel,
@@ -67,11 +66,11 @@ describe('promotion (SPEC §2.3)', () => {
     });
   });
 
-  it('does not promote past the rungs that are actually implemented', () => {
+  it('does not promote past the top of the ladder', () => {
     const decision = decide({
       level: MAX_ENABLED_LEVEL,
       stabilityDays: 10_000,
-      maxLevel: MAX_ENABLED_LEVEL,
+      audioAvailable: true,
     });
     expect(decision.level).toBe(MAX_ENABLED_LEVEL);
     expect(decision.change).toBe('held');
@@ -84,22 +83,22 @@ describe('promotion (SPEC §2.3)', () => {
  */
 describe('the audio ceiling (SPEC §2.6)', () => {
   it('withholds L4 by default — audio must be proven, never assumed', () => {
-    // No `maxLevel` passed at all: the safe reading of silence is "no audio".
-    expect(decide({ level: 3, stabilityDays: 10_000 })).toMatchObject({
-      level: 3,
-      change: 'held',
-    });
+    // Nothing passed at all: the safe reading of silence is "no audio", so the
+    // dictation rung is skipped rather than entered.
+    expect(decide({ level: 3, stabilityDays: 10_000 }).level).not.toBe(4);
   });
 
-  it('keeps L4 out of reach when the device has no audio', () => {
+  it('skips the dictation rung rather than capping the learner at it', () => {
+    // The important part: a silent device must not lock a learner out of
+    // *production*. L4 is withheld (SPEC §2.6); L5 is not.
     expect(
-      decide({ level: 3, stabilityDays: 10_000, maxLevel: ladderCeiling(false) }),
-    ).toMatchObject({ level: 3, change: 'held' });
+      decide({ level: 3, stabilityDays: 10_000, audioAvailable: false }),
+    ).toMatchObject({ level: 5, change: 'promoted' });
   });
 
   it('opens L4 once audio is available for the item', () => {
     expect(
-      decide({ level: 3, stabilityDays: 10_000, maxLevel: ladderCeiling(true) }),
+      decide({ level: 3, stabilityDays: 10_000, audioAvailable: true }),
     ).toMatchObject({ level: 4, change: 'promoted' });
   });
 
@@ -108,13 +107,14 @@ describe('the audio ceiling (SPEC §2.6)', () => {
     // visibly, recorded as a demotion — it is not quietly shown as text while
     // the log claims it was answered at L4.
     expect(
-      decide({ level: 4, grade: 3, stabilityDays: 10_000, maxLevel: ladderCeiling(false) }),
+      decide({ level: 4, grade: 3, stabilityDays: 10_000, audioAvailable: false }),
     ).toMatchObject({ level: TEXT_ONLY_MAX_LEVEL, change: 'demoted' });
   });
 
-  it('never promotes straight past the missing rung', () => {
-    const decision = decide({ level: 3, stabilityDays: 1e6, maxLevel: ladderCeiling(false) });
-    expect(decision.level).toBeLessThanOrEqual(TEXT_ONLY_MAX_LEVEL);
+  it('never lands *on* the missing rung', () => {
+    for (const level of [0, 1, 2, 3, 5] as const) {
+      expect(decide({ level, stabilityDays: 1e6, audioAvailable: false }).level).not.toBe(4);
+    }
   });
 });
 
@@ -178,5 +178,52 @@ describe('a whole item lifecycle', () => {
     expect(step(3, 12)).toBe(2);
     expect(step(3, 15)).toBe(3); // → cloze
     expect(isMastered(level, 30)).toBe(true);
+  });
+});
+
+/**
+ * SPEC §2.3's production rungs, and M7's acceptance criterion: the app stays
+ * fully usable with speech APIs unavailable. The ladder is where that is either
+ * honoured or quietly broken.
+ */
+describe('the production rungs (SPEC §2.3 L5–L6)', () => {
+  const ripe = { stabilityDays: 1e6, recentGrades: [3, 3, 3] as const };
+
+  it('reaches production from dictation when audio works', () => {
+    expect(decide({ level: 4, ...ripe, audioAvailable: true })).toMatchObject({
+      level: 5,
+      change: 'promoted',
+    });
+  });
+
+  it('reaches production *without* audio, by stepping over L4', () => {
+    // The whole point: a silent device costs the learner dictation, not the top
+    // half of the ladder.
+    expect(decide({ level: 3, ...ripe, audioAvailable: false })).toMatchObject({
+      level: 5,
+      change: 'promoted',
+    });
+  });
+
+  it('tops out at free production', () => {
+    expect(decide({ level: 5, ...ripe, audioAvailable: true })).toMatchObject({ level: 6 });
+    expect(decide({ level: 6, ...ripe, audioAvailable: true })).toMatchObject({
+      level: 6,
+      change: 'held',
+    });
+  });
+
+  it('demotes out of production like any other rung', () => {
+    expect(decide({ level: 6, grade: 1, audioAvailable: true })).toMatchObject({
+      level: 5,
+      change: 'demoted',
+    });
+  });
+
+  it('still requires the stability the rung asks for', () => {
+    // Production is not handed out for showing up.
+    expect(
+      decide({ level: 5, stabilityDays: 1, recentGrades: [3, 3, 3], audioAvailable: true }),
+    ).toMatchObject({ level: 5, change: 'held' });
   });
 });

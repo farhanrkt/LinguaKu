@@ -7,7 +7,7 @@ import type { TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
 import { selectGraded } from '../../core/coverage.ts';
 import { tokenizeLatin } from '../../core/tokenize.ts';
-import { TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
+import { presentableLevel, TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
 import { getMnemonic } from '../../data/repositories/mnemonics.ts';
 import { baselineMnemonic } from './mnemonic.ts';
 import type { LadderLevel } from '../../data/types.ts';
@@ -34,7 +34,9 @@ export type TaskKind =
   | 'cloze-supported'
   | 'cloze-unaided'
   | 'dictation'
-  | 'kanji';
+  | 'kanji'
+  | 'production'
+  | 'free';
 
 export interface Task {
   itemId: string;
@@ -72,8 +74,15 @@ const kindForLevel = (level: LadderLevel): TaskKind => {
       return 'cloze-supported';
     case 3:
       return 'cloze-unaided';
-    default:
+    case 4:
       return 'dictation';
+    case 5:
+      // SPEC §2.3 L5: ID → target, produced. The learner writes the word from
+      // the Indonesian alone — no frame, no options, nothing to recognize.
+      return 'production';
+    default:
+      // L6: use it in a sentence about your own life.
+      return 'free';
   }
 };
 
@@ -208,9 +217,8 @@ export const buildTask = async (
     }
   }
 
-  // Everything below L4 is text, so the ceiling here is the text-only one and
-  // a card resting at L4 is presented (and logged) one rung down.
-  const effectiveLevel = Math.min(level, TEXT_ONLY_MAX_LEVEL) as LadderLevel;
+  // A dictation card on a silent device is presented (and logged) one rung down.
+  const effectiveLevel = presentableLevel(level, false);
 
   const lapses = card?.fsrs.lapses ?? 0;
   let sentence: AnchorSentence;
@@ -237,6 +245,18 @@ export const buildTask = async (
     sentence: { id: sentence.id, text: sentence.text },
     translation: sentence.tr.text,
   };
+
+  // SPEC §2.3 L5/L6 — the production rungs. Both grade against the headword
+  // itself: L5 because that *is* the answer, L6 because the only thing about a
+  // free sentence we can honestly check is whether the learner used the word.
+  if (effective === 'production' || effective === 'free') {
+    return {
+      ...withSentence,
+      kind: effective,
+      answer: item.headword,
+      asksConfidence: effective === 'production',
+    };
+  }
 
   if (effective === 'recognition') {
     const distractors = await pickDistractors(sentence, item.lang, item.band, seed);

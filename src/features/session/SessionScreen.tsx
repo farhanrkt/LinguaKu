@@ -4,7 +4,6 @@ import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { gradeAnswer, gradeForOutcome, type GradeResult } from '../../core/grader.ts';
 import { detectInterference } from '../../core/interference.ts';
-import { ladderCeiling } from '../../core/ladder.ts';
 import {
   EMPTY_CLIP_INDEX,
   hasAudio,
@@ -30,7 +29,9 @@ import {
   ClozeTask,
   DictationTask,
   ExposureTask,
+  FreeProductionTask,
   KanjiTask,
+  ProductionTask,
   RecognitionTask,
   type AnswerPayload,
 } from './TaskViews.tsx';
@@ -197,7 +198,13 @@ export const SessionScreen = ({
       if (entry?.kind !== 'item') return;
       const task = entry.task;
 
-      const result = gradeAnswer(payload.raw, task.answer);
+      // L6 is free production: there is no right answer to match, and the only
+      // thing we can honestly check is that the learner used the word (§2.3).
+      // The view enforces that before submitting, so reaching here is a pass.
+      const result =
+        task.kind === 'free'
+          ? ({ outcome: 'correct', reason: 'exact', distance: 0, tolerance: 0, matched: task.answer } as const)
+          : gradeAnswer(payload.raw, task.answer);
       // L0 is errorless exposure: the learner confirms, they do not answer.
       const grade = task.kind === 'exposure' ? 3 : gradeForOutcome(result.outcome);
       const wasNew = task.ladderLevel === 0;
@@ -223,7 +230,7 @@ export const SessionScreen = ({
         answerRaw: payload.raw,
         correct: result.outcome !== 'wrong',
         now: Date.now(),
-        maxLadderLevel: ladderCeiling(hasAudioFor(task.sentence.id)),
+        audioAvailable: hasAudioFor(task.sentence.id),
         ...(matched.length > 0 ? { interferenceHit: matched } : {}),
       });
 
@@ -351,6 +358,23 @@ export const SessionScreen = ({
         onSaveMnemonic={async (text) => {
           await saveMnemonic(profile.id, entry.task.itemId, text, Date.now());
         }}
+      />
+    ) : entry.task.kind === 'production' ? (
+      <ProductionTask
+        key={entry.task.itemId}
+        task={entry.task}
+        lang={lang}
+        onAnswer={(payload) => void handleAnswer(payload)}
+        onPlayAudio={playAudio}
+        audioAvailable={false}
+      />
+    ) : entry.task.kind === 'free' ? (
+      <FreeProductionTask
+        key={entry.task.itemId}
+        task={entry.task}
+        onAnswer={(payload) => void handleAnswer(payload)}
+        onPlayAudio={playAudio}
+        audioAvailable={false}
       />
     ) : entry.task.kind === 'dictation' ? (
       <DictationTask

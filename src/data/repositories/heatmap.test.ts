@@ -4,7 +4,6 @@ import { recordReview } from './reviews.ts';
 import { categoryStandings, recordCategoryAttempt } from './contrastive.ts';
 import { detectInterference } from '../../core/interference.ts';
 import { MIN_ATTEMPTS_TO_CLAIM } from '../../core/elo.ts';
-import { ladderCeiling } from '../../core/ladder.ts';
 
 /**
  * M4 acceptance (SPEC §12): *"wrong answers on tagged items produce an
@@ -45,7 +44,7 @@ const answerWrongly = async (
     answerRaw: raw,
     correct: false,
     now: at,
-    maxLadderLevel: ladderCeiling(false),
+    audioAvailable: false,
     ...(hits.length > 0 ? { interferenceHit: hits } : {}),
   });
 

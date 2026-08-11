@@ -41,17 +41,18 @@ export const PROMOTION_STABILITY_DAYS: Record<LadderLevel, number> = {
   6: Number.POSITIVE_INFINITY, // nowhere left to go
 };
 
-/**
- * The highest rung the app can present at all. L5–L6 need free production and
- * speech input, which is M7.
- */
-export const MAX_ENABLED_LEVEL: LadderLevel = 4;
+/** The whole ladder is reachable from M7. */
+export const MAX_ENABLED_LEVEL: LadderLevel = 6;
 
 /**
- * The ceiling when there is no audio for an item — the whole ladder below the
- * dictation rung.
+ * The ceiling for a *cloze* rung — the highest level that needs neither audio
+ * nor production. Kept because several callers still ask "what can a plain text
+ * card be?".
  */
 export const TEXT_ONLY_MAX_LEVEL: LadderLevel = 3;
+
+/** The rung that needs audio (SPEC §2.3 L4, §2.6). */
+export const AUDIO_LEVEL: LadderLevel = 4;
 
 /**
  * SPEC §2.6 acceptance, made structural: *"an item with no available audio
@@ -65,8 +66,29 @@ export const TEXT_ONLY_MAX_LEVEL: LadderLevel = 3;
  * demotion in the review log, not hidden. What never happens is a dictation card
  * presented as a text card, which is what "silently degraded" means.
  */
-export const ladderCeiling = (audioAvailable: boolean): LadderLevel =>
-  audioAvailable ? MAX_ENABLED_LEVEL : TEXT_ONLY_MAX_LEVEL;
+/**
+ * The next rung up from here, given whether this item has audio.
+ *
+ * **L4 is skipped, not blocking.** A learner on a device with no speech engine
+ * would otherwise be capped at L3 forever — locked out of production (L5, L6)
+ * by a missing *listening* rung, which is a far worse outcome than missing
+ * dictation. So without audio the ladder runs 3 → 5, and SPEC §2.6's rule is
+ * satisfied exactly as written: the item is excluded from L4 scheduling, and
+ * nothing else about its progress changes.
+ */
+export const nextLevelUp = (level: LadderLevel, audioAvailable: boolean): LadderLevel => {
+  const next = Math.min(MAX_ENABLED_LEVEL, level + 1) as LadderLevel;
+  if (next === AUDIO_LEVEL && !audioAvailable) {
+    return Math.min(MAX_ENABLED_LEVEL, AUDIO_LEVEL + 1) as LadderLevel;
+  }
+  return next;
+};
+
+/** The rung an item may actually be *presented* at right now. */
+export const presentableLevel = (
+  level: LadderLevel,
+  audioAvailable: boolean,
+): LadderLevel => (level === AUDIO_LEVEL && !audioAvailable ? TEXT_ONLY_MAX_LEVEL : level);
 
 /** SPEC §7.2: at this many lapses a card is a leech and needs re-teaching. */
 export const LEECH_LAPSE_THRESHOLD = 6;
@@ -99,11 +121,13 @@ export interface LadderInput {
   /** FSRS lapse count after that grade. */
   lapses: number;
   /**
-   * Highest rung this item may occupy right now — `ladderCeiling(hasAudio)`.
-   * Defaults to the text-only ceiling: audio has to be *proven* to unlock L4,
-   * never assumed, because assuming it is how an item gets silently degraded.
+   * Whether this item can be *heard* — a pre-cached clip or a working voice
+   * (SPEC §2.6). Defaults to false: audio has to be proven to unlock L4, never
+   * assumed, because assuming it is how an item gets silently degraded.
+   *
+   * It gates one rung, not the top of the ladder. See `nextLevelUp`.
    */
-  maxLevel?: LadderLevel;
+  audioAvailable?: boolean;
 }
 
 export interface LadderDecision {
@@ -122,28 +146,29 @@ const clampLevel = (level: number, ceiling: LadderLevel): LadderLevel =>
 
 export const nextLadderLevel = (input: LadderInput): LadderDecision => {
   const leech = input.lapses >= LEECH_LAPSE_THRESHOLD;
-  const ceiling = input.maxLevel ?? TEXT_ONLY_MAX_LEVEL;
+  const audioAvailable = input.audioAvailable ?? false;
 
   // Demote on lapse. A failed retrieval means the current task is too hard for
   // the current strength, and repeating it unchanged is how leeches are made.
   if (!isSuccess(input.grade)) {
-    const level = clampLevel(input.level - 1, ceiling);
+    const level = clampLevel(input.level - 1, MAX_ENABLED_LEVEL);
     return { level, change: level === input.level ? 'held' : 'demoted', leech };
   }
 
-  // A card resting above the ceiling — L4 with the engine dead — comes down,
-  // visibly. The alternative is presenting a dictation card as text.
-  if (input.level > ceiling) {
-    return { level: ceiling, change: 'demoted', leech };
+  // A card sitting at the dictation rung on a device that has gone silent comes
+  // down, visibly. The alternative is presenting a dictation card as text.
+  if (input.level === AUDIO_LEVEL && !audioAvailable) {
+    return { level: TEXT_ONLY_MAX_LEVEL, change: 'demoted', leech };
   }
 
   const canPromote =
-    input.level < ceiling &&
+    input.level < MAX_ENABLED_LEVEL &&
     input.stabilityDays >= PROMOTION_STABILITY_DAYS[input.level] &&
     recentAccuracy(input.recentGrades) >= PROMOTION_ACCURACY;
 
   if (canPromote) {
-    return { level: clampLevel(input.level + 1, ceiling), change: 'promoted', leech };
+    const next = nextLevelUp(input.level, audioAvailable);
+    return { level: next, change: next === input.level ? 'held' : 'promoted', leech };
   }
   return { level: input.level, change: 'held', leech };
 };

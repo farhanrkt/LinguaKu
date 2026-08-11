@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
+import {
+  isSpeechInputAvailable,
+  recognizeOnce,
+} from '../../platform/speechRecognition.ts';
 import type { Confidence } from '../../data/types.ts';
 import type { Task } from './task.ts';
 
@@ -334,6 +338,177 @@ export const KanjiTask = ({
       <div className="mt-8">
         <Button onClick={() => onAnswer({ raw: face.literal, confidence: null })}>
           {copy.session.kanji.confirm}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * A microphone button that answers the same question as the keyboard.
+ *
+ * SPEC §5.1: *"never block progression on it"*. So it appears only when the API
+ * exists, a failure fills nothing in and says so plainly, and the text field is
+ * always right there. Speech is a second route to the same answer, never a gate.
+ */
+const SpeakButton = ({
+  lang,
+  onTranscript,
+}: {
+  lang: string;
+  onTranscript: (text: string) => void;
+}) => {
+  const [listening, setListening] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  if (!isSpeechInputAvailable()) return null;
+
+  return (
+    <div className="mt-3">
+      <Button
+        variant="quiet"
+        data-testid="speak"
+        className="w-auto border-2 border-stone-300 px-4 dark:border-slate-700"
+        disabled={listening}
+        onClick={() => {
+          setListening(true);
+          setStatus(copy.session.speech.listening);
+          void recognizeOnce(lang === 'ja' ? 'ja-JP' : 'en-US').then((result) => {
+            setListening(false);
+            if (result.heard) {
+              onTranscript(result.transcript);
+              setStatus(copy.session.speech.heard(result.transcript));
+            } else {
+              setStatus(copy.session.speech.notHeard);
+            }
+          });
+        }}
+      >
+        🎤 {listening ? copy.session.speech.listening : copy.session.speech.speak}
+      </Button>
+      {status ? (
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500" role="status">
+          {status}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+/** L5 — production. The Indonesian alone, and a blank field (SPEC §2.3). */
+export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: string }) => {
+  const [value, setValue] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
+
+  const submit = (confidence: Confidence) => {
+    if (value.trim().length === 0) return;
+    onAnswer({ raw: value, confidence });
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
+        {copy.session.production.heading}
+      </p>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {lang === 'ja' ? copy.session.production.instructionJa : copy.session.production.instruction}
+      </p>
+
+      <p className="mt-6 text-2xl leading-snug font-bold">{task.translation}</p>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit('yakin');
+        }}
+      >
+        <input
+          ref={input}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          aria-label={copy.session.production.placeholder}
+          placeholder={copy.session.production.placeholder}
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+        />
+        <SpeakButton lang={lang} onTranscript={setValue} />
+        <div className="mt-4 flex gap-3">
+          <Button type="submit" disabled={value.trim().length === 0}>
+            {copy.session.cloze.sure}
+          </Button>
+          <Button
+            variant="quiet"
+            disabled={value.trim().length === 0}
+            onClick={() => submit('ragu')}
+            className="border-2 border-stone-300 dark:border-slate-700"
+          >
+            {copy.session.cloze.unsure}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+/**
+ * L6 — free production (SPEC §2.3): use the word in a sentence about your own
+ * life.
+ *
+ * **What is graded, and what is not.** The only thing we can honestly check is
+ * whether the learner used the word — there is no grammar model here, and D4
+ * keeps the LLM layer out until after M7. So the card says so: your sentence is
+ * yours, and the check is that the word is in it. That is still the generation
+ * effect doing its work; inventing a quality score would not add to it.
+ */
+export const FreeProductionTask = ({ task, onAnswer }: TaskProps) => {
+  const [value, setValue] = useState('');
+  const [missing, setMissing] = useState(false);
+
+  const submit = () => {
+    const used = value.toLowerCase().includes(task.answer.toLowerCase());
+    if (!used) {
+      setMissing(true);
+      return;
+    }
+    onAnswer({ raw: value, confidence: null });
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
+        {copy.session.free.heading}
+      </p>
+      <p className="mt-2 text-lg">{copy.session.free.instruction(task.headword)}</p>
+      <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{copy.session.free.graded}</p>
+
+      <textarea
+        value={value}
+        onChange={(event) => {
+          setValue(event.target.value);
+          setMissing(false);
+        }}
+        aria-label={copy.session.free.placeholder}
+        placeholder={copy.session.free.placeholder}
+        rows={4}
+        data-testid="free-input"
+        className="mt-4 w-full rounded-2xl border-2 border-stone-300 p-3 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+      />
+
+      {missing ? (
+        <p className="mt-2 text-sm text-amber-800 dark:text-amber-300" role="status">
+          {copy.session.free.missing(task.headword)}
+        </p>
+      ) : null}
+
+      <div className="mt-4">
+        <Button onClick={submit} disabled={value.trim().length === 0} data-testid="free-submit">
+          {copy.session.free.submit}
         </Button>
       </div>
     </div>

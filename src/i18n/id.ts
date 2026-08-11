@@ -122,6 +122,42 @@ export const copy = {
         `${literal} adalah bentuk dasar. Coba karang caramu sendiri untuk mengingatnya.`,
     },
 
+    production: {
+      heading: 'Tulis sendiri',
+      instruction: 'Tanpa pilihan, tanpa contoh. Apa bahasa Inggrisnya?',
+      instructionJa: 'Tanpa pilihan, tanpa contoh. Apa bahasa Jepangnya?',
+      placeholder: 'Ketik kata yang dimaksud',
+    },
+
+    free: {
+      heading: 'Pakai di kalimatmu sendiri',
+      // SPEC §2.3 L6. The instruction matters: a sentence about your own life
+      // is what makes this the generation effect rather than a copy exercise.
+      instruction: (word: string) =>
+        `Buat satu kalimat pakai kata “${word}” — tentang harimu, kerjaanmu, apa saja yang nyata.`,
+      placeholder: 'Tulis kalimatmu di sini',
+      // Honest about what is and is not being checked.
+      graded: 'Kami cuma mengecek kamu benar-benar memakai katanya. Isinya milikmu.',
+      missing: (word: string) => `Belum ada kata “${word}” di kalimatmu.`,
+      kept: 'Kalimatmu kami simpan.',
+      submit: 'Kirim',
+    },
+
+    speech: {
+      speak: 'Ucapkan',
+      listening: 'Mendengarkan…',
+      heard: (text: string) => `Terdengar: “${text}”`,
+      notHeard: 'Belum terdengar. Coba lagi, atau ketik saja.',
+      // SPEC §5.1: never block progression on speech.
+      unavailable: 'Peramban ini belum bisa mengenali suara. Ketik saja, sama saja nilainya.',
+      record: 'Rekam suaramu',
+      recording: 'Merekam… ketuk untuk berhenti',
+      playMine: 'Dengar rekamanmu',
+      playModel: 'Dengar contohnya',
+      compare: 'Bandingkan sendiri: mana yang beda?',
+      noMic: 'Mikrofon tidak tersedia di sini.',
+    },
+
     dictation: {
       heading: 'Tulis yang kamu dengar',
       instruction: 'Boleh diputar ulang sebanyak yang kamu mau.',

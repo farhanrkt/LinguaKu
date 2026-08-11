@@ -19,7 +19,8 @@ export type CardType =
   | 'cloze'
   | 'dictation'
   | 'drill'
-  | 'kanji';
+  | 'kanji'
+  | 'production';
 
 export const cardTypeForLevel = (level: LadderLevel): CardType => {
   switch (level) {
@@ -31,8 +32,13 @@ export const cardTypeForLevel = (level: LadderLevel): CardType => {
       return 'recall';
     case 3:
       return 'cloze';
-    default:
+    case 4:
       return 'dictation';
+    default:
+      // L5 and L6 are both production; they cost about the same and interleave
+      // as one type, because two written answers in a row is two written
+      // answers in a row whichever rung they came from.
+      return 'production';
   }
 };
 
@@ -51,6 +57,8 @@ export const SECONDS_PER_CARD_TYPE: Record<CardType, number> = {
   drill: 12,
   // Read the breakdown, then write or edit a mnemonic (SPEC §2.11).
   kanji: 20,
+  // Producing a word cold, or a sentence of your own: the slowest thing here.
+  production: 26,
 };
 
 export type SessionSlice = 'review' | 'new' | 'drill';

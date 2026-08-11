@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
 import { cardIdFor, dueCards, recordReview } from './reviews.ts';
-import { ladderCeiling } from '../../core/ladder.ts';
 import type { Grade, LadderLevel } from '../types.ts';
 
 const PROFILE = 'p1';
@@ -141,16 +140,20 @@ describe('the audio ceiling (SPEC §2.6)', () => {
     return id;
   };
 
-  it('never promotes into L4 when audio is unavailable', async () => {
+  it('skips L4 when audio is unavailable, rather than stalling there', async () => {
     const id = await parkAt(3);
     // A card ripe for promotion in every other respect.
     const card = (await db.cards.get(id))!;
     await db.cards.update(id, { fsrs: { ...card.fsrs, stability: 10_000 } });
 
     const { card: after } = await answer(3, NOW + 400 * DAY, {
-      maxLadderLevel: ladderCeiling(false),
+      audioAvailable: false,
     });
-    expect(after.ladderLevel).toBe(3);
+    // SPEC §2.6 excludes the item from L4 scheduling — and nothing more. A
+    // learner on a silent device must not be locked out of *production* by a
+    // missing *listening* rung, which is what capping at L3 would do.
+    expect(after.ladderLevel).not.toBe(4);
+    expect(after.ladderLevel).toBe(5);
   });
 
   it('does promote into L4 once audio is available', async () => {
@@ -159,7 +162,7 @@ describe('the audio ceiling (SPEC §2.6)', () => {
     await db.cards.update(id, { fsrs: { ...card.fsrs, stability: 10_000 } });
 
     const { card: after } = await answer(3, NOW + 400 * DAY, {
-      maxLadderLevel: ladderCeiling(true),
+      audioAvailable: true,
     });
     expect(after.ladderLevel).toBe(4);
   });
@@ -170,7 +173,7 @@ describe('the audio ceiling (SPEC §2.6)', () => {
     // or every later measurement of the ladder's effect is reading a fiction.
     await parkAt(4);
     const { answeredAt } = await answer(3, NOW + DAY, {
-      maxLadderLevel: ladderCeiling(false),
+      audioAvailable: false,
     });
     expect(answeredAt).toBe(3);
 
@@ -184,7 +187,7 @@ describe('the audio ceiling (SPEC §2.6)', () => {
     await db.cards.update(id, { fsrs: { ...card.fsrs, stability: 10_000 } });
 
     const { card: after } = await answer(3, NOW + 400 * DAY);
-    expect(after.ladderLevel).toBe(3);
+    expect(after.ladderLevel).not.toBe(4);
   });
 });
 
