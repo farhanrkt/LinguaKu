@@ -29,6 +29,7 @@ interface HomeProps {
   onProgress: () => void;
   onAttribution: () => void;
   onRead: () => void;
+  onSync: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
 }
@@ -52,6 +53,7 @@ export const Home = ({
   onProgress,
   onAttribution,
   onRead,
+  onSync,
   onPractise,
   onChange,
 }: HomeProps) => {
@@ -173,9 +175,18 @@ export const Home = ({
           reachable from the app, not only from the repository. */}
       <button
         type="button"
+        onClick={onSync}
+        data-testid="sync-open"
+        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+      >
+        {copy.sync.open}
+      </button>
+
+      <button
+        type="button"
         onClick={onAttribution}
         data-testid="attribution-open"
-        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+        className="mt-2 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
       >
         {copy.attribution.open}
       </button>

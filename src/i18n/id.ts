@@ -185,6 +185,38 @@ export const copy = {
     },
   },
 
+  /**
+   * SPEC §5.1 Phase 2: optional sync. Off unless the learner turns it on, and
+   * the copy is careful to say what leaving the phone actually means.
+   */
+  sync: {
+    open: 'Sinkronisasi antar perangkat',
+    heading: 'Sinkronisasi',
+    intro:
+      'Aplikasi ini jalan sepenuhnya tanpa ini. Kalau kamu punya lebih dari satu HP dan mau riwayat latihanmu nyambung, kamu bisa nyalakan — tapi itu berarti datamu keluar dari HP ini.',
+    // No LinguaKu server exists. Say so, rather than letting anyone assume one.
+    noServer:
+      'Kami tidak punya server. Kamu perlu memasang sendiri (petunjuknya ada di workers/sync/README.md), lalu tempel alamatnya di bawah.',
+    enable: 'Nyalakan sinkronisasi',
+    endpoint: 'Alamat server kamu',
+    endpointPlaceholder: 'https://…workers.dev',
+    token: 'Kata sandi server',
+    tokenPlaceholder: 'Kata sandi yang kamu buat sendiri',
+    save: 'Simpan',
+    saved: 'Tersimpan.',
+    syncNow: 'Sinkronkan sekarang',
+    syncing: 'Menyinkronkan…',
+    ok: (pushed: number, merged: number) =>
+      `Selesai. ${pushed} sesi dikirim, ${merged} catatan baru diterima.`,
+    failed: (reason: string) => `Gagal: ${reason}. Datamu di HP ini tidak berubah.`,
+    disabled: 'Sinkronisasi belum dinyalakan.',
+    never: 'Belum pernah',
+    lastSynced: (when: string) => `Terakhir: ${when}`,
+    // The privacy point, stated plainly rather than buried.
+    privacy:
+      'Yang dikirim: riwayat latihan dan jadwal kartumu. Kata sandi server disimpan di HP ini saja dan tidak ikut ke dalam file cadangan.',
+  },
+
   /** SPEC §8: the graded reader — "the retention engine". */
   reader: {
     open: 'Baca',

@@ -33,13 +33,15 @@ src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   
                  scheduler · ladder · sessionComposer · grader · cloze · rng
                  coverage · forecast · placement · pseudoword · difficulty
                  frequency · tokenize · properNoun · elo · interference
-                 vocabulary · retention
+                 vocabulary · retention · reader · delta · kana · furigana
 src/data/        Dexie schema, migrations, repositories. The source of truth.
 src/features/    session, reader, placement, progress, settings — screens.
 src/ui/          presentational primitives.
 src/platform/    browser capability wrappers: speech, storage, notifications.
 src/i18n/        all learner-facing copy. Components hold no literal strings.
 scripts/         offline build-time tooling (content pipeline, CI gates).
+workers/         optional sync Worker + D1 schema. Deployed separately; nothing
+                 in src/ imports it, and the app is complete without it.
 data/            authored, versioned content: licences, contrastive YAML.
 assets/content/  generated content shards (from M1).
 ```
@@ -124,6 +126,17 @@ needs React state to work, it is in the wrong place.
 20. **No charting or plotting dependency.** Five figures of inline SVG in
     `src/features/progress/charts.tsx` (D38). The budget in invariant 6 is the
     reason.
+21. **Sync is off unless the learner turns it on, and that is structural.**
+    Nothing in `src/features` or `src/data` imports `src/platform/sync.ts`; the
+    settings screen is the only caller, and there is no boot registration,
+    timer or listener. An e2e test asserts zero requests leave the origin during
+    a full session (D52).
+22. **Audio gates one rung, not the ladder's top** (D48). `audioAvailable`
+    withholds L4 and nothing else; promotion runs 3 → 5 on a silent device. A
+    missing *listening* rung must never cost a learner *production*.
+23. **Mining records an intention, never a card** (D46). A card is the product
+    of an answer (invariant 0); `minedItems` holds the intention and the
+    composer acts on it next session.
 
 ## Conventions
 

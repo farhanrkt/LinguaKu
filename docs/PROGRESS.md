@@ -1,5 +1,134 @@
 # PROGRESS.md
 
+## M7 — Production, reader, optional sync · complete (2026-08-11)
+
+**Acceptance:** the app remains fully functional with sync disabled **and** with
+speech APIs unavailable. Both met, and both as executable tests rather than
+claims.
+
+| | required | actual |
+|---|---|---|
+| ladder rungs reachable | L0–L6 | **all seven** |
+| works with speech APIs absent | yes | ladder skips L4, drills withheld, typing unaffected |
+| works with sync disabled | yes | **zero external requests**, asserted in the browser |
+| unit tests | — | 596 |
+| e2e tests | — | 29 |
+| initial JS (gzipped) | ≤ 200 KB | 125.5 KB |
+
+```
+✓ typecheck · lint · 596 unit tests · licence gate · build · bundle budget
+✓ 29 e2e: offline session, resume, cold start, installability, placement,
+  drills, heatmap, §9 progress, export/restore, attribution, reader, sync
+```
+
+### The reader (§8)
+
+Tap-to-gloss and one-tap mining, both entirely local — an e2e test cuts the
+network before tapping to prove it. Three things the spec's words could not
+survive contact with the corpus, all recorded as decisions:
+
+**A feed, not a passage** (D45). Tatoeba is independent sentence pairs, not
+documents. Stringing unrelated sentences together and calling it a passage would
+*look* like a reader and *read* like nonsense, which is worse than a feed —
+extensive reading depends on the text meaning something.
+
+**Mining records an intention, not a card** (D46). "One-tap card creation" done
+literally breaks invariant 0: a card is the product of an answer, and minting one
+from a tap puts an item in the schedule with a due date nobody earned. The tap
+writes to `minedItems`; the composer introduces the word next session, ahead of
+the frontier queue and *past* the frontier gate — level gating exists to stop us
+marching a learner through words they did not choose, not to overrule a choice
+they made.
+
+**Three floors, because one is not enough** (D47). The count rule alone passes
+*"the quokka devours pastry"* — two unknown of four — on a technicality.
+
+### Production, and the silent device
+
+The ladder reaches L6. L5 is production from the Indonesian alone; L6 is a
+sentence about the learner's own life.
+
+**Audio was modelled as a ceiling, and that became wrong the moment production
+landed** (D48). A learner with no speech engine would have been capped at L3 —
+locked out of the top half of the ladder by a missing *listening* rung. So
+`audioAvailable` now gates one rung rather than the maximum, and promotion runs
+3 → 5 without it. §2.6 is satisfied exactly as written: the item is excluded from
+L4 scheduling and nothing else changes. The old test asserted the lock-out; it
+now asserts the escape.
+
+**L6 grades on whether the word was used, and says so** (D49). No right answer
+exists to match and there is no grammar model — D4 keeps the LLM layer out until
+after M7 — so the honest check is the only checkable thing, which is also exactly
+the generation effect the rung exists for.
+
+**Speech input is detected, never probed** (D50). Synthesis earns a live probe
+because an engine that lists a voice and never speaks is real and a silent
+utterance is cheap. Recognition would cost a microphone permission prompt merely
+to decide whether to draw a button. Every failure path — absent, refused, silent,
+hanging, throwing — resolves to "not heard", with the text field right there.
+
+### Sync, and the arithmetic that changed its design
+
+§5.1 asked for the free-tier limits to be verified at build time. Read
+2026-08-11 at developers.cloudflare.com:
+
+| | |
+|---|---|
+| Workers requests | 100,000 / day |
+| Workers CPU | 10 ms / request |
+| D1 rows written | 100,000 / day |
+| D1 rows read | 5,000,000 / day |
+
+§5.1 says to batch "one write per finished session, not per card", which fixes
+the *request* count. **The binding constraint turns out to be somewhere else.** A
+4-minute session produces around thirty review logs; at one D1 row each that is
+100,000 ÷ 30 ≈ **3,300 sessions a day** — an order of magnitude below the request
+cap. So a delta is one *row*: the whole session as an opaque payload, which moves
+both caps to 100,000 sessions a day (D51).
+
+The server can afford that because it never reads inside a delta. It cannot: the
+local store is the source of truth, merge logic is pure and lives on the client
+in `src/core/delta.ts`, and the Worker only routes — which is also what keeps it
+inside the 10 ms CPU budget.
+
+**Disabled is structural, not careful.** Nothing in `src/features` or `src/data`
+imports the sync module; the settings screen is the only caller. No boot
+registration, no timer, no listener. An e2e test drives a whole session and the
+progress screen while asserting **zero requests leave the origin**.
+
+It is also opt-in with no default endpoint, which is a privacy decision: sync
+means a learner's history leaves their phone, and nothing about the core product
+needs that. The token lives in `localStorage` rather than Dexie so it cannot end
+up inside an export bundle the learner might share (D52).
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| The Worker has never been deployed or run | It needs a Cloudflare account the build environment does not have. The client, delta format and merge rules are unit-tested in CI; the limits above were read from documentation, not measured against a live account. `workers/sync/README.md` says so under "What is untested". |
+| Shadowing is record-and-compare, with no score | §5.1 asks for exactly this where recognition is unavailable. For pronunciation it is arguably the better tool anyway: a recognizer tells you whether a machine understood you, your own ear tells you how far you are from the model. |
+| No per-word dictionary in the reader | R3 again — no gloss source is licence-cleared. The panel shows what the app knows and says plainly that there is no dictionary, rather than leaving a thin gloss unexplained. |
+| L6 does not assess sentence quality | See D49. Inventing a score would add a number nobody could defend. |
+
+### Next decision I need from you
+
+**1. R1 — the device matrix, still empty and now the last technical unknown.**
+Every speech path degrades gracefully and is tested against stubs; none has run
+on a real phone. It gates L4, three Japanese drills, the listening axis of the
+radar, and now shadowing.
+
+**2. Piper audio.** Design approved and unblocked; not started. It needs the
+voice-model licence chosen and dated before a clip enters `assets/`.
+
+**3. Deploy the Worker, or drop it.** It is written and documented but unproven.
+If sync matters, one deployment would tell us whether the arithmetic holds. If it
+does not, deleting `workers/` costs nothing — the app has never depended on it.
+
+**4. The Indonesian copy across M6 and M7 wants a native pass**, particularly the
+Japanese drills and the reader's word panel.
+
+---
+
 ## M6 — Japanese · complete (2026-08-11)
 
 **Acceptance:** a Japanese absolute-beginner path from kana to first 100 kanji
