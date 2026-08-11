@@ -32,10 +32,11 @@ file extension** (`./frequency.ts`, not `./frequency`).
 src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   (from M2)
                  scheduler · ladder · sessionComposer · grader · cloze · rng
                  coverage · forecast · placement · pseudoword · difficulty
+                 recap
                  frequency · tokenize · properNoun · elo · interference
                  vocabulary · retention · reader · delta · kana · furigana
 src/data/        Dexie schema, migrations, repositories. The source of truth.
-src/features/    session, reader, placement, progress, settings — screens.
+src/features/    session, reader, placement, progress, habit, settings — screens.
 src/ui/          presentational primitives.
 src/platform/    browser capability wrappers: speech, storage, notifications.
 src/i18n/        all learner-facing copy. Components hold no literal strings.
@@ -136,7 +137,17 @@ needs React state to work, it is in the wrong place.
 22. **Audio gates one rung, not the ladder's top** (D48). `audioAvailable`
     withholds L4 and nothing else; promotion runs 3 → 5 on a silent device. A
     missing *listening* rung must never cost a learner *production*.
-23. **Mining records an intention, never a card** (D46). A card is the product
+23. **A skip records a request, never a rating** (D55). `deferredItems` holds
+    "belum perlu"; the composer honours it for new items *and* for cards already
+    due, and a deferred card stays due with its FSRS state untouched. Filing a
+    skip as a lapse would let autonomy damage the learner's own schedule.
+24. **A reminder is local, or the screen says it is not one** (D54). There is no
+    push server and there will not be one — that is invariant 4. `TimestampTrigger`
+    where it exists, an in-app cue otherwise, and `scheduleReminder` returns
+    whether anything was actually scheduled.
+25. **The weekly recap has no total and no target** (D56). Capability lines only;
+    a quiet week is a fact, not a shortfall.
+26. **Mining records an intention, never a card** (D46). A card is the product
     of an answer (invariant 0); `minedItems` holds the intention and the
     composer acts on it next session.
 

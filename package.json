@@ -1,6 +1,6 @@
 {
   "name": "linguaku",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Offline-first PWA teaching English and Japanese to Indonesian speakers.",

@@ -5,6 +5,87 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v2.0.0 — 2026-08-11
+
+**Every `§2` requirement now has an implementation.** v1.0.0 shipped with three
+of them unbuilt — one of which had a table sitting in the schema since M0,
+typed, indexed, exported, and written by nothing. This release closes that debt
+rather than adding features beside it.
+
+### §2.13 — the habit cue
+
+The `Habit` row has existed since M0 and nothing ever wrote it. Onboarding never
+asked for the implementation intention §2.13 requires, and no reminder was ever
+scheduled.
+
+The screen is now a sentence the learner completes in their own words —
+*"Setiap hari setelah ___, saya latihan di ___"* — not a settings form.
+Gollwitzer's finding is about binding the plan to a cue they already have, and
+asking for a "reminder time" does not do that.
+
+**What can honestly be delivered without a server is the whole design problem.**
+Web Push needs VAPID keys and a per-device subscription: recurring cost, so
+invariant 4 rules it out. That leaves Notification Triggers, which fires with
+the app closed and is Chromium-only, and otherwise an in-app cue on the next
+open after the time has passed. The screen names which of the two this device
+gets. The rejected option is the easy one — take the permission, store a time,
+never fire (D54).
+
+### §2.14 — *"belum perlu"*
+
+The learner can now decline any item. The only skip in the app before this was
+placement's.
+
+A skip is **not an answer**: it writes no card, no rating and no review log,
+because invariant 0 forbids it and because filing a skip as a lapse would let a
+learner exercising autonomy damage their own schedule. It records a request, and
+the composer honours it for new items *and* for cards already due — a deferred
+card stays due with its FSRS state untouched; only what is shown changes.
+
+The window escalates 3 → 7 → 21 → 60 days and then stops, because §2.14 is
+autonomy rather than deletion and a permanently vanished item could never be
+reconsidered (D55).
+
+### §9 — the weekly recap
+
+The last §9 line, flagged at M5 as needing a product call. It lives on the
+progress screen with the rest of §9.
+
+The arithmetic is easy; the restraint is not. No total, no score, no target — a
+quiet week is a fact, not a shortfall, and there is no "you missed three days"
+because that sentence has no use except to make someone feel behind. "First met"
+is read from the learner's whole history rather than the window, or a word met
+months ago would be relabelled new every week. The comparison with the previous
+week is withheld until the profile is two weeks old, because comparing a first
+week against a range that did not exist manufactures a decline out of being new
+(D56).
+
+### Measured
+
+| | v1.0.1 | v2.0.0 |
+|---|---|---|
+| unit tests | 609 | **653** |
+| e2e tests | 32 | **41** |
+| initial JS, gzipped | 125.6 KB | **128.3 KB** (64% of budget) |
+| §2 requirements with an implementation | 12 of 15 | **15 of 15** |
+
+Schema v5, additive. No migration risk: `deferredItems` is a new table and no
+existing row changes shape.
+
+### Not in this release
+
+Unchanged and still blocked on things code cannot supply: the **R1 device
+matrix** needs real phones, **Piper audio** needs a voice-model licence chosen
+and dated before a clip may enter `assets/`, the **sync Worker** is written and
+still undeployed, and the **Indonesian copy** wants a native pass — now
+including the habit and recap strings added here.
+
+Also still open, and a product decision rather than a defect: the app teaches
+**one language at a time** while `targets` is an array and first run offers a
+multi-select (D53).
+
+---
+
 ## v1.0.1 — 2026-08-11
 
 Five bugs, all one idea held in too many places. `targets[0]` is the language

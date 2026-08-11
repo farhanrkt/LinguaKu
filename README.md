@@ -9,18 +9,18 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.0.0
+## Status — v2.0.0
 
-**Milestones 0 through 7 complete.** See [`CHANGELOG.md`](CHANGELOG.md) for the
+**Milestones 0 through 7 complete, and every §2 requirement implemented.** See [`CHANGELOG.md`](CHANGELOG.md) for the
 release notes and [`docs/LAUNCH-CHECKLIST.md`](docs/LAUNCH-CHECKLIST.md) for the
 production verification procedure.
 
 | | |
 |---|---|
 | icon tap → first answerable question | **1.4 s** (budget 3 s) |
-| initial JS / CSS, gzipped | **125.5 KB** / **6.5 KB** (budgets 200 / 40) |
+| initial JS / CSS, gzipped | **128.3 KB** / **6.6 KB** (budgets 200 / 40) |
 | first-load precache, both languages | **1.31 MB** gzipped (budget 8 MB) |
-| tests | **596** unit · **29** e2e |
+| tests | **653** unit · **41** e2e |
 | recurring cost | **zero** |
 
 English: 23,497 banded sentence pairs, 5,245 lexemes, 21 contrastive categories,
