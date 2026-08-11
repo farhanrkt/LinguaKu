@@ -190,10 +190,6 @@ export const Home = ({
       >
         {copy.attribution.open}
       </button>
-
-      <p className="mt-4 rounded-2xl bg-stone-100 p-4 text-sm text-stone-600 dark:bg-slate-900 dark:text-slate-400">
-        {copy.home.roadmap}
-      </p>
     </Screen>
   );
 };

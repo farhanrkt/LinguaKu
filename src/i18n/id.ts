@@ -47,7 +47,6 @@ export const copy = {
     audioProbing: 'Mengecek suara di HP ini…',
     audioReady: 'Suara aktif — latihan mendengar tersedia',
     audioDead: 'HP ini belum bisa mengeluarkan suara, jadi latihan mendengar kami sembunyikan dulu',
-    roadmap: 'Sesi latihan aktif di tahap berikutnya. Yang kamu atur di sini sudah tersimpan.',
   },
   langNames: {
     en: 'Inggris',
