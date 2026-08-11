@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cardTypeFor,
   cardTypeForLevel,
   composeSession,
   MAX_CONSECUTIVE_SAME_CLUSTER,
@@ -45,10 +46,7 @@ const violations = (entries: readonly Candidate[]) => {
   for (let i = 1; i < entries.length; i++) {
     const previous = entries[i - 1]!;
     const current = entries[i]!;
-    typeRun =
-      cardTypeForLevel(current.ladderLevel) === cardTypeForLevel(previous.ladderLevel)
-        ? typeRun + 1
-        : 1;
+    typeRun = cardTypeFor(current) === cardTypeFor(previous) ? typeRun + 1 : 1;
     clusterRun = current.clusterId === previous.clusterId ? clusterRun + 1 : 1;
     if (typeRun > MAX_CONSECUTIVE_SAME_TYPE) typeViolations++;
     if (clusterRun > MAX_CONSECUTIVE_SAME_CLUSTER) clusterViolations++;
@@ -145,6 +143,21 @@ describe('review prioritization (SPEC §7.2)', () => {
   });
 });
 
+/** Contrastive drills, weakest category first (SPEC §3.3). */
+const generateDrills = (seed: number, size: number): Candidate[] => {
+  const rng = mulberry32(seed);
+  return Array.from({ length: size }, (_, index) => ({
+    id: `DRILL_${index}-${seed}`,
+    itemId: `DRILL_${index}-${seed}`,
+    cardId: null,
+    slice: 'drill' as const,
+    ladderLevel: 0 as const,
+    clusterId: `c:CAT${Math.floor(rng() * 4)}`,
+    retrievability: 0,
+    lapses: 0,
+  }));
+};
+
 describe('interleaving (SPEC §2.8 acceptance)', () => {
   it('finds no violation across 1,000 generated sessions', () => {
     let relaxedCount = 0;
@@ -154,6 +167,7 @@ describe('interleaving (SPEC §2.8 acceptance)', () => {
         seed,
         due: generatePool(seed, 60, 'review'),
         fresh: generatePool(seed + 10_000, 30, 'new'),
+        drills: generateDrills(seed + 20_000, 2),
       });
       const { typeViolations, clusterViolations } = violations(session.entries);
       expect(typeViolations).toBe(0);
@@ -209,5 +223,89 @@ describe('determinism (SPEC §7.2)', () => {
       fresh: generatePool(2, 60, 'new'),
     });
     expect(new Set(session.entries.map((entry) => entry.id)).size).toBe(session.entries.length);
+  });
+});
+
+/**
+ * SPEC §7.2's last 5%, and SPEC §3.3 step 3: *"the session composer injects
+ * targeted drills when a category's estimate is below threshold."*
+ */
+describe('contrastive drills (SPEC §7.2, §3.3)', () => {
+  const drills = (count: number): Candidate[] =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `ARTICLES-${index}`,
+      itemId: `ARTICLES-${index}`,
+      cardId: null,
+      slice: 'drill' as const,
+      ladderLevel: 0 as const,
+      clusterId: 'c:ARTICLES',
+      retrievability: 0,
+      lapses: 0,
+    }));
+
+  it('includes a drill when one is offered', () => {
+    const session = composeSession({
+      budgetMinutes: 4,
+      seed: 1,
+      due: generatePool(1, 20, 'review'),
+      fresh: [],
+      drills: drills(1),
+    });
+    expect(session.allocation.drill).toBe(1);
+    expect(session.entries.some((entry) => entry.slice === 'drill')).toBe(true);
+  });
+
+  it('keeps drills to roughly the 5% the spec asks for, not a session full', () => {
+    // Twenty are offered; the budget buys one or two. A composer that let the
+    // weakest category fill the session would turn practice into remediation.
+    const session = composeSession({
+      budgetMinutes: 4,
+      seed: 2,
+      due: generatePool(2, 40, 'review'),
+      fresh: generatePool(3, 20, 'new'),
+      drills: drills(20),
+    });
+    expect(session.allocation.drill).toBeGreaterThan(0);
+    expect(session.allocation.drill).toBeLessThanOrEqual(2);
+  });
+
+  it('does not hand the drill slice its leftovers when reviews run dry', () => {
+    // Nothing due, nothing new, twenty drills waiting: still not a drill
+    // session. The spare goes unspent rather than to the smallest slice.
+    const session = composeSession({
+      budgetMinutes: 15,
+      seed: 3,
+      due: [],
+      fresh: [],
+      drills: drills(20),
+    });
+    expect(session.allocation.drill).toBeLessThanOrEqual(4);
+  });
+
+  it('composes a perfectly ordinary session when there are no drills at all', () => {
+    // A learner with no measured weakness — and Japanese, until M6 authors its
+    // pack — gets no drills, and nothing else changes.
+    const session = composeSession({
+      budgetMinutes: 4,
+      seed: 4,
+      due: generatePool(4, 20, 'review'),
+      fresh: [],
+    });
+    expect(session.allocation.drill).toBe(0);
+    expect(session.entries.length).toBeGreaterThan(0);
+    expect(violations(session.entries).typeViolations).toBe(0);
+  });
+
+  it('treats a drill as its own card type for §2.8 purposes', () => {
+    // Three drills back to back is blocked practice, whatever their ladder
+    // level says.
+    const session = composeSession({
+      budgetMinutes: 15,
+      seed: 5,
+      due: generatePool(5, 30, 'review'),
+      fresh: [],
+      drills: drills(6),
+    });
+    expect(violations(session.entries).typeViolations).toBe(0);
   });
 });

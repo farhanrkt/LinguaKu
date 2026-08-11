@@ -2,7 +2,11 @@ import Dexie from 'dexie';
 import { db } from '../db.ts';
 import { emptyFsrsState } from '../fsrsState.ts';
 import { applyRating } from '../../core/scheduler.ts';
-import { nextLadderLevel, type LadderDecision } from '../../core/ladder.ts';
+import {
+  nextLadderLevel,
+  TEXT_ONLY_MAX_LEVEL,
+  type LadderDecision,
+} from '../../core/ladder.ts';
 import type {
   Card,
   Confidence,
@@ -39,6 +43,14 @@ export interface RecordReviewInput {
   answerRaw: string;
   correct: boolean;
   now: Timestamp;
+  /**
+   * Highest rung this item may occupy — `ladderCeiling(hasAudio)` (SPEC §2.6).
+   * The *presented* rung is clamped to it here rather than by the caller, so
+   * the level in the log is always the level the learner actually answered at.
+   */
+  maxLadderLevel?: LadderLevel;
+  /** SPEC §3.3: interference categories this answer matched. */
+  interferenceHit?: string[];
 }
 
 export interface RecordReviewResult {
@@ -67,7 +79,10 @@ const loadOrCreateCard = async (
 
 export const recordReview = async (input: RecordReviewInput): Promise<RecordReviewResult> => {
   const card = await loadOrCreateCard(input.profileId, input.itemId, input.now);
-  const answeredAt = card.ladderLevel;
+  const ceiling = input.maxLadderLevel ?? TEXT_ONLY_MAX_LEVEL;
+  // A card parked above the ceiling was presented one rung down, so that is the
+  // rung the log has to record. Same clamp the task builder applied.
+  const answeredAt = Math.min(card.ladderLevel, ceiling) as LadderLevel;
 
   const scheduled = applyRating(card.fsrs, input.grade, input.now);
 
@@ -87,11 +102,12 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
   ];
 
   const decision = nextLadderLevel({
-    level: answeredAt,
+    level: card.ladderLevel,
     grade: input.grade,
     stabilityDays: scheduled.state.stability,
     recentGrades,
     lapses: scheduled.state.lapses,
+    maxLevel: ceiling,
   });
 
   const log: ReviewLog = {
@@ -104,6 +120,11 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
     latencyMs: input.latencyMs,
     answerRaw: input.answerRaw,
     correct: flag(input.correct),
+    // SPEC §3.3: the categories a wrong answer matched, so the heatmap is built
+    // from what the learner actually did rather than from drill scores alone.
+    ...(input.interferenceHit && input.interferenceHit.length > 0
+      ? { interferenceHit: input.interferenceHit }
+      : {}),
     reviewedAt: input.now,
     scheduledDays: scheduled.scheduledDays,
     elapsedDays: scheduled.elapsedDays,

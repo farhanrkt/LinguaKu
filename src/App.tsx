@@ -3,16 +3,18 @@ import { FirstRun } from './features/onboarding/FirstRun.tsx';
 import { Home } from './features/home/Home.tsx';
 import { SessionScreen } from './features/session/SessionScreen.tsx';
 import { PlacementScreen } from './features/placement/PlacementScreen.tsx';
+import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
 import { hasBeenPlaced } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import { findResumable, startSession } from './data/repositories/sessions.ts';
 import { ensureBands, STARTER_BANDS } from './data/content.ts';
+import { loadContrastive } from './data/contrastive.ts';
 import {
   getStorageDurability,
   requestPersistentStorage,
   type StorageDurability,
 } from './platform/persistence.ts';
-import { canScheduleAudioOnly, probeVoice, type VoiceReport } from './platform/speech.ts';
+import { isTtsLive, probeOnBoot, type VoiceReport } from './platform/speech.ts';
 import { registerServiceWorker, type OfflineStatus } from './platform/serviceWorker.ts';
 import type { DailyMinutes, Profile, Session, TargetLang } from './data/types.ts';
 
@@ -21,6 +23,7 @@ type Screen =
   | { name: 'first-run' }
   | { name: 'home'; profile: Profile }
   | { name: 'placement'; profile: Profile }
+  | { name: 'progress'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
 export const App = () => {
@@ -32,15 +35,29 @@ export const App = () => {
   const [placementOffered, setPlacementOffered] = useState(true);
   const [busy, setBusy] = useState(false);
 
+  /**
+   * SPEC §2.6 / risk R1: probe the speech engine once per app start, and let
+   * that verdict govern the session.
+   *
+   * It fires when a screen is actually up — never during boot. The first touch
+   * of `speechSynthesis` on a device with no speech service **blocks the main
+   * thread for ~15 seconds** (measured; see src/platform/speech.ts), which would
+   * put the app's whole ≤3s icon-tap budget behind a freeze. `probeOnBoot` is
+   * idempotent, so calling this from every screen costs one probe.
+   */
+  const probeAudio = useCallback((lang: TargetLang) => {
+    void probeOnBoot(lang).then(setVoice);
+  }, []);
+
   /** Starts or resumes a session. The only path into the practice loop. */
   const beginSession = useCallback(async (profile: Profile) => {
     const lang = profile.targets[0] ?? 'en';
-    // Probing inside the tap is what iOS requires before it will ever speak
-    // (risk R1); elsewhere it just means the answer is ready by the first card.
-    void probeVoice(lang).then(setVoice);
-
     await ensureBands(lang, STARTER_BANDS).catch(() => undefined);
-    const session = (await findResumable(profile.id)) ?? (await startSession(profile, Date.now()));
+    // The boot probe's verdict stands for the whole session (risk R1), so the
+    // composer knows here whether minimal-pair drills can be scheduled at all.
+    const session =
+      (await findResumable(profile.id)) ??
+      (await startSession(profile, Date.now(), { audioAvailable: isTtsLive() }));
     setResumable(null);
     setScreen({ name: 'session', profile, session });
   }, []);
@@ -50,6 +67,9 @@ export const App = () => {
     void (async () => {
       const [profile, storage] = await Promise.all([getCurrentProfile(), getStorageDurability()]);
       setDurability(storage);
+      // Warm the contrastive pack off the critical path, so it is in memory by
+      // the time the composer looks for it (SPEC §5.4).
+      void loadContrastive(profile?.targets[0] ?? 'en');
       if (!profile) {
         setScreen({ name: 'first-run' });
         return;
@@ -142,8 +162,15 @@ export const App = () => {
         <SessionScreen
           profile={screen.profile}
           session={screen.session}
-          audioAvailable={canScheduleAudioOnly(voice) || voice === null}
+          onFirstQuestion={() => probeAudio(screen.profile.targets[0] ?? 'en')}
           onFinish={() => void handleFinish()}
+        />
+      );
+    case 'progress':
+      return (
+        <ProgressScreen
+          profile={screen.profile}
+          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
         />
       );
     case 'home':
@@ -152,10 +179,13 @@ export const App = () => {
           profile={screen.profile}
           offline={offline}
           durability={durability}
+          voice={voice}
           resumable={resumable}
           busy={busy}
           placementOffered={placementOffered}
+          onReady={() => probeAudio(screen.profile.targets[0] ?? 'en')}
           onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
+          onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}
         />

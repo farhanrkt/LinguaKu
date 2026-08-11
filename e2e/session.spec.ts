@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { firstRun, waitForOfflineReady } from './helpers.ts';
+import { answerOne, firstRun, waitForOfflineReady } from './helpers.ts';
 
 /**
  * M2 acceptance (SPEC §12):
@@ -7,25 +7,6 @@ import { firstRun, waitForOfflineReady } from './helpers.ts';
  *  - kill-and-resume loses nothing;
  *  - icon-tap to first answerable question ≤ 3s on a warm cache (§5.4).
  */
-
-/** Answers whatever task is on screen and advances past the feedback. */
-const answerOne = async (page: Page) => {
-  const confirm = page.getByRole('button', { name: 'Oke, paham' });
-  const input = page.getByRole('textbox');
-
-  if (await confirm.isVisible().catch(() => false)) {
-    await confirm.click();
-  } else if (await input.isVisible().catch(() => false)) {
-    await input.fill('jawaban');
-    await page.getByRole('button', { name: 'Yakin', exact: true }).click();
-  } else {
-    // Recognition: any option submits; correctness is not what is under test.
-    await page.getByRole('button', { name: /.+/ }).nth(1).click();
-  }
-
-  await expect(page.getByTestId('feedback')).toBeVisible();
-  await page.getByTestId('next').click();
-};
 
 test('a session runs end to end with the network cut', async ({ page, context }) => {
   await firstRun(page);
@@ -51,19 +32,32 @@ test('killing the app mid-session resumes at the exact next item', async ({ page
   for (let i = 0; i < 2; i++) await answerOne(page);
   await expect(page.getByTestId('session-progress')).toHaveText(/3 dari \d+/);
 
-  const reviewsBefore = await countReviewLogs(page);
-  expect(reviewsBefore).toBe(2);
+  // Two answers, two records. Which table they land in depends on whether the
+  // composer put a contrastive drill in the first two slots — a drill has no
+  // FSRS card, so it is recorded apart from the review log (SPEC §3.3). What is
+  // under test is that nothing is lost, not where it was filed.
+  const answeredBefore = await countAnswers(page);
+  expect(answeredBefore).toBe(2);
 
   // As abrupt as a phone killing the tab.
   await page.reload();
 
-  await expect(page.getByTestId('practise')).toHaveText('Lanjutkan latihan');
+  // Generous, because this is a cold boot: Dexie opens, the profile is read and
+  // the resumable session is found. How *fast* that happens is coldstart.spec's
+  // job; what is under test here is that nothing was lost.
+  await expect(page.getByTestId('practise')).toHaveText('Lanjutkan latihan', {
+    timeout: 15_000,
+  });
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toHaveText(/3 dari \d+/, { timeout: 15_000 });
-  expect(await countReviewLogs(page)).toBe(reviewsBefore);
+  expect(await countAnswers(page)).toBe(answeredBefore);
 });
 
 test('finishing a session reports what got stronger, not points', async ({ page }) => {
+  // This test walks an entire 4-minute session — around thirty questions, each
+  // with a feedback step — so it is legitimately longer than the default budget.
+  test.setTimeout(180_000);
+
   await firstRun(page);
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
@@ -73,7 +67,14 @@ test('finishing a session reports what got stronger, not points', async ({ page 
       '0',
   );
   expect(total).toBeGreaterThan(0);
-  for (let i = 0; i < total; i++) await answerOne(page);
+
+  // Answer until the session says it is done, rather than exactly `total` times.
+  // An item the builder cannot make (a missing anchor) is skipped, so the queue
+  // length is an upper bound on the number of questions, not the count.
+  for (let i = 0; i <= total; i++) {
+    if (await page.getByTestId('session-summary').isVisible().catch(() => false)) break;
+    await answerOne(page);
+  }
 
   const summary = page.getByTestId('session-summary');
   await expect(summary).toBeVisible();
@@ -81,16 +82,26 @@ test('finishing a session reports what got stronger, not points', async ({ page 
   await expect(page.locator('body')).not.toContainText(/\bXP\b|poin|streak|nyawa/i);
 });
 
-const countReviewLogs = (page: Page): Promise<number> =>
+/** Every answer the learner has given: review logs plus drill attempts. */
+const countAnswers = (page: Page): Promise<number> =>
   page.evaluate(
     () =>
       new Promise<number>((resolve, reject) => {
         const open = indexedDB.open('linguaku');
         open.onerror = () => reject(new Error(String(open.error)));
         open.onsuccess = () => {
-          const request = open.result.transaction('reviewLogs').objectStore('reviewLogs').count();
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(new Error(String(request.error)));
+          const stores = ['reviewLogs', 'drillAttempts'];
+          const transaction = open.result.transaction(stores);
+          let total = 0;
+          let pending = stores.length;
+          for (const store of stores) {
+            const request = transaction.objectStore(store).count();
+            request.onsuccess = () => {
+              total += request.result;
+              if (--pending === 0) resolve(total);
+            };
+            request.onerror = () => reject(new Error(String(request.error)));
+          }
         };
       }),
   );

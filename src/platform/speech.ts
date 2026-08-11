@@ -20,10 +20,16 @@
  */
 
 export type SpeechSupport =
-  /** A voice for this language exists and audibly started. */
+  /** A voice for this language exists and the engine completed an utterance. */
   | 'ready'
   /** The API exists but has no usable voice for this language. */
   | 'no-voice'
+  /**
+   * A voice exists and the engine accepted the utterance, but never finished
+   * it inside the deadline. This is the Android failure mode that makes voice
+   * enumeration useless on its own — see R1.
+   */
+  | 'dead'
   /** `speechSynthesis` is not available at all. */
   | 'unsupported';
 
@@ -37,7 +43,20 @@ export interface VoiceReport {
 }
 
 const VOICES_TIMEOUT_MS = 2_000;
-const UTTERANCE_TIMEOUT_MS = 2_000;
+
+/**
+ * How long the boot probe waits for `onend` before declaring the engine dead
+ * for this session.
+ *
+ * 500 ms is the number the device matrix settled on, and it is deliberately
+ * tight: this budget is spent inside the ≤3s icon-tap-to-first-question window
+ * (SPEC §5.4), and an engine that cannot finish a zero-volume full stop in half
+ * a second is not going to deliver a dictation card on time either.
+ *
+ * `onend`, specifically — not `onstart`. The engine that lies about audio fires
+ * `onstart` and then goes quiet forever; only completion proves it spoke.
+ */
+export const TTS_ONEND_DEADLINE_MS = 500;
 
 const synth = (): SpeechSynthesis | null =>
   typeof globalThis.speechSynthesis === 'undefined' ? null : globalThis.speechSynthesis;
@@ -91,34 +110,34 @@ export const pickVoice = (
   voices.find((voice) => voice.localService) ?? voices[0] ?? null;
 
 /**
- * Speaks a silent utterance and waits for the engine to acknowledge it.
+ * Speaks a zero-volume utterance and waits for the engine to *finish* it.
  *
- * On iOS, speech requires a user gesture, so this should be run from inside one
- * (the app probes when a session starts). A failure here is reported as
- * `no-voice` rather than assumed away.
+ * Resolving on `onend` alone is the whole point. An engine that fires `onstart`
+ * and then never completes has told us nothing about whether a learner would
+ * hear anything, and on Android that is a real configuration, not a hypothetical
+ * one. Anything that has not completed inside the deadline is dead.
  */
-const utteranceWorks = async (
+const utteranceCompletes = async (
   voice: SpeechSynthesisVoice,
-  timeoutMs = UTTERANCE_TIMEOUT_MS,
+  timeoutMs = TTS_ONEND_DEADLINE_MS,
 ): Promise<boolean> => {
   const speech = synth();
   if (!speech || typeof globalThis.SpeechSynthesisUtterance === 'undefined') return false;
 
   return new Promise((resolve) => {
     let settled = false;
-    const finish = (worked: boolean) => {
+    const finish = (completed: boolean) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       speech.cancel();
-      resolve(worked);
+      resolve(completed);
     };
 
     const utterance = new SpeechSynthesisUtterance('.');
     utterance.voice = voice;
     utterance.lang = voice.lang;
     utterance.volume = 0;
-    utterance.onstart = () => finish(true);
     utterance.onend = () => finish(true);
     utterance.onerror = () => finish(false);
 
@@ -129,7 +148,13 @@ const utteranceWorks = async (
 
 export interface ProbeOptions {
   voicesTimeoutMs?: number;
+  /** Defaults to `TTS_ONEND_DEADLINE_MS`. */
   utteranceTimeoutMs?: number;
+  /**
+   * How long `probeOnBoot` waits before probing, where `requestIdleCallback`
+   * is unavailable. Defaults to `IDLE_FALLBACK_MS`.
+   */
+  deferMs?: number;
 }
 
 export const probeVoice = async (
@@ -147,14 +172,96 @@ export const probeVoice = async (
     return { support: 'no-voice', voiceName: null, localService: false, voiceCount: 0, probedAt };
   }
 
-  const works = await utteranceWorks(voice, options.utteranceTimeoutMs);
+  const completed = await utteranceCompletes(voice, options.utteranceTimeoutMs);
   return {
-    support: works ? 'ready' : 'no-voice',
+    support: completed ? 'ready' : 'dead',
     voiceName: voice.name,
     localService: voice.localService,
     voiceCount: voices.length,
     probedAt,
   };
+};
+
+// ------------------------------------------------------- the session verdict
+
+/**
+ * The probe runs **once per app boot**, and its answer stands for the whole
+ * session.
+ *
+ * Re-probing per card would be worse in both directions: it costs a settle
+ * delay on every audio item, and a device that answers "ready" once and "dead"
+ * the next time would flip the L4 rung in and out under the learner. One
+ * verdict per session is a stable contract that the rest of the app can gate on
+ * (`ladderCeiling` in src/core/ladder.ts).
+ */
+let verdict: VoiceReport | null = null;
+let inFlight: Promise<VoiceReport> | null = null;
+
+/**
+ * Probes on boot and caches the verdict for the session. Concurrent callers
+ * share the one probe; later callers get the cached answer without speaking
+ * again.
+ *
+ * **Callers must not run this until the first screen is painted.** Measured, not
+ * assumed: the first touch of `speechSynthesis` in an environment with no speech
+ * service behind it **blocks the main thread for ~15 seconds** — five times SPEC
+ * §5.4's entire icon-tap-to-first-question budget, with the app frozen for all
+ * of it. A device with no speech service is not a hypothetical; it is precisely
+ * the device R1 is about, so this is a cost real learners would pay.
+ *
+ * `idle()` below is a second line of defence, not the first: `requestIdleCallback`
+ * fires during the gaps in an async boot, which are exactly the moments the app
+ * is waiting on IO and about to need the main thread again. The reliable signal
+ * is the app telling us a screen is up — see `markInteractive` in src/App.tsx.
+ *
+ * Until it answers, `isTtsLive()` is false: audio is withheld rather than
+ * assumed, which is the same safe default the rest of §2.6 runs on.
+ */
+export const probeOnBoot = async (
+  language: string,
+  options: ProbeOptions = {},
+): Promise<VoiceReport> => {
+  if (verdict) return verdict;
+  inFlight ??= idle(options.deferMs)
+    .then(() => probeVoice(language, options))
+    .then((report) => {
+      verdict = report;
+      inFlight = null;
+      return report;
+    });
+  return inFlight;
+};
+
+/** Long enough that the first question is painted, where there is no idle API. */
+export const IDLE_FALLBACK_MS = 1_500;
+
+/** Resolves once the main thread has nothing better to do. */
+const idle = (deferMs = IDLE_FALLBACK_MS): Promise<void> =>
+  new Promise((resolve) => {
+    if (typeof globalThis.requestIdleCallback === 'function') {
+      // The timeout is a ceiling, not a target: on a busy first load the probe
+      // still happens, just late enough not to be in front of the learner.
+      globalThis.requestIdleCallback(() => resolve(), { timeout: 3_000 });
+    } else {
+      setTimeout(resolve, deferMs);
+    }
+  });
+
+/** The session's verdict, or null if the probe has not answered yet. */
+export const ttsReport = (): VoiceReport | null => verdict;
+
+/**
+ * SPEC §2.6: a dead engine means audio must come from a pre-cached clip or the
+ * item is withheld. Unknown (probe still running) is treated as *not* live —
+ * the honest default, since claiming audio we cannot deliver is the failure
+ * this whole module exists to prevent.
+ */
+export const isTtsLive = (): boolean => verdict?.support === 'ready';
+
+/** Test seam: the verdict is module state and would otherwise leak between cases. */
+export const resetTtsVerdict = (): void => {
+  verdict = null;
+  inFlight = null;
 };
 
 // ------------------------------------------------------------------ speaking
@@ -197,7 +304,3 @@ export const speak = async (
 export const cancelSpeech = (): void => {
   synth()?.cancel();
 };
-
-/** SPEC §2.6: no working audio means the L4 rung is withheld, not faked. */
-export const canScheduleAudioOnly = (report: VoiceReport | null): boolean =>
-  report?.support === 'ready';

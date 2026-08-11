@@ -95,6 +95,10 @@ export default defineConfig({
           // deliver that if the learner happened to be online for a session
           // first. ~0.58 MB gzipped, against an 8 MB budget (§5.3).
           'content/*/manifest.json',
+          // The contrastive pack (SPEC §3) is ~15 KB gzipped and the session
+          // composer reaches for it on every plan, so it is precached with the
+          // starter bands rather than fetched on first drill.
+          'content/*/contrastive.json',
           'content/*/{lexemes,anchors}.b1.json',
           'content/*/{lexemes,anchors}.b2.json',
           'content/*/{lexemes,anchors}.b3.json',

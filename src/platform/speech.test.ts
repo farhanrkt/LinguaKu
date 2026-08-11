@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { canScheduleAudioOnly, listVoices, pickVoice, probeVoice, speak } from './speech.ts';
+import {
+  isTtsLive,
+  listVoices,
+  pickVoice,
+  probeOnBoot,
+  probeVoice,
+  resetTtsVerdict,
+  speak,
+  TTS_ONEND_DEADLINE_MS,
+  ttsReport,
+} from './speech.ts';
 
 /**
  * Everything here is about risk R1: the device lies, is slow, or has no voice,
@@ -24,8 +34,16 @@ interface StubOptions {
   voices?: SpeechSynthesisVoice[];
   /** Voices appear only after this many ms, as real engines do. */
   voicesAfterMs?: number;
-  /** What the engine does when asked to speak. */
-  utterance?: 'start' | 'error' | 'silent';
+  /**
+   * What the engine does when asked to speak.
+   *  'end'     — the honest engine: starts and finishes.
+   *  'start'   — fires onstart and then never finishes. This is the Android
+   *              failure the 500 ms onend deadline exists to catch.
+   *  'error'   — refuses outright.
+   *  'silent'  — accepts the utterance and does nothing at all.
+   *  'slow'    — finishes, but after the deadline has passed.
+   */
+  utterance?: 'end' | 'start' | 'error' | 'silent' | 'slow';
 }
 
 const stubSpeech = (options: StubOptions = {}) => {
@@ -44,9 +62,18 @@ const stubSpeech = (options: StubOptions = {}) => {
     getVoices: () => voices,
     speak: (utterance: StubUtterance) => {
       spoken.push(utterance.text);
-      const behaviour = options.utterance ?? 'start';
+      const behaviour = options.utterance ?? 'end';
+      if (behaviour === 'end') {
+        setTimeout(() => utterance.onstart?.(), 0);
+        setTimeout(() => utterance.onend?.(), 0);
+      }
+      // 'start': it announces itself and then goes quiet forever.
       if (behaviour === 'start') setTimeout(() => utterance.onstart?.(), 0);
       if (behaviour === 'error') setTimeout(() => utterance.onerror?.(), 0);
+      if (behaviour === 'slow') {
+        setTimeout(() => utterance.onstart?.(), 0);
+        setTimeout(() => utterance.onend?.(), 5_000);
+      }
       // 'silent': the engine accepts the utterance and never says anything.
     },
     cancel: () => {},
@@ -75,10 +102,11 @@ const stubSpeech = (options: StubOptions = {}) => {
 };
 
 /** Real engines get seconds; tests do not need to wait them out. */
-const FAST = { voicesTimeoutMs: 50, utteranceTimeoutMs: 50 };
+const FAST = { voicesTimeoutMs: 50, utteranceTimeoutMs: 50, deferMs: 0 };
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetTtsVerdict();
 });
 
 describe('listVoices', () => {
@@ -138,12 +166,24 @@ describe('probeVoice (risk R1)', () => {
   it('catches an engine that lists a voice but never speaks', async () => {
     // The failure mode that makes listing voices insufficient on its own.
     stubSpeech({ voices: [voice('Ghost', 'en-US')], utterance: 'silent' });
-    expect((await probeVoice('en', FAST)).support).toBe('no-voice');
+    expect((await probeVoice('en', FAST)).support).toBe('dead');
+  });
+
+  it('catches an engine that starts and then never finishes', async () => {
+    // Precisely why the probe waits for `onend` and not `onstart`: this engine
+    // announces itself, produces nothing, and would pass a start-based check.
+    stubSpeech({ voices: [voice('Liar', 'en-US')], utterance: 'start' });
+    expect((await probeVoice('en', FAST)).support).toBe('dead');
+  });
+
+  it('calls an engine slower than the deadline dead', async () => {
+    stubSpeech({ voices: [voice('Sluggish', 'en-US')], utterance: 'slow' });
+    expect((await probeVoice('en', FAST)).support).toBe('dead');
   });
 
   it('catches an engine that errors on speak', async () => {
     stubSpeech({ voices: [voice('Broken', 'en-US')], utterance: 'error' });
-    expect((await probeVoice('en', FAST)).support).toBe('no-voice');
+    expect((await probeVoice('en', FAST)).support).toBe('dead');
   });
 
   it('reports unsupported when the API is missing entirely', async () => {
@@ -157,19 +197,9 @@ describe('probeVoice (risk R1)', () => {
   });
 });
 
-describe('canScheduleAudioOnly (SPEC §2.6)', () => {
-  it('withholds L4 unless audio genuinely works', () => {
-    const base = { voiceName: null, localService: false, voiceCount: 0, probedAt: 0 };
-    expect(canScheduleAudioOnly({ ...base, support: 'ready' })).toBe(true);
-    expect(canScheduleAudioOnly({ ...base, support: 'no-voice' })).toBe(false);
-    expect(canScheduleAudioOnly({ ...base, support: 'unsupported' })).toBe(false);
-    expect(canScheduleAudioOnly(null)).toBe(false);
-  });
-});
-
 describe('speak', () => {
   it('says the text it was given', async () => {
-    const { spoken } = stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'start' });
+    const { spoken } = stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
     await Promise.race([speak('halo', 'en'), new Promise((r) => setTimeout(r, 100))]);
     expect(spoken).toContain('halo');
   });
@@ -177,5 +207,64 @@ describe('speak', () => {
   it('resolves quietly when there is no voice, rather than throwing mid-session', async () => {
     stubSpeech({ voices: [] });
     await expect(speak('halo', 'en')).resolves.toBeUndefined();
+  });
+});
+
+describe('the boot verdict (risk R1)', () => {
+  it('waits exactly half a second for onend before giving up', () => {
+    // The device matrix's number. Kept as a named constant so the deadline is
+    // one decision in one place rather than a literal sprinkled about.
+    expect(TTS_ONEND_DEADLINE_MS).toBe(500);
+  });
+
+  it('reports nothing until the probe has actually answered', () => {
+    expect(ttsReport()).toBeNull();
+    // Unknown counts as not live: claiming audio we have not verified is the
+    // failure this module exists to prevent (SPEC §2.6).
+    expect(isTtsLive()).toBe(false);
+  });
+
+  it('holds one verdict for the whole session instead of re-probing', async () => {
+    const stub = stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
+    await probeOnBoot('en', FAST);
+    await probeOnBoot('en', FAST);
+    await probeOnBoot('en', FAST);
+    // Three callers, one utterance: an L4 card must not pay a probe each time,
+    // and a verdict that flips mid-session would flicker the rung in and out.
+    expect(stub.spoken).toHaveLength(1);
+    expect(isTtsLive()).toBe(true);
+  });
+
+  it('shares one probe between concurrent callers', async () => {
+    const stub = stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
+    const reports = await Promise.all([
+      probeOnBoot('en', FAST),
+      probeOnBoot('en', FAST),
+      probeOnBoot('en', FAST),
+    ]);
+    expect(stub.spoken).toHaveLength(1);
+    expect(new Set(reports.map((report) => report.support))).toEqual(new Set(['ready']));
+  });
+
+  it('does not touch the speech API until the main thread is idle', async () => {
+    // The regression guard for a measured cost: the first touch of
+    // `speechSynthesis` where no speech service exists stalls the main thread
+    // for ~15s, which would put the probe five times over SPEC §5.4's whole
+    // icon-tap-to-first-question budget.
+    const stub = stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
+    const probe = probeOnBoot('en', { ...FAST, deferMs: 60 });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(stub.spoken).toHaveLength(0);
+    expect(isTtsLive()).toBe(false);
+    await probe;
+    expect(stub.spoken).toHaveLength(1);
+  });
+
+  it('marks the engine dead for the session when onend never arrives', async () => {
+    stubSpeech({ voices: [voice('Liar', 'en-US')], utterance: 'start' });
+    expect((await probeOnBoot('en', FAST)).support).toBe('dead');
+    expect(isTtsLive()).toBe(false);
+    // And it stays dead — no second chance mid-session.
+    expect(ttsReport()?.support).toBe('dead');
   });
 });

@@ -10,7 +10,10 @@ import {
   type ThrottleResult,
 } from '../../core/forecast.ts';
 import { bandForAbility } from '../../core/placement.ts';
+import { DEFAULT_ITEM_DIFFICULTY, DEFAULT_RATING } from '../../core/elo.ts';
 import { vocabularyAbility } from './abilities.ts';
+import { allCategoryScores, recentDrillIds, weakestCategories } from './contrastive.ts';
+import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Profile, Session, Timestamp } from '../types.ts';
 
@@ -78,6 +81,72 @@ const newCandidates = async (
   }));
 };
 
+/**
+ * SPEC §3.3, step 3: *"the session composer injects targeted drills when a
+ * category's estimate is below threshold."*
+ *
+ * Order is weakest category first, and within a category the drill closest to
+ * the learner's current rating — the same maximum-information idea placement
+ * uses, for the same reason: an item they are certain to get right or certain to
+ * get wrong teaches nothing and measures nothing.
+ *
+ * Drills answered in the last few sessions are skipped so the weakest category
+ * does not become the same two items on repeat.
+ */
+const drillCandidates = async (
+  profile: Profile,
+  limit: number,
+  audioAvailable: boolean,
+): Promise<Candidate[]> => {
+  if (limit <= 0) return [];
+  const lang = profile.targets[0] ?? 'en';
+
+  // Non-blocking: see `peekContrastive`. A first-ever session that starts before
+  // the pack has landed gets no drill, and the one after it does.
+  const pack = peekContrastive(lang);
+  if (pack === null || pack.categories.length === 0) return [];
+
+  const ids = pack.categories.map((category) => category.id);
+  const [priority, scores, recent] = await Promise.all([
+    weakestCategories(profile.id, lang, ids),
+    allCategoryScores(profile.id, lang),
+    recentDrillIds(profile.id, lang),
+  ]);
+
+  const chosen: Candidate[] = [];
+  for (const categoryId of priority) {
+    if (chosen.length >= limit) break;
+    const category = pack.byCategory.get(categoryId);
+    if (!category) continue;
+
+    const rating = scores.get(categoryId)?.rating ?? DEFAULT_RATING;
+    const eligible = category.drills
+      .filter((drill) => isDrillPresentable(drill, audioAvailable) && !recent.has(drill.id))
+      .sort(
+        (a, b) =>
+          Math.abs((a.difficulty ?? DEFAULT_ITEM_DIFFICULTY) - rating) -
+            Math.abs((b.difficulty ?? DEFAULT_ITEM_DIFFICULTY) - rating) ||
+          a.id.localeCompare(b.id),
+      );
+
+    const drill = eligible[0];
+    if (!drill) continue;
+    chosen.push({
+      id: drill.id,
+      itemId: drill.id,
+      cardId: null,
+      slice: 'drill',
+      ladderLevel: 0,
+      // The category is the topic cluster, so SPEC §2.8's spacing rule keeps
+      // two drills from the same category apart on its own.
+      clusterId: `c:${categoryId}`,
+      retrievability: 0,
+      lapses: 0,
+    });
+  }
+  return chosen;
+};
+
 const dueCandidates = async (profile: Profile, now: Timestamp): Promise<Candidate[]> => {
   const cards = await dueCards(profile.id, now);
   const items = await db.items.bulkGet(cards.map((card) => card.itemId));
@@ -105,9 +174,26 @@ export interface SessionPlan {
   /** What the throttle decided, so the UI can explain a quiet day honestly. */
   throttle: ThrottleResult;
   frontier: FrequencyBand;
+  /** How many contrastive drills the session carries (SPEC §7.2's ~5%). */
+  drills: number;
 }
 
-export const planSession = async (profile: Profile, now: Timestamp): Promise<SessionPlan> => {
+/** SPEC §7.2 asks for *one* contrastive drill; two on a longer session. */
+const MAX_DRILLS = 2;
+
+export interface PlanOptions {
+  /**
+   * SPEC §2.6: whether audio works on this device at all. Minimal-pair drills
+   * are withheld without it, exactly as L4 is.
+   */
+  audioAvailable?: boolean;
+}
+
+export const planSession = async (
+  profile: Profile,
+  now: Timestamp,
+  options: PlanOptions = {},
+): Promise<SessionPlan> => {
   const lang = profile.targets[0] ?? 'en';
   const ability = await vocabularyAbility(profile.id, lang);
   const frontier = bandForAbility(ability.theta);
@@ -121,9 +207,10 @@ export const planSession = async (profile: Profile, now: Timestamp): Promise<Ses
     baseNewItems: BASE_NEW_ITEMS,
   });
 
-  const [due, fresh] = await Promise.all([
+  const [due, fresh, drills] = await Promise.all([
     dueCandidates(profile, now),
     newCandidates(profile, throttle.allowed, frontier),
+    drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false),
   ]);
 
   const composed = composeSession({
@@ -132,6 +219,7 @@ export const planSession = async (profile: Profile, now: Timestamp): Promise<Ses
     seed: Math.floor(now / 86_400_000),
     due,
     fresh,
+    drills,
   });
 
   const session: Session = {
@@ -145,11 +233,14 @@ export const planSession = async (profile: Profile, now: Timestamp): Promise<Ses
     resumeCursor: 0,
   };
   await db.sessions.add(session);
-  return { session, throttle, frontier };
+  return { session, throttle, frontier, drills: composed.allocation.drill };
 };
 
-export const startSession = async (profile: Profile, now: Timestamp): Promise<Session> =>
-  (await planSession(profile, now)).session;
+export const startSession = async (
+  profile: Profile,
+  now: Timestamp,
+  options: PlanOptions = {},
+): Promise<Session> => (await planSession(profile, now, options)).session;
 
 /**
  * Persisted after every answer. Awaiting this before showing the next item is

@@ -10,6 +10,22 @@ re-verify before each release.**
 
 ---
 
+## LinguaKu authored content
+
+The Indonesian-L1 contrastive taxonomy (SPEC §3): the error categories, the
+Indonesian explanations, the minimal pairs, the drills and the false-friend
+list. Authored for this project and versioned in
+[`data/contrastive/`](data/contrastive/); `assets/content/*/contrastive.json` is
+generated from it.
+
+- Licence: **project-owned** — no third-party terms attach.
+- Verified: 2026-08-11
+
+The example sentences in that content are written for it, not taken from the
+corpus, so nothing here inherits Tatoeba's attribution requirement. The licence
+this content ships under follows the project's code licence, which is still
+undecided (decision D12).
+
 ## Tatoeba
 
 Example sentences and translation alignments.

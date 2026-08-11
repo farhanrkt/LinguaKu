@@ -1,5 +1,218 @@
 # PROGRESS.md
 
+## M4 — The contrastive engine · complete (2026-08-11)
+
+**Acceptance:** ≥100 authored contrastive items; wrong answers on tagged items
+produce an Indonesian explanation; the heatmap renders from real logs. All three
+met. L4 dictation is unblocked alongside, behind the hardened TTS probe.
+
+| | required | actual |
+|---|---|---|
+| authored contrastive items | ≥ 100 | **116** across 21 categories |
+| §3.1 morphosyntax categories covered | all 10 | 10 |
+| §3.1 phonology categories covered | all | 10 |
+| curated false friends | ≥ 60 | **75** |
+| items tagged with a category carrying a note | 100% | 100%, gated in the build |
+| §2.8 interleaving, 1,000 sessions **with drills mixed in** | no violations | 0 violations, 0 relaxations |
+| unit tests | — | 414 |
+| e2e tests | — | 17 |
+| icon tap → first answerable question | ≤ 3s | 53 ms (gate still green) |
+| initial JS (gzipped) | ≤ 200 KB | 113.7 KB |
+| contrastive pack | — | 15.3 KB gzipped, precached |
+
+```
+✓ typecheck · lint · 414 unit tests · licence gate · build · bundle budget
+✓ 17 e2e tests: offline session, lossless resume, cold start, installability,
+  placement, contrastive drills and the heatmap
+```
+
+### Task 1 — L4 unblocked, and what the probe now actually asserts
+
+The probe fires once per app start, speaks a zero-volume utterance, and waits for
+**`onend` and only `onend`** for **500 ms**. Anything else — a voice that never
+finishes, an engine that fires `onstart` and goes quiet, an error, silence — is
+`dead` for the rest of the session (D29). It runs as soon as a screen is painted
+rather than during boot itself, for a reason that turned out to be the most
+important thing this milestone learned; see below.
+
+Waiting on `onend` rather than `onstart` is the whole point of the change. The
+Android failure mode is an engine that announces itself and produces nothing, and
+a start-based check passes it; there is now a test that stubs exactly that engine
+and asserts the verdict is `dead`.
+
+The fallback chain below it is per item, not per app:
+
+1. a pre-cached clip for that sentence, if one exists;
+2. otherwise synthesis, if the probe said the engine is live;
+3. otherwise the item is not L4-eligible and is held at L3.
+
+That third branch is `ladderCeiling(hasAudio)`, and it is a ceiling rather than a
+filter for a reason. An item that cannot be heard is never *promoted* into L4, and
+a card already sitting at L4 when the engine dies is **demoted visibly** — the
+review log records the rung the learner was actually shown. The alternative,
+presenting a dictation card as a text card, is exactly the silent degradation
+§2.6 forbids, and it would poison every later measurement of the ladder.
+
+L4 itself is dictation of a short sentence (≤10 tokens), chosen over the
+audio-cloze reading of §2.3 because the answer is fully determined by what was
+heard, with no visible frame to guess from. An item whose anchors are all too
+long has no L4 material and is held at L3 by the same mechanism (D30).
+
+**The honest gap:** the pre-cached clip set is empty. Tatoeba audio is a licence
+*candidate*, not a cleared dataset — terms are per contributor and some clips
+carry none — so nothing may enter `assets/` under it. Step 1 of that chain is
+built, tested, and has nothing to serve. On a device whose engine is dead, L4 is
+therefore withheld from every item today. The app stays fully usable: 94 of the
+116 drills are text, every rung below L4 is text, and the home screen says in
+Indonesian that listening practice is hidden and why.
+
+### Task 2 — the contrastive engine
+
+**`data/contrastive/en.yaml`** — 21 categories: all ten §3.1 morphosyntax
+categories, ten phonology categories (the missing phonemes split by contrast,
+the three vowel pairs, final devoicing, cluster reduction, word stress), and
+false friends. Each carries a three-part Indonesian note in a fixed order —
+*what Indonesian does*, *what English does instead*, *one minimal pair* — plus
+116 drills and a curated list of 75 false friends.
+
+The order of the note is a decision, not a layout. Naming the L1 pattern first
+tells the learner the mistake is systematic rather than careless, which is the
+entire claim §2.9 is making. All example sentences are authored here rather than
+lifted from the corpus, so the content carries no third-party licence
+(`linguaku-authored`, declared and attributed).
+
+`npm run ingest:contrastive` compiles the YAML to a 15 KB shard and **fails the
+build** on an MCQ whose answer is not among its options, a category with no
+minimal pair, a drill with no explanation, or a minimal pair not marked as
+needing audio (D31). A YAML parser has no business in the bundle, and an
+unanswerable question should never reach a phone.
+
+**`src/core/elo.ts`** — one rating per category, updated in place after every
+answer, with K decaying as evidence accumulates. Elo rather than the 1PL grid
+`placement.ts` uses because this question never stops being asked, over twenty
+categories at once, and has to stay incremental.
+
+**`src/core/interference.ts`** — the piece that makes the engine work on ordinary
+reviews rather than only on drills. It turns a wrong cloze answer into category
+tags: `he` for `she`, `walk` for `walked`, `is` for `are`, `a` for `the`. Those
+tags are written to `ReviewLog.interferenceHit`, move the same Elo ratings the
+drills do, and pull up the authored note as feedback. The heatmap is therefore
+built from what the learner does when they are *not* being tested on it, which is
+the thing a quiz cannot tell you.
+
+**The composer** now spends §7.2's last 5% on drills from the weakest category
+(nearest the learner's rating within it), with drills counting as their own card
+type so §2.8 keeps two of them apart. Drills deliberately do not receive the
+spare budget when reviews run dry: §7.2 asks for one contrastive drill, not for a
+session to become remediation.
+
+**The heatmap** ranks measured categories weakest-first and says *"belum cukup
+data"* — with the number of answers still needed — for everything else.
+`heatmap.test.ts` walks the whole join: a normal cloze answered wrongly, through
+the detector, into the review log and the category rating, out as a ranked
+standing — with no drill involved anywhere.
+
+### The R1 finding that cost the most to learn
+
+**The first `speechSynthesis` call blocks the main thread for ~15 seconds when
+there is no speech service behind it.** Not the probe's timeouts — those are
+async and bounded — the API call itself.
+
+It showed up as the cold-start acceptance test going from 1.2s to 14.9s the
+moment the probe was wired into boot, and returning to 1.2s when it was moved.
+Instrumenting the boot path showed a 14.9-second gap with no network activity and
+no JavaScript progress, sitting between the content manifest arriving and the
+anchor shards being requested — the main thread, gone.
+
+That is five times SPEC §5.4's entire icon-tap-to-first-question budget, with the
+app frozen for all of it, and it lands on exactly the device R1 is about: the
+cheap Android with no TTS engine installed.
+
+`requestIdleCallback` was not enough — the idle moments during an async boot are
+precisely the gaps where the app is waiting on IO and is about to want the main
+thread back. So the probe now fires only once a screen is **painted**:
+`onFirstQuestion` from the session screen, `onReady` from home. Until it answers,
+`isTtsLive()` is false and audio is withheld, which is the same safe default the
+rest of §2.6 runs on. A unit test stubs the API and asserts the probe has not
+touched it before the deferral elapses.
+
+This is worth a row of its own in the device matrix: not just *is there a voice*
+but *how long does the first call take*. If it reproduces on real hardware, the
+probe may belong behind an explicit "test audio" button rather than running by
+itself at all.
+
+### Four things worth flagging
+
+**A wrong tag is worse than no tag.** `book`/`books` and `go`/`goes` are the same
+string alternation, and M1's frequency-only pipeline produces no part-of-speech
+tag. The word before the blank settles most cases; where it does not, the
+detector emits nothing at all (D34). Roughly half of `interference.test.ts` is
+about the detector staying quiet.
+
+**Eight correct answers in a row is not yet "you've got this".** The weakness
+threshold is expected accuracy below 0.75 on a median drill, and the damped K
+means clearing it takes about a dozen. A test that asserted otherwise was
+rewritten rather than the threshold lowered: the cost of the strict version is a
+few extra drills in a category the learner is fine at, which is much cheaper than
+declaring a weakness resolved on thin evidence.
+
+**Drills are not review logs** (D32). A drill has no FSRS card — nothing
+scheduled, no stability — so filing drill answers among the review logs would put
+unscheduled items into the retention rate §9 promises to report honestly. They
+get their own table and their own single writer, with the same one-transaction
+discipline `recordReview` has.
+
+**Session planning must not touch the network.** `planSession` runs inside the
+≤3s budget, so the contrastive pack is read from memory if it is there and simply
+skipped if it is not — a first-ever session that starts before the pack lands
+gets no drill, and the next one does. Content that has not arrived is not
+scheduled, the same rule bands already follow.
+
+**The e2e suite found a real bug, not a flake.** Advancing to the next card left
+the *previous* card on screen and answerable for as long as the next one took to
+build — so a learner could answer a card that had already been graded, and a
+second `recordReview` would land on it. Fixed by clearing the card with the
+feedback; the test helper now also waits for the counter to move rather than
+racing the app.
+
+### Deviations
+
+| Deviation | Why |
+|---|---|
+| The probe fires after the first screen paints, not literally at boot | Forced by measurement, not preference: a literal boot probe freezes the app for ~15s on a device with no speech service (above). It is still once per app start with one verdict for the session, which is what the directive was buying. |
+| The probe will mark iOS Safari dead where audio might have worked | iOS requires a user gesture before it will speak, and neither boot nor first paint is one. This is the cost of a stable session-wide verdict (D29), and it fails safe — L4 withheld, never faked. The M2 behaviour (probe inside the practise tap) traded the stable verdict for iOS coverage. Reversible; the matrix should decide it. |
+| L4 is dictation only, not the audio-cloze alternative §2.3 also allows | Dictation's answer is determined entirely by the audio. An audio-cloze needs the sentence frame on screen, which makes it partly a reading task — a weaker measurement of phonological form (D30). |
+| `CategoryScore` gains a `correct` tally, beyond the §6 shape | The heatmap reports accuracy, and the Elo rating is damped and difficulty-weighted, so it does not carry a raw hit count. Existing rows are backfilled with 0 rather than a number reconstructed from the rating. |
+| The 22 minimal-pair listening drills are withheld without audio | Same rule as L4 (§2.6). Shown as a reading exercise they would silently convert a listening measurement into a spelling one. |
+| `yaml` added as a devDependency | MIT, build-time only, never in the bundle. §0 rule 1 is about recurring cost, and there is none. |
+| Phonology categories will stay unmeasured on a silent device | Honest consequence of the above: the heatmap will show them as "belum cukup data" indefinitely rather than scoring them from text proxies. |
+
+### Next decision I need from you
+
+**1. R1, still — and now it is the only thing standing between the engine and
+its listening half.** Part 3 of `docs/DECISIONS.md` is still empty. M4 proceeded
+on the basis that the matrix had been run, and the probe was built to the 500 ms
+`onend` deadline that direction specified; no results came with it, so I have not
+written rows I did not observe. Two things need real phones: whether 500 ms is
+the right number on a cheap Android, and whether the iOS gesture consequence
+above costs real learners their listening material.
+
+**2. Pre-cached audio is now the binding constraint, and it is a licence
+question, not a code one.** The fallback exists and has nothing to serve.
+Options, all of which are yours: clear Tatoeba audio per clip (the export carries
+a licence field; the ones with an empty field are unusable), source a
+CC-licensed clip set, or accept synthesis-only and let dead-engine devices go
+without L4 permanently. R4 measured the room: essentially the whole 8 MB budget
+is free for roughly 800–1,000 clips.
+
+**3. The Indonesian copy is a draft and reads like one in places.** You said you
+would edit it. The places I would look first: the phonology tips, which are the
+hardest to write without sounding like a textbook, and `PASSIVE_OVERUSE`, where
+the explanation is about register and my ear for Indonesian register is the
+weakest part of this file.
+
+---
+
 ## M3 — Level awareness · complete (2026-08-10)
 
 **Acceptance:** §2.4 and §4.2 acceptance tests pass; simulated learners of three

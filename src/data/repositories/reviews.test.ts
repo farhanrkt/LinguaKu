@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
 import { cardIdFor, dueCards, recordReview } from './reviews.ts';
-import type { Grade } from '../types.ts';
+import { ladderCeiling } from '../../core/ladder.ts';
+import type { Grade, LadderLevel } from '../types.ts';
 
 const PROFILE = 'p1';
 const ITEM = 'en:lex:try';
@@ -123,5 +124,80 @@ describe('dueCards', () => {
   it("ignores another profile's cards", async () => {
     const { card } = await answer(3, NOW);
     expect(await dueCards('someone-else', card.dueAt + DAY)).toEqual([]);
+  });
+});
+
+/**
+ * SPEC §2.6 acceptance: an item with no available audio is excluded from L4
+ * scheduling rather than silently degraded to text. The exclusion is a ceiling
+ * on the rung, applied here so the review log records the rung the learner was
+ * actually shown.
+ */
+describe('the audio ceiling (SPEC §2.6)', () => {
+  const parkAt = async (level: LadderLevel) => {
+    await answer(3, NOW);
+    const id = cardIdFor(PROFILE, ITEM);
+    await db.cards.update(id, { ladderLevel: level });
+    return id;
+  };
+
+  it('never promotes into L4 when audio is unavailable', async () => {
+    const id = await parkAt(3);
+    // A card ripe for promotion in every other respect.
+    const card = (await db.cards.get(id))!;
+    await db.cards.update(id, { fsrs: { ...card.fsrs, stability: 10_000 } });
+
+    const { card: after } = await answer(3, NOW + 400 * DAY, {
+      maxLadderLevel: ladderCeiling(false),
+    });
+    expect(after.ladderLevel).toBe(3);
+  });
+
+  it('does promote into L4 once audio is available', async () => {
+    const id = await parkAt(3);
+    const card = (await db.cards.get(id))!;
+    await db.cards.update(id, { fsrs: { ...card.fsrs, stability: 10_000 } });
+
+    const { card: after } = await answer(3, NOW + 400 * DAY, {
+      maxLadderLevel: ladderCeiling(true),
+    });
+    expect(after.ladderLevel).toBe(4);
+  });
+
+  it('logs a demoted card at the rung it was really answered at', async () => {
+    // The card sits at L4 from a session when the engine worked. Today it does
+    // not, so the learner saw an L3 cloze — and that is what the log has to say,
+    // or every later measurement of the ladder's effect is reading a fiction.
+    await parkAt(4);
+    const { answeredAt } = await answer(3, NOW + DAY, {
+      maxLadderLevel: ladderCeiling(false),
+    });
+    expect(answeredAt).toBe(3);
+
+    const logs = await db.reviewLogs.orderBy('reviewedAt').toArray();
+    expect(logs.at(-1)?.ladderLevel).toBe(3);
+  });
+
+  it('withholds L4 by default, so a forgotten argument cannot open it', async () => {
+    const id = await parkAt(3);
+    const card = (await db.cards.get(id))!;
+    await db.cards.update(id, { fsrs: { ...card.fsrs, stability: 10_000 } });
+
+    const { card: after } = await answer(3, NOW + 400 * DAY);
+    expect(after.ladderLevel).toBe(3);
+  });
+});
+
+describe('interference tagging (SPEC §3.3)', () => {
+  it('stores the categories a wrong answer matched', async () => {
+    await answer(1, NOW, { interferenceHit: ['PRONOUN_GENDER'], answerRaw: 'he' });
+    const logs = await db.reviewLogs.toArray();
+    expect(logs[0]?.interferenceHit).toEqual(['PRONOUN_GENDER']);
+  });
+
+  it('leaves the field off entirely when nothing matched', async () => {
+    await answer(1, NOW);
+    const logs = await db.reviewLogs.toArray();
+    expect(logs[0]?.interferenceHit).toBeUndefined();
   });
 });

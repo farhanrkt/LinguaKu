@@ -6,6 +6,8 @@ import type { FrequencyBand } from '../../core/frequency.ts';
 import type { TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
 import { selectGraded } from '../../core/coverage.ts';
+import { tokenizeLatin } from '../../core/tokenize.ts';
+import { TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
 import type { LadderLevel } from '../../data/types.ts';
 
 /**
@@ -24,7 +26,12 @@ import type { LadderLevel } from '../../data/types.ts';
  * have, and it reverts to the spec's shape the moment glosses land.
  */
 
-export type TaskKind = 'exposure' | 'recognition' | 'cloze-supported' | 'cloze-unaided';
+export type TaskKind =
+  | 'exposure'
+  | 'recognition'
+  | 'cloze-supported'
+  | 'cloze-unaided'
+  | 'dictation';
 
 export interface Task {
   itemId: string;
@@ -42,6 +49,12 @@ export interface Task {
   answer: string;
   /** SPEC §2.12: confidence is asked before the reveal on recall rungs. */
   asksConfidence: boolean;
+  /**
+   * The rung this task actually presents, which is the card's level clamped to
+   * `ladderCeiling(hasAudio)`. `recordReview` applies the same clamp, so the
+   * review log records the rung the learner really answered at.
+   */
+  ceiling: LadderLevel;
 }
 
 const kindForLevel = (level: LadderLevel): TaskKind => {
@@ -52,10 +65,22 @@ const kindForLevel = (level: LadderLevel): TaskKind => {
       return 'recognition';
     case 2:
       return 'cloze-supported';
-    default:
+    case 3:
       return 'cloze-unaided';
+    default:
+      return 'dictation';
   }
 };
+
+/**
+ * Longest sentence a learner is asked to write back from hearing it once.
+ *
+ * Past this, dictation stops measuring phonological form and starts measuring
+ * working memory — which is a different construct and not one SPEC §2.3 asked
+ * for. An item whose anchors are all longer than this simply has no L4 material,
+ * and is held at L3 by the same mechanism that withholds it for missing audio.
+ */
+export const DICTATION_MAX_TOKENS = 10;
 
 const DISTRACTORS = 3;
 
@@ -78,18 +103,29 @@ const pickDistractors = async (
     .map((candidate) => candidate.tr.text);
 };
 
+export interface BuildTaskOptions {
+  /** Lexeme ids the learner currently knows, for the i+1 anchor choice (SPEC §2.4). */
+  known?: ReadonlySet<string>;
+  /**
+   * SPEC §2.6: whether this sentence can be presented as audio — a pre-cached
+   * clip or a working TTS voice. Defaults to "no", which withholds L4 rather
+   * than assuming an engine we have not probed.
+   */
+  hasAudioFor?: (sentenceId: string) => boolean;
+}
+
 export const buildTask = async (
   profileId: string,
   itemId: string,
   seed: number,
-  /** Lexeme ids the learner currently knows, for the i+1 anchor choice (SPEC §2.4). */
-  known?: ReadonlySet<string>,
+  options: BuildTaskOptions = {},
 ): Promise<Task | null> => {
   const item = await db.items.get(itemId);
   if (!item) return null;
 
   const card = await db.cards.get(cardIdFor(profileId, itemId));
   const level = card?.ladderLevel ?? 0;
+  const hasAudioFor = options.hasAudioFor ?? (() => false);
 
   // Which example sentence teaches this word is an i+1 decision (SPEC §2.4):
   // among the anchors, pick the one whose coverage best fits what this learner
@@ -101,6 +137,39 @@ export const buildTask = async (
   ).filter((anchor): anchor is AnchorSentence => anchor !== null);
   if (anchors.length === 0) return null;
 
+  const base = {
+    itemId,
+    cardId: cardIdFor(profileId, itemId),
+    headword: item.headword,
+  };
+
+  // L4 first, because it is the only rung with a precondition. A dictation card
+  // needs a sentence that can be *heard* and is short enough to write back; if
+  // no anchor qualifies, the item is not L4-eligible and its ceiling drops to
+  // L3 — SPEC §2.6's exclusion, applied per item rather than app-wide.
+  if (level >= 4) {
+    const audible = anchors.find(
+      (anchor) =>
+        hasAudioFor(anchor.id) && tokenizeLatin(anchor.text).length <= DICTATION_MAX_TOKENS,
+    );
+    if (audible) {
+      return {
+        ...base,
+        ladderLevel: 4,
+        ceiling: 4,
+        kind: 'dictation',
+        sentence: { id: audible.id, text: audible.text },
+        translation: audible.tr.text,
+        answer: audible.text,
+        asksConfidence: true,
+      };
+    }
+  }
+
+  // Everything below L4 is text, so the ceiling here is the text-only one and
+  // a card resting at L4 is presented (and logged) one rung down.
+  const effectiveLevel = Math.min(level, TEXT_ONLY_MAX_LEVEL) as LadderLevel;
+
   const lapses = card?.fsrs.lapses ?? 0;
   let sentence: AnchorSentence;
   if (lapses > 0) {
@@ -109,21 +178,20 @@ export const buildTask = async (
     sentence = anchors[lapses % anchors.length]!;
   } else {
     sentence =
-      selectGraded(anchors, known ?? new Set(), item.lang)?.item ?? anchors[0]!;
+      selectGraded(anchors, options.known ?? new Set(), item.lang)?.item ?? anchors[0]!;
   }
 
   const cloze = makeCloze(sentence.text, item.headword);
   // A cloze rung with no blank to make is unanswerable — fall back a rung
   // rather than show a sentence with nothing missing.
-  const kind = kindForLevel(level);
+  const kind = kindForLevel(effectiveLevel);
   const effective: TaskKind =
     (kind === 'cloze-supported' || kind === 'cloze-unaided') && !cloze ? 'recognition' : kind;
 
-  const base = {
-    itemId,
-    cardId: cardIdFor(profileId, itemId),
-    headword: item.headword,
-    ladderLevel: level,
+  const withSentence = {
+    ...base,
+    ladderLevel: effectiveLevel,
+    ceiling: TEXT_ONLY_MAX_LEVEL,
     sentence: { id: sentence.id, text: sentence.text },
     translation: sentence.tr.text,
   };
@@ -131,7 +199,7 @@ export const buildTask = async (
   if (effective === 'recognition') {
     const distractors = await pickDistractors(sentence, item.lang, item.band, seed);
     return {
-      ...base,
+      ...withSentence,
       kind: 'recognition',
       options: shuffle([sentence.tr.text, ...distractors], mulberry32(seed + 1)),
       answer: sentence.tr.text,
@@ -140,11 +208,11 @@ export const buildTask = async (
   }
 
   if (effective === 'exposure') {
-    return { ...base, kind: 'exposure', answer: item.headword, asksConfidence: false };
+    return { ...withSentence, kind: 'exposure', answer: item.headword, asksConfidence: false };
   }
 
   return {
-    ...base,
+    ...withSentence,
     kind: effective,
     ...(cloze ? { cloze } : {}),
     answer: cloze?.answer ?? item.headword,

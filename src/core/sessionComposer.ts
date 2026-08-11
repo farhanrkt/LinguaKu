@@ -12,7 +12,13 @@ import type { LadderLevel } from '../data/types.ts';
  */
 
 /** The task a card presents, derived from its ladder level. */
-export type CardType = 'exposure' | 'recognition' | 'recall' | 'cloze';
+export type CardType =
+  | 'exposure'
+  | 'recognition'
+  | 'recall'
+  | 'cloze'
+  | 'dictation'
+  | 'drill';
 
 export const cardTypeForLevel = (level: LadderLevel): CardType => {
   switch (level) {
@@ -22,8 +28,10 @@ export const cardTypeForLevel = (level: LadderLevel): CardType => {
       return 'recognition';
     case 2:
       return 'recall';
-    default:
+    case 3:
       return 'cloze';
+    default:
+      return 'dictation';
   }
 };
 
@@ -37,19 +45,25 @@ export const SECONDS_PER_CARD_TYPE: Record<CardType, number> = {
   recognition: 9,
   recall: 16,
   cloze: 18,
+  // Listen, then write a whole sentence back: the slowest rung there is.
+  dictation: 24,
+  drill: 12,
 };
 
-export type SessionSlice = 'review' | 'new';
+export type SessionSlice = 'review' | 'new' | 'drill';
 
 /**
  * SPEC §7.2 splits the budget ~60% reviews / ~20% new / ~15% one input
- * activity / ~5% one contrastive drill. The last two have no content until M3
- * and M4, so their share is reserved here and spills into reviews (then new)
- * rather than being quietly redistributed — when those pools arrive, the
- * numbers below are already right.
+ * activity / ~5% one contrastive drill. The input activity is the M7 reader, so
+ * its 15% is still reserved here and spills into reviews (then new) rather than
+ * being quietly redistributed.
  */
-export const SLICE_SHARE: Record<SessionSlice, number> = { review: 0.6, new: 0.2 };
-export const RESERVED_SHARE = 0.2;
+export const SLICE_SHARE: Record<SessionSlice, number> = {
+  review: 0.6,
+  new: 0.2,
+  drill: 0.05,
+};
+export const RESERVED_SHARE = 0.15;
 
 /** SPEC §2.8. */
 export const MAX_CONSECUTIVE_SAME_TYPE = 2;
@@ -79,6 +93,12 @@ export interface ComposeInput {
   seed: number;
   due: readonly Candidate[];
   fresh: readonly Candidate[];
+  /**
+   * SPEC §7.2 / §3.3: contrastive drills from the learner's weakest categories,
+   * weakest first. Optional — a learner with no measured weakness gets none, and
+   * the share spills back into reviews.
+   */
+  drills?: readonly Candidate[];
 }
 
 export interface ComposedSession {
@@ -94,8 +114,16 @@ export interface ComposedSession {
   interleaveRelaxed: boolean;
 }
 
+/**
+ * A drill is its own card type for interleaving purposes, whatever rung it
+ * carries — three grammar drills in a row is exactly the blocked practice
+ * SPEC §2.8 exists to prevent.
+ */
+export const cardTypeFor = (candidate: Candidate): CardType =>
+  candidate.slice === 'drill' ? 'drill' : cardTypeForLevel(candidate.ladderLevel);
+
 const secondsFor = (candidate: Candidate): number =>
-  SECONDS_PER_CARD_TYPE[cardTypeForLevel(candidate.ladderLevel)];
+  SECONDS_PER_CARD_TYPE[cardTypeFor(candidate)];
 
 /**
  * SPEC §7.2: the cards nearest the retention threshold are the ones about to
@@ -132,10 +160,10 @@ const take = (
 };
 
 const violates = (candidate: Candidate, ordered: readonly Candidate[]): boolean => {
-  const type = cardTypeForLevel(candidate.ladderLevel);
+  const type = cardTypeFor(candidate);
   const sameType = ordered
     .slice(-MAX_CONSECUTIVE_SAME_TYPE)
-    .every((entry) => cardTypeForLevel(entry.ladderLevel) === type);
+    .every((entry) => cardTypeFor(entry) === type);
   if (ordered.length >= MAX_CONSECUTIVE_SAME_TYPE && sameType) return true;
 
   const sameCluster = ordered
@@ -166,7 +194,7 @@ const interleave = (selected: readonly Candidate[]): { entries: Candidate[]; rel
   let relaxed = false;
 
   while (remaining.length > 0) {
-    const typeCounts = countBy(remaining, (c) => cardTypeForLevel(c.ladderLevel));
+    const typeCounts = countBy(remaining, cardTypeFor);
     const clusterCounts = countBy(remaining, (c) => c.clusterId);
 
     let bestIndex = -1;
@@ -174,7 +202,7 @@ const interleave = (selected: readonly Candidate[]): { entries: Candidate[]; rel
     for (const [index, candidate] of remaining.entries()) {
       if (violates(candidate, entries)) continue;
       const score = [
-        typeCounts.get(cardTypeForLevel(candidate.ladderLevel)) ?? 0,
+        typeCounts.get(cardTypeFor(candidate)) ?? 0,
         clusterCounts.get(candidate.clusterId) ?? 0,
         // `remaining` is in risk order, so an earlier index is a riskier card.
         -index,
@@ -205,16 +233,23 @@ export const composeSession = (input: ComposeInput): ComposedSession => {
   // without the ordering itself becoming unpredictable.
   const due = shuffle(input.due, rng).sort(byRisk);
   const fresh = shuffle(input.fresh, rng);
+  // Drills arrive weakest-category-first and stay in that order: the 5% share
+  // buys one or two items, and they should be the ones that matter most.
+  const drillPool = input.drills ?? [];
 
   const reviewBudget = budgetSeconds * SLICE_SHARE.review;
   const newBudget = budgetSeconds * SLICE_SHARE.new;
+  const drillBudget = budgetSeconds * SLICE_SHARE.drill;
 
   const reviews = take(due, reviewBudget);
   const news = take(fresh, newBudget);
+  const drills = take(drillPool, drillBudget);
 
   // The reserved share, plus anything a slice could not spend, goes back to
-  // reviews and then to new items.
-  let spare = budgetSeconds - reviews.spent - news.spent;
+  // reviews and then to new items. Drills deliberately do not get the spare:
+  // §7.2 asks for *one* contrastive drill, not for the session to fill up with
+  // them when reviews run dry.
+  let spare = budgetSeconds - reviews.spent - news.spent - drills.spent;
   const extraReviews = take(reviews.rest, spare);
   spare -= extraReviews.spent;
   const extraNew = take(news.rest, spare);
@@ -224,6 +259,7 @@ export const composeSession = (input: ComposeInput): ComposedSession => {
     ...extraReviews.taken,
     ...news.taken,
     ...extraNew.taken,
+    ...drills.taken,
   ].sort(byRisk);
 
   const { entries, relaxed } = interleave(selected);
@@ -235,6 +271,7 @@ export const composeSession = (input: ComposeInput): ComposedSession => {
     allocation: {
       review: reviews.taken.length + extraReviews.taken.length,
       new: news.taken.length + extraNew.taken.length,
+      drill: drills.taken.length,
     },
     interleaveRelaxed: relaxed,
   };

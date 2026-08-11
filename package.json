@@ -22,7 +22,8 @@
     "icons": "node scripts/gen-icons.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run check:licenses && npm run build && npm run check:bundle",
     "ingest:fetch": "node scripts/ingest/fetch.ts",
-    "ingest:en": "node scripts/ingest/build-en.ts"
+    "ingest:en": "node scripts/ingest/build-en.ts",
+    "ingest:contrastive": "node scripts/ingest/build-contrastive.ts"
   },
   "dependencies": {
     "dexie": "^4.4.4",
@@ -48,6 +49,7 @@
     "typescript-eslint": "^8.66.0",
     "vite": "^8.2.1",
     "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
   }
 }

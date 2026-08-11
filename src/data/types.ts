@@ -211,7 +211,34 @@ export interface CategoryScore {
   categoryId: string;
   elo: number;
   attempts: number;
+  /**
+   * How many of those attempts were right. Not in the SPEC §6 shape, but the
+   * heatmap (§3.3) reports accuracy, and deriving it from the Elo rating would
+   * be a reconstruction rather than a measurement — the rating is damped and
+   * difficulty-weighted, so it does not carry a raw hit count.
+   */
+  correct: number;
   updatedAt: Timestamp;
+}
+
+/**
+ * One answer to one contrastive drill (SPEC §3.3).
+ *
+ * Deliberately not a `ReviewLog`. A drill has no FSRS card behind it — no
+ * stability, no due date, nothing to schedule — and filing drill answers among
+ * the review logs would put unscheduled items into the retention rate that
+ * SPEC §9 promises to report honestly.
+ */
+export interface DrillAttempt {
+  id: string;
+  profileId: string;
+  lang: TargetLang;
+  drillId: string;
+  categoryId: string;
+  correct: Flag;
+  answerRaw: string;
+  latencyMs: number;
+  answeredAt: Timestamp;
 }
 
 export interface Session {

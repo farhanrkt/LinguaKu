@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
@@ -5,6 +6,7 @@ import { Screen } from '../../ui/Screen.tsx';
 import { sessionProgress } from '../../data/repositories/sessions.ts';
 import type { DailyMinutes, Profile, Session, TargetLang } from '../../data/types.ts';
 import type { OfflineStatus } from '../../platform/serviceWorker.ts';
+import type { VoiceReport } from '../../platform/speech.ts';
 import type { StorageDurability } from '../../platform/persistence.ts';
 
 const TARGETS: TargetLang[] = ['en', 'ja'];
@@ -17,9 +19,14 @@ interface HomeProps {
   /** An unfinished session, if the learner was interrupted (SPEC §2.13). */
   resumable: Session | null;
   busy: boolean;
+  /** The boot probe's verdict, or null while it is still running (risk R1). */
+  voice: VoiceReport | null;
   /** False while the learner has not yet taken (or declined) placement. */
   placementOffered: boolean;
+  /** Fired once the home screen is up; releases the speech probe (risk R1). */
+  onReady: () => void;
   onPlacement: () => void;
+  onProgress: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
 }
@@ -34,10 +41,13 @@ export const Home = ({
   profile,
   offline,
   durability,
+  voice,
   resumable,
   busy,
   placementOffered,
+  onReady,
   onPlacement,
+  onProgress,
   onPractise,
   onChange,
 }: HomeProps) => {
@@ -48,6 +58,13 @@ export const Home = ({
     // Autonomy has a floor: a profile with no target language has nothing to do.
     if (next.length > 0) onChange({ targets: next });
   };
+
+  // After the paint: the speech probe can block the main thread outright on a
+  // device with no engine, so nothing may release it before there is a screen.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => onReady());
+    return () => cancelAnimationFrame(frame);
+  }, [onReady]);
 
   const resumeProgress = resumable ? sessionProgress(resumable) : null;
 
@@ -82,6 +99,15 @@ export const Home = ({
           {copy.placement.offer}
         </button>
       )}
+
+      <button
+        type="button"
+        onClick={onProgress}
+        data-testid="progress-open"
+        className="mt-4 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+      >
+        {copy.progress.open}
+      </button>
 
       {resumeProgress ? (
         <p className="mt-3 rounded-2xl bg-teal-50 p-3 text-sm text-teal-900 dark:bg-teal-950 dark:text-teal-200">
@@ -118,6 +144,15 @@ export const Home = ({
         <li data-testid="offline-status">{offlineLabel[offline]}</li>
         <li>
           {durability === 'persisted' ? copy.home.storagePersisted : copy.home.storageBestEffort}
+        </li>
+        {/* SPEC §2.6 / risk R1: say what the probe found rather than letting a
+            silent device look like a broken app. */}
+        <li data-testid="audio-status">
+          {voice === null
+            ? copy.home.audioProbing
+            : voice.support === 'ready'
+              ? copy.home.audioReady
+              : copy.home.audioDead}
         </li>
       </ul>
 

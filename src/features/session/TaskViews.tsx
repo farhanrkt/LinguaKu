@@ -85,6 +85,82 @@ export const RecognitionTask = ({ task, onAnswer, onPlayAudio, audioAvailable }:
   </div>
 );
 
+/**
+ * L4 — audio-only dictation (SPEC §2.3).
+ *
+ * The sentence text is deliberately absent: the whole rung exists to test
+ * phonological form, and showing the words would turn it into a copying
+ * exercise. An item only reaches this view when audio for it is genuinely
+ * available (SPEC §2.6), so there is no "no audio" branch to fall back to.
+ */
+export const DictationTask = ({ onAnswer, onPlayAudio }: TaskProps) => {
+  const [value, setValue] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
+
+  const submit = (confidence: Confidence) => {
+    if (value.trim().length === 0) return;
+    onAnswer({ raw: value, confidence });
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
+        {copy.session.dictation.heading}
+      </p>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {copy.session.dictation.instruction}
+      </p>
+
+      <button
+        type="button"
+        onClick={onPlayAudio}
+        data-testid="dictation-play"
+        className="mt-6 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl bg-teal-700 text-lg font-semibold text-white motion-safe:transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 dark:bg-teal-500 dark:text-slate-950 dark:hover:bg-teal-400"
+      >
+        <span aria-hidden>🔊</span>
+        {copy.session.dictation.replay}
+      </button>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit('yakin');
+        }}
+      >
+        <input
+          ref={input}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          aria-label={copy.session.dictation.placeholder}
+          placeholder={copy.session.dictation.placeholder}
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+        />
+        <div className="mt-4 flex gap-3">
+          <Button type="submit" disabled={value.trim().length === 0}>
+            {copy.session.cloze.sure}
+          </Button>
+          <Button
+            variant="quiet"
+            disabled={value.trim().length === 0}
+            onClick={() => submit('ragu')}
+            className="border-2 border-stone-300 dark:border-slate-700"
+          >
+            {copy.session.cloze.unsure}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 /** L2/L3 — contextual production, with or without the Indonesian support. */
 export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskProps) => {
   const [value, setValue] = useState('');

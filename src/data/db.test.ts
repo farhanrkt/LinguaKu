@@ -47,12 +47,13 @@ beforeEach(async () => {
 
 describe('schema', () => {
   it('opens at the current version with every SPEC §6 table', () => {
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       'abilities',
       'cards',
       'categoryScores',
       'contentShards',
+      'drillAttempts',
       'habits',
       'items',
       'mnemonics',
@@ -63,7 +64,7 @@ describe('schema', () => {
     ]);
   });
 
-  it('carries v1 data forward into v2 (SPEC §6: every change ships a migration)', async () => {
+  it('carries v1 data forward (SPEC §6: every change ships a migration)', async () => {
     db.close();
     await db.delete();
 
@@ -96,11 +97,42 @@ describe('schema', () => {
 
     // Upgrading must not lose a single review log.
     await db.open();
-    expect(db.verno).toBe(2);
+    expect(db.verno).toBe(3);
     expect((await db.profiles.get('p1'))?.dailyMinutes).toBe(4);
     expect(await db.cards.get('card-1')).toBeTruthy();
     expect(await db.reviewLogs.count()).toBe(1);
     expect(await db.contentShards.count()).toBe(0);
+    expect(await db.drillAttempts.count()).toBe(0);
+  });
+
+  it('backfills the v3 `correct` tally on category scores rather than inventing one', async () => {
+    db.close();
+    await db.delete();
+
+    const old = new Dexie(DB_NAME);
+    old.version(2).stores({
+      profiles: 'id, createdAt',
+      categoryScores: '[profileId+lang+categoryId], profileId, elo',
+      contentShards: 'path, lang',
+    });
+    await old.open();
+    // A row written before M4 knew nothing about how many were right.
+    await old.table('categoryScores').add({
+      profileId: 'p1',
+      lang: 'en',
+      categoryId: 'ARTICLES',
+      elo: 1180,
+      attempts: 7,
+      updatedAt: NOW,
+    });
+    old.close();
+
+    await db.open();
+    const score = await db.categoryScores.get(['p1', 'en', 'ARTICLES']);
+    expect(score?.attempts).toBe(7);
+    // Zero, not a guess proportional to the rating: the old row never recorded
+    // this, and a fabricated number would reach the heatmap as a measurement.
+    expect(score?.correct).toBe(0);
   });
 });
 

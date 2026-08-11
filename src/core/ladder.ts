@@ -42,10 +42,31 @@ export const PROMOTION_STABILITY_DAYS: Record<LadderLevel, number> = {
 };
 
 /**
- * L0–L3 are what M2 ships. L4 needs working audio (SPEC §2.6, risk R1) and
- * L5–L6 need production input, which is M7.
+ * The highest rung the app can present at all. L5–L6 need free production and
+ * speech input, which is M7.
  */
-export const MAX_ENABLED_LEVEL: LadderLevel = 3;
+export const MAX_ENABLED_LEVEL: LadderLevel = 4;
+
+/**
+ * The ceiling when there is no audio for an item — the whole ladder below the
+ * dictation rung.
+ */
+export const TEXT_ONLY_MAX_LEVEL: LadderLevel = 3;
+
+/**
+ * SPEC §2.6 acceptance, made structural: *"an item with no available audio
+ * (neither cached clip nor working TTS voice) is excluded from L4 scheduling
+ * rather than silently degraded to text."*
+ *
+ * The exclusion is a **ceiling on the rung**, not a filter on the session. An
+ * item whose audio is unavailable simply cannot occupy L4: it is never promoted
+ * into it, and one that is already there (audio worked last week, the engine is
+ * dead today) is clamped back to L3 on its next review — which is recorded as a
+ * demotion in the review log, not hidden. What never happens is a dictation card
+ * presented as a text card, which is what "silently degraded" means.
+ */
+export const ladderCeiling = (audioAvailable: boolean): LadderLevel =>
+  audioAvailable ? MAX_ENABLED_LEVEL : TEXT_ONLY_MAX_LEVEL;
 
 /** SPEC §7.2: at this many lapses a card is a leech and needs re-teaching. */
 export const LEECH_LAPSE_THRESHOLD = 6;
@@ -77,6 +98,12 @@ export interface LadderInput {
   recentGrades: readonly Grade[];
   /** FSRS lapse count after that grade. */
   lapses: number;
+  /**
+   * Highest rung this item may occupy right now — `ladderCeiling(hasAudio)`.
+   * Defaults to the text-only ceiling: audio has to be *proven* to unlock L4,
+   * never assumed, because assuming it is how an item gets silently degraded.
+   */
+  maxLevel?: LadderLevel;
 }
 
 export interface LadderDecision {
@@ -90,26 +117,33 @@ export interface LadderDecision {
   leech: boolean;
 }
 
-const clampLevel = (level: number): LadderLevel =>
-  Math.min(MAX_ENABLED_LEVEL, Math.max(0, level)) as LadderLevel;
+const clampLevel = (level: number, ceiling: LadderLevel): LadderLevel =>
+  Math.min(ceiling, Math.max(0, level)) as LadderLevel;
 
 export const nextLadderLevel = (input: LadderInput): LadderDecision => {
   const leech = input.lapses >= LEECH_LAPSE_THRESHOLD;
+  const ceiling = input.maxLevel ?? TEXT_ONLY_MAX_LEVEL;
 
   // Demote on lapse. A failed retrieval means the current task is too hard for
   // the current strength, and repeating it unchanged is how leeches are made.
   if (!isSuccess(input.grade)) {
-    const level = clampLevel(input.level - 1);
+    const level = clampLevel(input.level - 1, ceiling);
     return { level, change: level === input.level ? 'held' : 'demoted', leech };
   }
 
+  // A card resting above the ceiling — L4 with the engine dead — comes down,
+  // visibly. The alternative is presenting a dictation card as text.
+  if (input.level > ceiling) {
+    return { level: ceiling, change: 'demoted', leech };
+  }
+
   const canPromote =
-    input.level < MAX_ENABLED_LEVEL &&
+    input.level < ceiling &&
     input.stabilityDays >= PROMOTION_STABILITY_DAYS[input.level] &&
     recentAccuracy(input.recentGrades) >= PROMOTION_ACCURACY;
 
   if (canPromote) {
-    return { level: clampLevel(input.level + 1), change: 'promoted', leech };
+    return { level: clampLevel(input.level + 1, ceiling), change: 'promoted', leech };
   }
   return { level: input.level, change: 'held', leech };
 };

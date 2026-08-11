@@ -3,6 +3,7 @@ import type {
   Ability,
   Card,
   CategoryScore,
+  DrillAttempt,
   Habit,
   Item,
   Mnemonic,
@@ -39,6 +40,7 @@ export class LinguaKuDb extends Dexie {
   mnemonics!: Table<Mnemonic, [string, string]>;
   habits!: Table<Habit, string>;
   contentShards!: Table<ContentShard, string>;
+  drillAttempts!: Table<DrillAttempt, string>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -70,6 +72,28 @@ export class LinguaKuDb extends Dexie {
       // band"; the multi-entry index answers "which sentences use this lexeme".
       sentences: 'id, [lang+band], [lang+difficulty], translationId, *coverageMeta.lexemeIds',
     });
+
+    // v3 (M4): the contrastive engine reports accuracy per category, not just
+    // an Elo rating, so `CategoryScore` gains a `correct` tally. Existing rows
+    // are backfilled with 0 — honest, because a row written before this version
+    // never recorded the distinction and inventing one would put fabricated
+    // numbers on the heatmap.
+    this.version(3)
+      .stores({
+        categoryScores: '[profileId+lang+categoryId], profileId, elo, [profileId+lang]',
+        // Drill answers live apart from `reviewLogs` on purpose: a drill has no
+        // FSRS card, so mixing them would put unscheduled items into the
+        // retention rate SPEC §9 reports.
+        drillAttempts: 'id, profileId, [profileId+answeredAt], drillId, categoryId',
+      })
+      .upgrade((transaction) =>
+        transaction
+          .table<CategoryScore>('categoryScores')
+          .toCollection()
+          .modify((score) => {
+            score.correct ??= 0;
+          }),
+      );
 
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a
     // compound index (IndexedDB cannot index a nested path inside a compound

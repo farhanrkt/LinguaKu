@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   isMastered,
+  ladderCeiling,
   LEECH_LAPSE_THRESHOLD,
   MAX_ENABLED_LEVEL,
   nextLadderLevel,
   PROMOTION_STABILITY_DAYS,
   recentAccuracy,
+  TEXT_ONLY_MAX_LEVEL,
 } from './ladder.ts';
 import type { Grade, LadderLevel } from '../data/types.ts';
 
@@ -66,9 +68,53 @@ describe('promotion (SPEC §2.3)', () => {
   });
 
   it('does not promote past the rungs that are actually implemented', () => {
-    const decision = decide({ level: MAX_ENABLED_LEVEL, stabilityDays: 10_000 });
+    const decision = decide({
+      level: MAX_ENABLED_LEVEL,
+      stabilityDays: 10_000,
+      maxLevel: MAX_ENABLED_LEVEL,
+    });
     expect(decision.level).toBe(MAX_ENABLED_LEVEL);
     expect(decision.change).toBe('held');
+  });
+});
+
+/**
+ * SPEC §2.6 acceptance: an item with no available audio is excluded from L4
+ * scheduling rather than silently degraded to a text card.
+ */
+describe('the audio ceiling (SPEC §2.6)', () => {
+  it('withholds L4 by default — audio must be proven, never assumed', () => {
+    // No `maxLevel` passed at all: the safe reading of silence is "no audio".
+    expect(decide({ level: 3, stabilityDays: 10_000 })).toMatchObject({
+      level: 3,
+      change: 'held',
+    });
+  });
+
+  it('keeps L4 out of reach when the device has no audio', () => {
+    expect(
+      decide({ level: 3, stabilityDays: 10_000, maxLevel: ladderCeiling(false) }),
+    ).toMatchObject({ level: 3, change: 'held' });
+  });
+
+  it('opens L4 once audio is available for the item', () => {
+    expect(
+      decide({ level: 3, stabilityDays: 10_000, maxLevel: ladderCeiling(true) }),
+    ).toMatchObject({ level: 4, change: 'promoted' });
+  });
+
+  it('brings a card resting at L4 down when its audio goes away', () => {
+    // The engine worked last week and is dead today. The card comes down
+    // visibly, recorded as a demotion — it is not quietly shown as text while
+    // the log claims it was answered at L4.
+    expect(
+      decide({ level: 4, grade: 3, stabilityDays: 10_000, maxLevel: ladderCeiling(false) }),
+    ).toMatchObject({ level: TEXT_ONLY_MAX_LEVEL, change: 'demoted' });
+  });
+
+  it('never promotes straight past the missing rung', () => {
+    const decision = decide({ level: 3, stabilityDays: 1e6, maxLevel: ladderCeiling(false) });
+    expect(decision.level).toBeLessThanOrEqual(TEXT_ONLY_MAX_LEVEL);
   });
 });
 

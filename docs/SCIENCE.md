@@ -70,10 +70,17 @@ effect on accuracy stays measurable.
 **Acceptance:** an item that has only ever been answered at L1 cannot display
 as mastered.
 
-**Status:** **shipped for L0–L3** (M2); L4 waits on audio (R1), L5–L6 on
-production input (M7). R5 resolved as one card per item (D18). L2 ships as a
-supported cloze rather than typed meaning (D21) — a documented deviation forced
-by the missing gloss source.
+**Status:** **shipped for L0–L4** (M2, L4 in M4); L5–L6 wait on production input
+(M7). R5 resolved as one card per item (D18). L2 ships as a supported cloze
+rather than typed meaning (D21) — a documented deviation forced by the missing
+gloss source.
+
+L4 is dictation of a short anchor sentence (≤10 tokens), not the audio-cloze the
+implementation line also allows: the answer is then determined entirely by what
+was heard, with no visible frame to reason from (D30). Reaching it requires audio
+*for that item* — `ladderCeiling(hasAudio)` — so an item that cannot be heard is
+never promoted into the rung, and one already there when audio disappears is
+demoted visibly rather than shown as text (§2.6).
 
 ## §2.4 Comprehensible input at i+1, quantified
 
@@ -122,17 +129,21 @@ Still **at risk for Japanese** (R2).
 **Mechanism:** dual coding — phonological and orthographic traces reinforce
 each other; listening is a distinct skill that reading practice does not build.
 
-**Implementation:** `src/platform/` capability probe for `speechSynthesis`
-(waits for `voiceschanged`, prefers `localService`, speaks a timed test
-utterance). Pre-cached CC-licensed clips as fallback.
+**Implementation:** `src/platform/speech.ts` probes once on boot — waits for
+`voiceschanged`, prefers `localService`, then speaks a zero-volume utterance and
+requires **`onend` within 500 ms** (D29). The verdict stands for the session.
+`src/platform/audio.ts` puts a pre-cached clip ahead of synthesis; the clip set is
+empty until an audio dataset clears licence review (R3).
 
 **Acceptance:** an item with no working audio is **excluded from L4
 scheduling**, never silently degraded to a text card.
 
-**Status:** probe **shipped** (M2) — including the case that makes voice
-enumeration insufficient on its own: an engine that lists a voice and then never
-speaks. L4 itself waits until the device matrix has been run. Still **at risk**
-(R1).
+**Status:** **shipped** (M2 probe, M4 boot verdict and L4). The exclusion is
+`ladderCeiling(hasAudio)` in `src/core/ladder.ts`: an inaudible item is never
+promoted into L4, and a card already there when audio dies is demoted *visibly*,
+with the review log recording the rung actually presented. The same gate withholds
+the 22 minimal-pair listening drills. Still **at risk** (R1) — the device matrix
+is unrun, and no clips are cleared to ship.
 
 ## §2.7 Generation and output
 
@@ -176,14 +187,20 @@ impossible, the session says so rather than silently blocking.
 **Mechanism:** elaborative interrogation — explaining *why* an answer is wrong
 builds a rule, not a corrected instance.
 
-**Implementation:** authored `data/contrastive/{en,ja}.yaml`. A wrong answer
-matching a known Indonesian-L1 interference pattern shows, in Indonesian, the
-L1 pattern, why the target differs, and one minimal pair.
+**Implementation:** authored `data/contrastive/en.yaml` (21 categories, 116
+drills), compiled to a shard by `scripts/ingest/build-contrastive.ts`.
+`src/core/interference.ts` matches a wrong answer against the §3.1 patterns;
+`ContrastiveNote` renders the authored note in Indonesian, in the order the L1
+pattern first, then why English differs, then one minimal pair.
 
 **Acceptance:** ≥80% of grammar items and 100% of interference-tagged items
 have an authored contrastive note.
 
-**Status:** planned (M4 for English, M6 for Japanese).
+**Status:** **shipped for English** (M4); Japanese waits for M6. 100%, not 80%:
+the build fails on any drill without an explanation or any category missing a
+minimal pair, so the figure is enforced rather than measured. The detector emits
+nothing where context cannot disambiguate the error, because a wrong tag would
+show an explanation of a mistake the learner did not make (D34).
 
 ## §2.10 Frequency-ordered curriculum
 

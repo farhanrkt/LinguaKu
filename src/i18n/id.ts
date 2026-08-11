@@ -42,6 +42,11 @@ export const copy = {
     offlineUnavailable: 'Mode offline belum aktif di peramban ini',
     storagePersisted: 'Data kamu aman disimpan di HP ini',
     storageBestEffort: 'Data disimpan di HP ini (bisa dihapus peramban kalau memori penuh)',
+    // SPEC §2.6: a device that cannot speak is told so plainly, and the reason
+    // the listening exercises are missing is not left as a mystery.
+    audioProbing: 'Mengecek suara di HP ini…',
+    audioReady: 'Suara aktif — latihan mendengar tersedia',
+    audioDead: 'HP ini belum bisa mengeluarkan suara, jadi latihan mendengar kami sembunyikan dulu',
     roadmap: 'Sesi latihan aktif di tahap berikutnya. Yang kamu atur di sini sudah tersimpan.',
   },
   langNames: {
@@ -91,13 +96,69 @@ export const copy = {
       strengthened: (count: number) => `${count} kata jadi lebih kuat.`,
       learned: (count: number) => `${count} kata baru kamu kenali.`,
       promoted: (count: number) => `${count} kata naik ke tugas yang lebih sulit.`,
+      drilled: (count: number) =>
+        count === 1 ? 'Satu pola tata bahasa kamu latih.' : `${count} pola tata bahasa kamu latih.`,
       nothing: 'Belum ada yang dikerjakan.',
       done: 'Kembali',
+    },
+
+    dictation: {
+      heading: 'Tulis yang kamu dengar',
+      instruction: 'Boleh diputar ulang sebanyak yang kamu mau.',
+      placeholder: 'Ketik kalimatnya',
+      replay: 'Putar lagi',
+    },
+
+    drill: {
+      // SPEC §3: framed as a pattern worth knowing, never as a weakness to fix.
+      heading: 'Pola yang sering bikin kepeleset',
+      typePlaceholder: 'Ketik jawabanmu',
+      submit: 'Jawab',
+      whyHeading: 'Kenapa begitu',
+      l1Heading: 'Di bahasa Indonesia',
+      targetHeading: 'Di bahasa Inggris',
+      pairHeading: 'Bandingkan',
+      pairWrong: 'Sering ditulis',
+      pairRight: 'Seharusnya',
+      tipHeading: 'Cara ingatnya',
     },
 
     audio: {
       play: 'Dengarkan',
       unavailable: 'Suara belum tersedia di peramban ini',
+    },
+  },
+
+  /** SPEC §3.3 step 4 and §9: the interference heatmap. */
+  progress: {
+    open: 'Lihat kemajuanmu',
+    heading: 'Kemajuanmu',
+    back: 'Kembali',
+
+    heatmap: {
+      heading: 'Pola bahasa Inggrismu',
+      // SPEC §2.15: no claim without evidence behind it.
+      intro:
+        'Ini disusun dari jawabanmu sendiri, bukan dari tebakan. Yang belum cukup datanya kami tulis apa adanya.',
+      weakestLead: 'Yang paling perlu kamu latih sekarang',
+      // "Kelemahan terbesarmu: he/she dan past tense" (SPEC §3.3), but phrased
+      // as something to work on rather than something wrong with the learner.
+      weakestNames: (names: readonly string[]) => names.join(' dan '),
+      accuracy: (correct: number, attempts: number) =>
+        `${correct} benar dari ${attempts} percobaan`,
+      notMeasured: 'Belum cukup data',
+      notMeasuredHint: (needed: number) =>
+        `Butuh ${needed} jawaban lagi sebelum kami berani menyimpulkan.`,
+      solid: 'Sudah mantap',
+      empty:
+        'Belum ada yang bisa ditampilkan. Latihan beberapa sesi dulu, nanti pola-polamu muncul di sini sendiri.',
+      attemptsSoFar: (count: number) =>
+        count === 1 ? '1 latihan pola tercatat' : `${count} latihan pola tercatat`,
+      kinds: {
+        morphosyntax: 'Tata bahasa',
+        phonology: 'Bunyi dan pendengaran',
+        lexis: 'Kosakata',
+      },
     },
   },
   placement: {

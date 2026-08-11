@@ -50,6 +50,6 @@ test('the app registers a service worker and loads with the network cut', async 
   await context.setOffline(true);
   await page.reload();
 
-  await expect(page.getByRole('heading', { name: 'Halo!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Halo!' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/Kamu sedang belajar/)).toContainText('Inggris');
 });

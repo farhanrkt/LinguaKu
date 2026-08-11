@@ -16,6 +16,7 @@ npm run icons        # regenerate public/icons/ (committed; run only on redesign
 
 npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)
 npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
+npm run ingest:contrastive  # compile data/contrastive/en.yaml → contrastive.json
 ```
 
 Ingest scripts are TypeScript run directly by Node — no transpiler — so they
@@ -29,6 +30,9 @@ file extension** (`./frequency.ts`, not `./frequency`).
 
 ```
 src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   (from M2)
+                 scheduler · ladder · sessionComposer · grader · cloze · rng
+                 coverage · forecast · placement · pseudoword · difficulty
+                 frequency · tokenize · properNoun · elo · interference
 src/data/        Dexie schema, migrations, repositories. The source of truth.
 src/features/    session, reader, placement, progress, settings — screens.
 src/ui/          presentational primitives.
@@ -91,6 +95,24 @@ needs React state to work, it is in the wrong place.
     prior and costs nothing; an e2e test holds that line. Only the `vocab`
     ability is estimated — listening and grammar rows stay absent rather than
     guessed (decision D25).
+14. **Audio must be proven before L4 is offered.** The TTS probe runs once on
+    boot and requires `onend` within 500 ms (D29); `ladderCeiling(hasAudio)` in
+    `src/core/ladder.ts` is the gate, and it defaults to *no audio* so a
+    forgotten argument withholds the rung rather than faking it. A card resting
+    above the ceiling is demoted visibly and logged at the rung it was actually
+    answered at — never presented as text while the log claims otherwise.
+15. **`recordDrillAnswer` is the only writer of contrastive state**, and drill
+    answers are `DrillAttempt` rows, never `ReviewLog` rows (D32). A drill has no
+    FSRS card; mixing them would put unscheduled items into the §9 retention
+    rate. Both writers keep their record and their state change in one
+    transaction.
+16. **No category is called a weakness under five attempts** (D33). The heatmap
+    says "belum cukup data" and how many answers are still needed. The composer
+    may drill an unmeasured category; the UI may not score it.
+17. **Contrastive content is authored YAML, compiled at build time.**
+    `data/contrastive/*.yaml` is the source of truth; the compiler fails the
+    build on an MCQ whose answer is missing from its options, a category with no
+    minimal pair, or a drill with no explanation. No YAML parser ships.
 
 ## Conventions
 

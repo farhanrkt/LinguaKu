@@ -12,8 +12,56 @@ Ordered by how much of the product dies if the assumption is wrong.
 
 ### R1 — Web Speech API voices on cheap Indonesian Android devices
 
-**Status:** the probe shipped in M2; the device matrix is still unrun, and this
-remains the single most fragile assumption in the app.
+**Status:** M4 hardened the probe into a once-per-start liveness check with a
+hard 500 ms `onend` deadline (D29), shipped the fallback chain the risk always
+needed, and **found a new failure mode in the API itself** (below). **The matrix
+in Part 3 is still empty**, and until rows land there the one thing we have not
+done is watch this run on a real phone.
+
+The original reading of this risk, from M0, follows the M4 findings.
+
+**What changed in M4.** The probe now runs once on boot, waits for `onend` and
+nothing else, and its verdict governs the whole session. L4 dictation is
+unblocked but gated per item: audio comes from a pre-cached clip first and
+synthesis second, and an item with neither is held at L3 rather than shown as a
+text card pretending to be a listening test (SPEC §2.6). The consequence is that
+the app is now *fully functional with the speech engine dead* — 94 of 116
+contrastive drills are text, every ladder rung below L4 is text, and the only
+thing a silent device loses is the listening material, which it says out loud on
+the home screen.
+
+**What M4 measured, and it changes the shape of this risk.** Building the boot
+probe surfaced something the risk register had not anticipated: **the first touch
+of `speechSynthesis` in an environment with no speech service behind it blocks
+the main thread for ~15 seconds.** Not the probe's own timeouts — those are
+async and bounded — the API call itself. It was found by the cold-start test,
+which went from 1.2s to 14.9s the moment the probe was added to boot, and
+returned to 1.2s when it was moved.
+
+That is five times SPEC §5.4's entire icon-tap-to-first-question budget, with the
+app frozen throughout, and it lands on exactly the device this risk is about: the
+cheap Android with no TTS engine installed. `requestIdleCallback` is not
+sufficient protection, because the idle moments during an async boot are the gaps
+where the app is waiting on IO and is about to want the main thread back. So the
+probe now fires only when a screen is *painted* — `onFirstQuestion` from the
+session screen, `onReady` from home — and until it answers, `isTtsLive()` is
+false and audio is withheld.
+
+**Consequence for the device matrix:** the rows below should record not just
+whether a voice exists, but how long the first `speechSynthesis` call takes. If
+this stall reproduces on real hardware, the probe may need to move behind an
+explicit "test audio" affordance rather than running automatically at all.
+
+**What is still missing, and it is not code.** The pre-cached clip set is empty.
+Tatoeba audio is a licence *candidate*, not a cleared dataset — per-clip terms
+chosen by the contributor, some with no licence at all — so nothing can enter
+`assets/` under it (SPEC §5.2). Today the fallback chain therefore terminates in
+"no clip", and on a device whose engine is dead, L4 is withheld from every item.
+The mechanism is built and tested; it has nothing to serve yet.
+
+---
+
+**The original M0 reading, for context.**
 
 SPEC §2.6 makes audio mandatory (every item ships with pronounceable audio, and
 audio-only L4 cards are a required rung of the ladder). SPEC §5.1 says that
@@ -35,12 +83,13 @@ What makes it fragile, specifically:
   rely on the network one.
 - Firefox and iOS Safari each have their own gaps and gesture requirements.
 
-**Mitigation (shipped, M2):** `src/platform/speech.ts` waits for
+**Mitigation (shipped, M2; hardened M4):** `src/platform/speech.ts` waits for
 `voiceschanged`, enumerates voices per target language, prefers
-`localService`, and speaks a timed silent utterance before declaring success —
-which catches the engine that lists a voice and then never speaks. The verdict
-is surfaced honestly in the UI, and `canScheduleAudioOnly` is the gate that
-withholds L4 rather than degrading it to text (SPEC §2.6).
+`localService`, and speaks a zero-volume utterance that must **complete** inside
+500 ms before declaring success — which catches the engine that lists a voice and
+then never speaks. The verdict is surfaced honestly in the UI, and
+`ladderCeiling` is the gate that withholds L4 rather than degrading it to text
+(SPEC §2.6).
 
 **Insurance:** a pre-cached, CC-licensed clip set for the highest-frequency
 items. See R4 — this is what actually spends the 8 MB budget.
@@ -215,6 +264,12 @@ memory model.
 | D26 | **The corrected estimate can never be less certain than the prior** | Over-claiming widens the uncertainty band, but uncapped it produced placements reading "somewhere between band 1 and band 6" — true, and useless. Evidence can fail to narrow what we knew; it cannot un-know it. Where the band is still three tiers wide, the result screen says so in words instead of printing the range. |
 | D27 | **New items come from the learner's frontier band, nearest the frontier first** | §4.3 level-gating. `bandForAbility` returns the frontier itself rather than one below, because a new item enters at L0 — errorless exposure — where difficulty costs the learner nothing; §2.3's desirable difficulty comes from the ladder and from the coverage selector's choice of teaching sentence. |
 | D28 | **The i+1 band is a running-text criterion, with a sentence-level fallback** | Coverage on an n-token text is quantized to 1/n, so [0.92, 0.98] is unreachable below ~17 tokens — on a 10-token sentence the reachable values are 1.00, 0.90, 0.80 and the band is empty. Applying it literally to sentences would reject nearly all of them, so short items fall back to i+1's literal form: exactly one new word. |
+| D29 | **The TTS probe runs once per app start, waits for `onend`, gives up at 500 ms — and fires only after a screen is painted** | Four calls. *Once per app start*, because a verdict that can flip mid-session would flicker the L4 rung in and out under the learner, and re-probing per card costs a settle delay on every audio item. *`onend`, not `onstart`*, because the Android failure mode is an engine that announces itself and then goes silent — a start-based check passes it. *500 ms*, because an engine that cannot finish a zero-volume full stop in half a second will not deliver a dictation card either. *After a paint*, because measurement forced it: the first `speechSynthesis` call on a device with no speech service blocks the main thread for ~15s (see R1), so "on boot" in the literal sense would freeze the app for five times its entire cold-start budget. **Two costs, stated plainly:** iOS Safari needs a user gesture before it will speak, so this will mark iOS dead where audio might have worked from inside a tap; and there is a window early in the first screen where `isTtsLive()` is false because the answer has not arrived. Both fail safe — audio withheld, never faked. |
+| D30 | **L4 is dictation of a short sentence, and the audio gate is per item, not per app** | SPEC §2.3 offers "audio-only cloze / dictation of the sentence"; dictation is the unambiguous one — the answer is fully determined by what was heard, with no visible frame to guess from. Capped at 10 tokens, past which it measures working memory instead of phonological form. The gate is per item because audio availability genuinely is: a pre-cached clip exists for one sentence and not another. An item with no audible anchor is held at L3 by the same ceiling that a dead engine imposes (`ladderCeiling`), and a card already at L4 when audio vanishes is **demoted visibly** rather than quietly presented as text — the log records the rung actually answered, or every later measurement of the ladder reads a fiction. |
+| D31 | **The contrastive YAML is compiled at build time; `yaml` is a devDependency** | SPEC §3 requires authored YAML, versioned. A YAML parser has no business in a 200 KB bundle (invariant 6), and the validation the compiler runs — every MCQ answer present among its options, every category carrying all three parts of its note, every minimal pair marked audio-dependent — is worth failing the *build* over rather than discovering as an unanswerable question on a learner's phone. `yaml` is MIT and build-time only, so §0 rule 1 is untouched. |
+| D32 | **Drill answers are `DrillAttempt` rows, not `ReviewLog` rows** | A drill has no FSRS card: no stability, no due date, nothing scheduled. Filing drill answers among the review logs would put unscheduled items into the retention rate §9 promises to report honestly, and would make `ReviewLog.cardId` a lie. Separate table, separate writer (`recordDrillAnswer`), same one-transaction discipline as `recordReview` so a rating can never move without the answer that moved it being on record. |
+| D33 | **No category is called a weakness under five attempts** | §2.15 bans fake precision, and an Elo rating after two answers is noise wearing a number. Below the threshold the heatmap says "belum cukup data" and how many answers are still needed — visible rather than hidden, because hiding it would let the screen read as complete when it is not. The composer still *drills* unmeasured categories (that is how they become measured); it just never *reports* them. |
+| D34 | **The interference detector stays silent when context cannot disambiguate** | `book`/`books` and `go`/`goes` are the same string alternation, and M1's frequency-only pipeline produces no part-of-speech tag. The word before the blank settles most cases; where it does not, no tag is emitted at all. A wrong tag is worse than no tag — it shows the learner an explanation of a mistake they did not make and moves the wrong Elo rating on the way. |
 | D23 | **Lighthouse PWA gate replaced with direct installability assertions** | §13 asks for "Lighthouse PWA score ≥ 90", but Lighthouse removed the PWA category in v12 (Chrome 126) when Chrome revised its installability criteria. `e2e/coldstart.spec.ts` asserts what the score measured — manifest validity, icon resolution, maskable icon, service-worker control, offline start_url — with no new dependency. |
 
 ---
@@ -223,6 +278,16 @@ memory model.
 
 Speech APIs cannot be tested in CI. Results go here as they are gathered;
 empty rows are honest, invented ones are not.
+
+> **Still empty as of M4 (2026-08-11).** M4 was directed to proceed on the basis
+> that this matrix had been run, and the probe was built to the deadline that
+> direction specified (D29). No results were supplied, so nothing has been
+> written in below — filling these rows from a description of the testing rather
+> than from the testing would defeat the only purpose the table has. The code
+> does not depend on them: the probe measures the device it is running on. What
+> depends on them is knowing whether 500 ms is the right number, and whether the
+> iOS gesture requirement noted in D29 costs real learners their listening
+> material.
 
 | Browser / device | `speechSynthesis` en-US | `speechSynthesis` ja-JP | Offline voice (`localService`) | `SpeechRecognition` |
 |---|---|---|---|---|
