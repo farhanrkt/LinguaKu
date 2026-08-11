@@ -4,6 +4,7 @@ import { Home } from './features/home/Home.tsx';
 import { SessionScreen } from './features/session/SessionScreen.tsx';
 import { PlacementScreen } from './features/placement/PlacementScreen.tsx';
 import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
+import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
 import { hasBeenPlaced } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import { findResumable, startSession } from './data/repositories/sessions.ts';
@@ -24,6 +25,7 @@ type Screen =
   | { name: 'home'; profile: Profile }
   | { name: 'placement'; profile: Profile }
   | { name: 'progress'; profile: Profile }
+  | { name: 'attribution'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
 export const App = () => {
@@ -166,6 +168,12 @@ export const App = () => {
           onFinish={() => void handleFinish()}
         />
       );
+    case 'attribution':
+      return (
+        <AttributionScreen
+          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+        />
+      );
     case 'progress':
       return (
         <ProgressScreen
@@ -186,6 +194,7 @@ export const App = () => {
           onReady={() => probeAudio(screen.profile.targets[0] ?? 'en')}
           onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
           onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}
+          onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}
         />

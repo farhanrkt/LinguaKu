@@ -129,6 +129,24 @@ export const copy = {
     },
   },
 
+  /**
+   * SPEC §5.2: the attribution screen. EDRDG's licence requires acknowledgement
+   * in the UI, so this copy is part of a licence condition.
+   */
+  attribution: {
+    open: 'Sumber dan lisensi',
+    heading: 'Sumber dan lisensi',
+    intro:
+      'Materi di aplikasi ini dibangun dari data terbuka. Ini daftar lengkapnya, beserta lisensi dan tanggal kami memeriksanya.',
+    licenseLabel: 'Lisensi',
+    sourceLabel: 'Sumber',
+    verifiedLabel: 'Diperiksa',
+    shareAlike: 'berbagi-serupa',
+    shareAlikeNote:
+      'Beberapa sumber memakai lisensi berbagi-serupa, jadi materi turunannya kami sebarkan dengan lisensi yang sama.',
+    back: 'Kembali',
+  },
+
   /** SPEC §9: honest, capability-framed, all local. */
   progress: {
     open: 'Lihat kemajuanmu',

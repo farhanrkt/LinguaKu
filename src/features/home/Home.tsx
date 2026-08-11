@@ -27,6 +27,7 @@ interface HomeProps {
   onReady: () => void;
   onPlacement: () => void;
   onProgress: () => void;
+  onAttribution: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes'>>) => void;
 }
@@ -48,6 +49,7 @@ export const Home = ({
   onReady,
   onPlacement,
   onProgress,
+  onAttribution,
   onPractise,
   onChange,
 }: HomeProps) => {
@@ -156,7 +158,18 @@ export const Home = ({
         </li>
       </ul>
 
-      <p className="mt-8 rounded-2xl bg-stone-100 p-4 text-sm text-stone-600 dark:bg-slate-900 dark:text-slate-400">
+      {/* SPEC §5.2: EDRDG's licence requires this acknowledgement to be
+          reachable from the app, not only from the repository. */}
+      <button
+        type="button"
+        onClick={onAttribution}
+        data-testid="attribution-open"
+        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+      >
+        {copy.attribution.open}
+      </button>
+
+      <p className="mt-4 rounded-2xl bg-stone-100 p-4 text-sm text-stone-600 dark:bg-slate-900 dark:text-slate-400">
         {copy.home.roadmap}
       </p>
     </Screen>
