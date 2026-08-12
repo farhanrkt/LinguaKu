@@ -106,7 +106,7 @@ export class LinguaKuDb extends Dexie {
       minedItems: '[profileId+itemId], profileId, [profileId+minedAt]',
     });
 
-    // v5 (v2.0.0): SPEC §2.14's "belum perlu". Additive, and deliberately its
+    // v5 (v1.1.0): SPEC §2.14's "belum perlu". Additive, and deliberately its
     // own table rather than a flag on `Card` — a learner may decline a word
     // they have never answered, which has no card to carry a flag.
     this.version(5).stores({

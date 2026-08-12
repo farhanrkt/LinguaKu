@@ -5,7 +5,7 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
-## v2.0.0 — 2026-08-11
+## v1.1.0 — 2026-08-11
 
 **Every `§2` requirement now has an implementation.** v1.0.0 shipped with three
 of them unbuilt — one of which had a table sitting in the schema since M0,
@@ -62,7 +62,7 @@ week against a range that did not exist manufactures a decline out of being new
 
 ### Measured
 
-| | v1.0.1 | v2.0.0 |
+| | v1.0.1 | v1.1.0 |
 |---|---|---|
 | unit tests | 609 | **653** |
 | e2e tests | 32 | **41** |

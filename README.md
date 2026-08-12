@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v2.0.0
+## Status — v1.1.0
 
 **Milestones 0 through 7 complete, and every §2 requirement implemented.** See [`CHANGELOG.md`](CHANGELOG.md) for the
 release notes and [`docs/LAUNCH-CHECKLIST.md`](docs/LAUNCH-CHECKLIST.md) for the
