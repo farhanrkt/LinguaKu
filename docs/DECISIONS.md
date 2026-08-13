@@ -12,12 +12,21 @@ Ordered by how much of the product dies if the assumption is wrong.
 
 ### R1 — Web Speech API voices on cheap Indonesian Android devices
 
-**Status (v1.2.0):** the matrix is now **collectable without a debugger** — the
-diagnostics screen runs every probe on demand and emits the row (D57) — and a
-probe fired from inside a tap can raise the session's verdict, which is the only
-honest measurement iOS Safari allows. The rows in Part 3 are still empty, and
-they will stay empty until someone runs it on a phone; that is now a five-tap
-job rather than a development task.
+**Status (v1.5.1): the first real row exists, and it corrected the code.**
+Chrome 151 on Android, 2026-08-13: working on-device voices in **both**
+languages, completing at 932 ms and 999 ms — over the 500 ms deadline, so the
+app had been withholding L4 and the mora-timing drills from a phone that could
+deliver both. `TTS_ONEND_DEADLINE_MS` is now 2,000 ms (D29, amended). This is
+the failure mode D29 named when it said the matrix would have to decide the
+number, and it took one row to find.
+
+R1's specific prediction — that `ja-JP` would be the first voice missing on a
+cheap Android — did **not** hold on this device. One row is not a trend, and it
+is the first evidence in either direction.
+
+Four rows are still empty, and the most valuable is the second: a device with no
+TTS engine installed, which is the only configuration that can confirm or refute
+M4's ~15 s first-call stall. This row cannot, because the phone had an engine.
 
 The clip set is still empty and still for the same reason: the pipeline and its
 CI gate exist (`npm run ingest:audio`, `npm run check:audio`), and **no voice
@@ -375,7 +384,7 @@ memory model.
 | D26 | **The corrected estimate can never be less certain than the prior** | Over-claiming widens the uncertainty band, but uncapped it produced placements reading "somewhere between band 1 and band 6" — true, and useless. Evidence can fail to narrow what we knew; it cannot un-know it. Where the band is still three tiers wide, the result screen says so in words instead of printing the range. |
 | D27 | **New items come from the learner's frontier band, nearest the frontier first** | §4.3 level-gating. `bandForAbility` returns the frontier itself rather than one below, because a new item enters at L0 — errorless exposure — where difficulty costs the learner nothing; §2.3's desirable difficulty comes from the ladder and from the coverage selector's choice of teaching sentence. |
 | D28 | **The i+1 band is a running-text criterion, with a sentence-level fallback** | Coverage on an n-token text is quantized to 1/n, so [0.92, 0.98] is unreachable below ~17 tokens — on a 10-token sentence the reachable values are 1.00, 0.90, 0.80 and the band is empty. Applying it literally to sentences would reject nearly all of them, so short items fall back to i+1's literal form: exactly one new word. |
-| D29 | **The TTS probe runs once per app start *per language*, waits for `onend`, gives up at 500 ms — and fires only after a screen is painted** | Four calls, plus one correction. *Per language* was added at v1.0.1: the verdict was originally one value for the whole app, so on a device with an en-US voice and no ja-JP one — the exact configuration R1 warns is most likely — the English probe vouched for Japanese, and the app would report audio ready, schedule L4 dictation and mora minimal-pair drills, then have nothing to speak them with. Keyed by language it is still one settled verdict per language per start, so the rung cannot flicker under the learner. *Once per app start*, because a verdict that can flip mid-session would flicker the L4 rung in and out under the learner, and re-probing per card costs a settle delay on every audio item. *`onend`, not `onstart`*, because the Android failure mode is an engine that announces itself and then goes silent — a start-based check passes it. *500 ms*, because an engine that cannot finish a zero-volume full stop in half a second will not deliver a dictation card either. *After a paint*, because measurement forced it: the first `speechSynthesis` call on a device with no speech service blocks the main thread for ~15s (see R1), so "on boot" in the literal sense would freeze the app for five times its entire cold-start budget. **Two costs, stated plainly:** iOS Safari needs a user gesture before it will speak, so this will mark iOS dead where audio might have worked from inside a tap; and there is a window early in the first screen where `isTtsLive()` is false because the answer has not arrived. Both fail safe — audio withheld, never faked. |
+| D29 | **The TTS probe runs once per app start *per language*, waits for `onend`, gives up at 2,000 ms — and fires only after a screen is painted** | Four calls, plus one correction. *Per language* was added at v1.0.1: the verdict was originally one value for the whole app, so on a device with an en-US voice and no ja-JP one — the exact configuration R1 warns is most likely — the English probe vouched for Japanese, and the app would report audio ready, schedule L4 dictation and mora minimal-pair drills, then have nothing to speak them with. Keyed by language it is still one settled verdict per language per start, so the rung cannot flicker under the learner. *Once per app start*, because a verdict that can flip mid-session would flicker the L4 rung in and out under the learner, and re-probing per card costs a settle delay on every audio item. *`onend`, not `onstart`*, because the Android failure mode is an engine that announces itself and then goes silent — a start-based check passes it. *2,000 ms* — **amended 2026-08-13 by the first real device row**, which is what this decision said the matrix was for. The original number was 500 ms on the reasoning that "an engine that cannot finish a zero-volume full stop in half a second will not deliver a dictation card either", and measurement refuted it: a Chrome 151 Android phone with genuine on-device voices in *both* languages completed at 932 ms and 999 ms, and was therefore being told it had no audio — L4 and the mora drills withheld from a device that could do both. Nearly all of that second is engine start-up, paid once per utterance rather than per syllable. Loosening it cannot admit a liar, because an engine that fires `onend` has finished speaking by definition; it can only stop excluding an honest engine that is slow. 2,000 ms also matches `VOICES_TIMEOUT_MS`, so both halves of the probe give up on one schedule rather than two guesses, and the extra 1.5 s is never in front of a learner: the probe runs after first paint and audio is withheld until it answers. *After a paint*, because measurement forced it: the first `speechSynthesis` call on a device with no speech service blocks the main thread for ~15s (see R1), so "on boot" in the literal sense would freeze the app for five times its entire cold-start budget. **Two costs, stated plainly:** iOS Safari needs a user gesture before it will speak, so this will mark iOS dead where audio might have worked from inside a tap; and there is a window early in the first screen where `isTtsLive()` is false because the answer has not arrived. Both fail safe — audio withheld, never faked. |
 | D30 | **L4 is dictation of a short sentence, and the audio gate is per item, not per app** | SPEC §2.3 offers "audio-only cloze / dictation of the sentence"; dictation is the unambiguous one — the answer is fully determined by what was heard, with no visible frame to guess from. Capped at 10 tokens, past which it measures working memory instead of phonological form. The gate is per item because audio availability genuinely is: a pre-cached clip exists for one sentence and not another. An item with no audible anchor is held at L3 by the same ceiling that a dead engine imposes (`ladderCeiling`), and a card already at L4 when audio vanishes is **demoted visibly** rather than quietly presented as text — the log records the rung actually answered, or every later measurement of the ladder reads a fiction. |
 | D31 | **The contrastive YAML is compiled at build time; `yaml` is a devDependency** | SPEC §3 requires authored YAML, versioned. A YAML parser has no business in a 200 KB bundle (invariant 6), and the validation the compiler runs — every MCQ answer present among its options, every category carrying all three parts of its note, every minimal pair marked audio-dependent — is worth failing the *build* over rather than discovering as an unanswerable question on a learner's phone. `yaml` is MIT and build-time only, so §0 rule 1 is untouched. |
 | D32 | **Drill answers are `DrillAttempt` rows, not `ReviewLog` rows** | A drill has no FSRS card: no stability, no due date, nothing scheduled. Filing drill answers among the review logs would put unscheduled items into the retention rate §9 promises to report honestly, and would make `ReviewLog.cardId` a lie. Separate table, separate writer (`recordDrillAnswer`), same one-transaction discipline as `recordReview` so a rating can never move without the answer that moved it being on record. |
@@ -419,27 +428,52 @@ memory model.
 Speech APIs cannot be tested in CI. Results go here as they are gathered;
 empty rows are honest, invented ones are not.
 
-> **Still empty as of v1.5.0 (2026-08-12) — but no longer hard to fill.** The
-> app now collects every column of this table itself: Settings → *"Uji suara di
-> HP ini"* → *"Uji audio sekarang"* produces a markdown row to paste in below,
-> including the first-call latency this table asks for. Nothing has been written
-> in because nothing has been run on a phone; a row invented from a description
-> of testing would defeat the only purpose the table has.
->
-> **The original note, from M4 (2026-08-11):** M4 was directed to proceed on the basis
-> that this matrix had been run, and the probe was built to the deadline that
-> direction specified (D29). No results were supplied, so nothing has been
-> written in below — filling these rows from a description of the testing rather
-> than from the testing would defeat the only purpose the table has. The code
-> does not depend on them: the probe measures the device it is running on. What
-> depends on them is knowing whether 500 ms is the right number, and whether the
-> iOS gesture requirement noted in D29 costs real learners their listening
-> material.
+> **First row landed 2026-08-13, and it changed the code.** The app collects
+> these itself now: Settings → *"Uji suara di HP ini"* → *"Uji audio sekarang"*
+> emits a row to paste in. Empty cells below are honest; invented ones would
+> defeat the only purpose the table has.
 
-| Browser / device | `speechSynthesis` en-US | `speechSynthesis` ja-JP | Offline voice (`localService`) | `SpeechRecognition` |
-|---|---|---|---|---|
-| Chrome, Android (mid-range) | — | — | — | — |
-| Chrome, Android (low-end) | — | — | — | — |
-| Firefox, Android | — | — | — | — |
-| Safari, iOS | — | — | — | — |
-| Chrome, desktop | — | — | — | — |
+| Device | `speechSynthesis` en-US | `speechSynthesis` ja-JP | Offline voice (`localService`) | First-call latency | `SpeechRecognition` |
+|---|---|---|---|---|---|
+| Chrome 151, Android (model not reported — UA frozen to `Android 10; K`) | **ready, 932 ms** — "English United States" | **ready, 999 ms** — "Japanese Japan" | en: yes, ja: yes | 0 ms | present |
+| Chrome, Android (low-end, no TTS engine installed) | | | | | |
+| Firefox, Android | | | | | |
+| Safari, iOS | | | | | |
+| Chrome, desktop | | | | | |
+
+**What the first row settled.**
+
+*The 500 ms deadline was wrong, and it was costing a working device the whole
+listening half of the product.* Both engines completed — real, on-device,
+`localService: true` voices in both languages — at 932 ms and 999 ms. Under the
+old deadline this phone was told it had no usable audio: L4 dictation withheld,
+the mora-timing drills withheld, the listening axis of the radar left unmeasured,
+all while owning offline voices for English *and* Japanese. `TTS_ONEND_DEADLINE_MS`
+is now **2,000 ms**; the reasoning is in `src/platform/speech.ts` and the short
+version is that nearly all of that second is engine start-up, paid once, and a
+longer wait cannot admit a liar — an engine that fires `onend` has finished
+speaking by definition.
+
+*R1's pessimism about `ja-JP` does not hold on this device.* The register
+predicted Japanese voices would be the first thing missing on a cheap Android.
+Here it is present, local, and only 67 ms slower than English. One device is not
+a trend, and it is the first evidence in either direction.
+
+*The ~15 s first-call stall did not reproduce — and this row cannot refute it.*
+`getVoices()` returned in 0 ms, but M4's stall was measured specifically where
+**no speech service is installed**, and this phone has one. The row that would
+settle it is the second one in the table, still empty.
+
+*The report could not name the device, and now can.* Chrome has frozen the UA
+model to "K" since v110, so the row above identifies a browser and not a phone.
+The diagnostics screen now also collects client hints — model, platform version,
+RAM, cores, screen — because "works on a cheap Android" is the claim under test
+and 2 GB of RAM is what makes a phone cheap. Re-running on the same device will
+produce a row that says which phone it was.
+
+*Two things worth doing on the next run.* The report says `display: browser tab`
+and `storage: best-effort`; installing it to the home screen first will usually
+flip persistence to `persisted`, and that is the configuration a real learner is
+in. And `permission: default` means notifications were never requested, so the
+`in-app-only` verdict there reflects the API, not a refusal.
+

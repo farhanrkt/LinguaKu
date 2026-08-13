@@ -5,6 +5,47 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.5.1 — 2026-08-13
+
+**The device matrix has its first real row, and it was worth collecting.** One
+phone — Chrome 151 on Android — reported working on-device voices in both
+English and Japanese, completing at **932 ms** and **999 ms**.
+
+### Changed
+
+**`TTS_ONEND_DEADLINE_MS`: 500 ms → 2,000 ms.** That phone was being told it had
+no usable audio. L4 dictation withheld, the mora-timing drills withheld, the
+listening axis left unmeasured — on a device with genuine offline voices for
+both languages. The old number rested on an argument ("an engine that cannot
+finish a zero-volume full stop in half a second will not deliver a dictation
+card either") that measurement refuted: nearly all of that second is engine
+start-up, paid once, not per syllable.
+
+Loosening it cannot let a broken engine through — one that fires `onend` has
+finished speaking by definition — so the change can only stop excluding honest
+engines that are slow. It also matches `VOICES_TIMEOUT_MS`, and the extra 1.5 s
+is never in front of a learner: the probe runs after first paint and audio stays
+withheld until it answers. D29 amended; a regression test pins the two measured
+latencies so the deadline cannot quietly tighten back under them.
+
+**The report now names the device.** The row came back as `Android 10; K` —
+Chrome has frozen the UA model since v110, so the matrix could identify a
+browser but not a phone, and "works on a cheap Android" is the claim under test.
+The diagnostics screen now also collects model, platform version, RAM, cores and
+screen via client hints, and falls back to the user agent where they are absent
+(Firefox, Safari) rather than guessing.
+
+### Still open
+
+R1's prediction that `ja-JP` would be the first voice missing on a cheap Android
+did **not** hold on this device — one row, and the first evidence either way.
+
+The most valuable empty row is now the second: **a device with no TTS engine
+installed**. It is the only configuration that can confirm or refute M4's ~15 s
+first-call stall, and this phone had an engine, so `0 ms` here settles nothing.
+
+---
+
 ## v1.5.0 — 2026-08-12
 
 The four releases `docs/ROADMAP.md` planned for v1.2 through v1.5, executed in

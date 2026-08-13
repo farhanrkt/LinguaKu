@@ -26,7 +26,8 @@ const report = (overrides: Partial<VoiceReport> = {}): VoiceReport => ({
 
 const deviceReport = (overrides: Partial<DeviceReport> = {}): DeviceReport => ({
   collectedAt: Date.UTC(2026, 7, 12),
-  userAgent: 'Mozilla/5.0 (Linux; Android 13; SM-A125F)',
+  userAgent: 'Mozilla/5.0 (Linux; Android 10; K) Chrome/151.0.0.0',
+  device: { model: 'SM-A125F', platformVersion: '13', memoryGb: 2, cores: 8, screen: '360×800 @2x' },
   languages: [
     { lang: 'en', report: report(), adopted: false },
     { lang: 'ja', report: report({ support: 'no-voice', voiceName: null, voiceCount: 0, onendMs: null }), adopted: false },
@@ -46,11 +47,20 @@ describe('formatVoiceCell', () => {
   });
 
   it('names a completing-but-too-slow engine as withheld rather than ready', () => {
-    // The finding the matrix is for: is 500 ms right on a cheap Android? An
-    // engine that finishes at 780 ms is a real answer, and it is not "dead".
-    const cell = formatVoiceCell(report({ onendMs: 780 }));
-    expect(cell).toContain('780 ms');
+    const cell = formatVoiceCell(report({ onendMs: TTS_ONEND_DEADLINE_MS + 500 }));
     expect(cell).toContain(`over the ${TTS_ONEND_DEADLINE_MS} ms deadline`);
+  });
+
+  it('serves the device that corrected the deadline', () => {
+    // The first real row (2026-08-13, Chrome 151 / Android): working on-device
+    // voices at 932 ms and 999 ms, withheld by the old 500 ms deadline. This is
+    // the regression guard for that row — if the deadline ever tightens back
+    // under a second, this phone silently loses L4 and the mora drills again.
+    for (const onendMs of [932, 999]) {
+      const cell = formatVoiceCell(report({ onendMs }));
+      expect(cell).toContain(`${onendMs} ms`);
+      expect(cell).not.toContain('stays withheld');
+    }
   });
 
   it('distinguishes no voice from an engine that never finishes', () => {
@@ -66,8 +76,29 @@ describe('formatDeviceReport', () => {
     const row = lines[0] ?? '';
     expect(row.startsWith('|')).toBe(true);
     expect(row.split('|')).toHaveLength(8); // 6 cells plus the outer pipes
-    expect(row).toContain('SM-A125F');
     expect(row).toContain('no voice');
+  });
+
+  it('names the device, which the user agent no longer does', () => {
+    // Chrome freezes the UA to "Android 10; K" regardless of the phone, so a
+    // row keyed on it cannot tell a budget device from a flagship — and "works
+    // on a cheap Android" is the claim R1 is about.
+    const row = formatDeviceReport(deviceReport()).split('\n')[0] ?? '';
+    expect(row).toContain('SM-A125F');
+    expect(row).toContain('2 GB RAM');
+    // The UA stays, because it carries the browser version the hints do not.
+    expect(row).toContain('Chrome/151.0.0.0');
+  });
+
+  it('falls back to the user agent where client hints are unavailable', () => {
+    // Firefox and Safari have no userAgentData. A row with no device name is
+    // worth less than one with it, and much more than an invented one.
+    const noHints = deviceReport({
+      device: { model: null, platformVersion: null, memoryGb: null, cores: null, screen: null },
+    });
+    const row = formatDeviceReport(noHints).split('\n')[0] ?? '';
+    expect(row).toContain('Chrome/151.0.0.0');
+    expect(row).not.toContain('—  ');
   });
 
   it('calls out R1s stall when the first call was slow, and stays quiet when it was not', () => {

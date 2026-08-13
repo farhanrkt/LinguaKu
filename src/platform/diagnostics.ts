@@ -22,8 +22,9 @@
  *    `adoptVerdict` lets that answer count (see src/platform/speech.ts).
  *  - **It measures rather than judges.** The probe here runs to a deliberately
  *    long deadline and reports the elapsed time, because the open question is
- *    whether the app's 500 ms is the right number on a cheap Android. A verdict
- *    of "dead" answers a different question than "finished, in 780 ms".
+ *    whether the app's deadline is the right number on a cheap Android. A
+ *    verdict of "dead" answers a different question than "finished, in 932 ms"
+ *    — and that distinction is what corrected the deadline in v1.5.1.
  */
 
 import {
@@ -48,8 +49,10 @@ import type { TargetLang } from '../data/types.ts';
  *
  * The app schedules L4 against `TTS_ONEND_DEADLINE_MS` and that is not relaxed
  * here — a slower engine is reported, not adopted. But a device that completes
- * at 780 ms is a different finding from one that never completes at all, and
- * with a 500 ms deadline both look identical in the table.
+ * at 932 ms is a different finding from one that never completes at all, and at
+ * the app's own deadline the two look identical in the table. Keeping this
+ * generous is what let the first real row correct the deadline instead of
+ * silently confirming it.
  */
 export const DIAGNOSTIC_DEADLINE_MS = 5_000;
 
@@ -67,9 +70,31 @@ export interface LanguageProbe {
   adopted: boolean;
 }
 
+/**
+ * What the phone actually is, which the user agent no longer says.
+ *
+ * The first real row came back as `Android 10; K` — Chrome has frozen the model
+ * to "K" and the platform version to 10 since v110, so a matrix keyed on the UA
+ * string cannot tell a 2019 budget phone from this year's flagship. That
+ * distinction is the entire point of R1: "works on a cheap Android" is the
+ * claim under test.
+ *
+ * These come from client hints and are all best-effort — Chromium-only, absent
+ * on Firefox and Safari, and null rather than guessed when unavailable.
+ */
+export interface DeviceHints {
+  model: string | null;
+  platformVersion: string | null;
+  /** GB of RAM, rounded down by the browser. The cheapness signal that matters. */
+  memoryGb: number | null;
+  cores: number | null;
+  screen: string | null;
+}
+
 export interface DeviceReport {
   collectedAt: number;
   userAgent: string;
+  device: DeviceHints;
   languages: LanguageProbe[];
   /** Cost of the very first `getVoices()` call, in ms — see R1's 15s finding. */
   firstCallMs: number | null;
@@ -80,6 +105,39 @@ export interface DeviceReport {
   /** Installed as a PWA, or running in a browser tab. */
   standalone: boolean;
 }
+
+interface UserAgentDataLike {
+  getHighEntropyValues?: (hints: string[]) => Promise<{ model?: string; platformVersion?: string }>;
+}
+
+const collectHints = async (): Promise<DeviceHints> => {
+  const nav = globalThis.navigator as
+    | (Navigator & { userAgentData?: UserAgentDataLike; deviceMemory?: number })
+    | undefined;
+
+  const hints: DeviceHints = {
+    model: null,
+    platformVersion: null,
+    memoryGb: nav?.deviceMemory ?? null,
+    cores: nav?.hardwareConcurrency ?? null,
+    screen:
+      typeof globalThis.screen === 'undefined'
+        ? null
+        : `${globalThis.screen.width}×${globalThis.screen.height} @${globalThis.devicePixelRatio ?? 1}x`,
+  };
+
+  try {
+    const high = await nav?.userAgentData?.getHighEntropyValues?.(['model', 'platformVersion']);
+    if (high) {
+      hints.model = high.model?.trim() || null;
+      hints.platformVersion = high.platformVersion?.trim() || null;
+    }
+  } catch {
+    // Firefox and Safari have no userAgentData, and a browser may refuse the
+    // hints. Null is the honest answer; a guess would be a fabricated row.
+  }
+  return hints;
+};
 
 const isStandalone = (): boolean => {
   try {
@@ -111,6 +169,7 @@ export const collectDeviceReport = async (
   return {
     collectedAt: now,
     userAgent: typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent,
+    device: await collectHints(),
     languages,
     firstCallMs: firstCallLatencyMs(),
     recognition: speechInputSupport(),
@@ -165,9 +224,24 @@ const cellFor = (report: DeviceReport, lang: TargetLang): string => {
  * Indonesian: this output is not learner-facing copy, it is a bug report being
  * pasted into an engineering document.
  */
+/** The device column: what it is, falling back to the UA when hints are absent. */
+const deviceCell = (report: DeviceReport): string => {
+  const { model, platformVersion, memoryGb, cores } = report.device;
+  const parts = [
+    model,
+    platformVersion === null ? null : `Android/OS ${platformVersion}`,
+    memoryGb === null ? null : `${memoryGb} GB RAM`,
+    cores === null ? null : `${cores} cores`,
+  ].filter((part): part is string => part !== null);
+
+  // The UA is kept either way: it carries the browser version, which the hints
+  // do not, and it is the only thing a non-Chromium browser will give us.
+  return parts.length > 0 ? `${parts.join(', ')} — ${report.userAgent}` : report.userAgent;
+};
+
 export const formatDeviceReport = (report: DeviceReport): string => {
   const row = [
-    report.userAgent,
+    deviceCell(report),
     cellFor(report, 'en'),
     cellFor(report, 'ja'),
     localServiceCell(report.languages),
@@ -185,6 +259,7 @@ export const formatDeviceReport = (report: DeviceReport): string => {
     `probe deadline used: ${DIAGNOSTIC_DEADLINE_MS} ms; the app schedules L4 at ≤ ${TTS_ONEND_DEADLINE_MS} ms`,
     `reminders: ${report.reminders} (permission: ${report.notifications})`,
     `storage: ${report.storage}`,
+    `screen: ${report.device.screen ?? 'unknown'}`,
     `display: ${report.standalone ? 'standalone (installed)' : 'browser tab'}`,
     ...report.languages
       .filter((probe) => probe.adopted)

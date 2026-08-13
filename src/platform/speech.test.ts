@@ -40,7 +40,7 @@ interface StubOptions {
    * What the engine does when asked to speak.
    *  'end'     — the honest engine: starts and finishes.
    *  'start'   — fires onstart and then never finishes. This is the Android
-   *              failure the 500 ms onend deadline exists to catch.
+   *              failure the onend deadline exists to catch.
    *  'error'   — refuses outright.
    *  'silent'  — accepts the utterance and does nothing at all.
    *  'slow'    — finishes, but after the deadline has passed.
@@ -216,7 +216,10 @@ describe('the boot verdict (risk R1)', () => {
   it('waits exactly half a second for onend before giving up', () => {
     // The device matrix's number. Kept as a named constant so the deadline is
     // one decision in one place rather than a literal sprinkled about.
-    expect(TTS_ONEND_DEADLINE_MS).toBe(500);
+    // Raised from 500 ms after the first real device row (2026-08-13): a phone
+    // with working on-device voices in both languages completed at 932 ms and
+    // 999 ms, and a 500 ms deadline withheld L4 from it. See D29.
+    expect(TTS_ONEND_DEADLINE_MS).toBe(2_000);
   });
 
   it('reports nothing until the probe has actually answered', () => {

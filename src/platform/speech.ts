@@ -45,10 +45,10 @@ export interface VoiceReport {
    * if it never did.
    *
    * The verdict only records whether it beat the deadline; the *number* is what
-   * answers the open question in the device matrix — is 500 ms right on a cheap
-   * Android? A run that completes at 620 ms is a device the app currently
-   * withholds L4 from and arguably should not, and that is invisible unless the
-   * elapsed time is kept.
+   * answered the open question in the device matrix — was 500 ms right on a
+   * cheap Android? It was not: the first real row came back at 932 ms and
+   * 999 ms on working on-device voices, which is only visible because the
+   * elapsed time is kept rather than just the verdict.
    */
   onendMs: number | null;
 }
@@ -56,18 +56,39 @@ export interface VoiceReport {
 const VOICES_TIMEOUT_MS = 2_000;
 
 /**
- * How long the boot probe waits for `onend` before declaring the engine dead
- * for this session.
+ * How long the probe waits for `onend` before declaring the engine dead for
+ * this session.
  *
- * 500 ms is the number the device matrix settled on, and it is deliberately
- * tight: this budget is spent inside the ≤3s icon-tap-to-first-question window
- * (SPEC §5.4), and an engine that cannot finish a zero-volume full stop in half
- * a second is not going to deliver a dictation card on time either.
+ * **This was 500 ms until the device matrix answered the question it was
+ * collected to answer.** The first real row, 2026-08-13, Chrome 151 on Android:
+ * en-US completed in **932 ms** and ja-JP in **999 ms**, both on-device voices
+ * (`localService: true`) that genuinely spoke. Under a 500 ms deadline that
+ * phone lost L4 dictation *and* the mora-timing drills in both languages while
+ * owning working offline voices for both — the precise false negative D29
+ * warned the number might produce.
+ *
+ * So 500 ms was wrong, and the reasoning behind it ("an engine that cannot
+ * finish a zero-volume full stop in half a second will not deliver a dictation
+ * card either") is refuted by measurement: nearly all of that second is engine
+ * *start-up*, paid once, not per syllable.
+ *
+ * **2,000 ms**, for three reasons. It is twice the slowest engine yet observed
+ * to work, which leaves room for a slower phone than the one we have seen. It
+ * matches `VOICES_TIMEOUT_MS`, so the two halves of the probe give up on the
+ * same schedule rather than on two different guesses. And the cost of the extra
+ * 1.5 s is nothing a learner waits on: the probe runs *after* first paint (see
+ * `probeOnBoot`), audio is withheld until it answers, and the ≤3 s
+ * icon-tap-to-first-question budget never touches it.
+ *
+ * What the deadline is *for* is unchanged, and is why loosening it is safe: it
+ * detects the engine that announces itself and never finishes. An engine that
+ * fires `onend` has, by definition, finished speaking — so a longer wait cannot
+ * admit a liar, it can only stop excluding an honest engine that is slow.
  *
  * `onend`, specifically — not `onstart`. The engine that lies about audio fires
  * `onstart` and then goes quiet forever; only completion proves it spoke.
  */
-export const TTS_ONEND_DEADLINE_MS = 500;
+export const TTS_ONEND_DEADLINE_MS = 2_000;
 
 const synth = (): SpeechSynthesis | null =>
   typeof globalThis.speechSynthesis === 'undefined' ? null : globalThis.speechSynthesis;

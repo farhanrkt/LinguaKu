@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.5.0
+## Status — v1.5.1
 
 **Milestones 0 through 11 complete.** Every §2 requirement is implemented and
 the §8 exercise catalog is finished. See [`CHANGELOG.md`](CHANGELOG.md) for the
@@ -21,7 +21,7 @@ production verification procedure.
 |---|---|
 | icon tap → first answerable question | **1.4 s** (budget 3 s) |
 | initial JS / CSS, gzipped | **136.2 KB** / **6.7 KB** (budgets 200 / 40) |
-| tests | **715** unit · **43** e2e |
+| tests | **718** unit · **43** e2e |
 | recurring cost | **zero** |
 
 English: 23,497 banded sentence pairs, 5,245 lexemes, 1,581 Indonesian glosses,
@@ -31,8 +31,9 @@ breakdowns, 14 contrastive categories including **six positive-transfer notes**.
 
 Two things are deliberately still missing and are named rather than hidden: the
 **pre-cached audio** set is empty until a voice model's licence is read and
-dated, and the **device matrix** in `docs/DECISIONS.md` needs a real phone —
-which the app can now collect for itself in five taps.
+dated, and the **device matrix** in `docs/DECISIONS.md` has one row of five —
+the app collects them itself in five taps, and the first one already corrected a
+timeout that was withholding listening practice from a phone that could do it.
 
 ## Quick start
 
