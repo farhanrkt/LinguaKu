@@ -10,7 +10,7 @@ import { firstRun } from './helpers.ts';
 test('first run creates a local profile without an account', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Mau belajar bahasa apa?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mau mulai dari bahasa apa?' })).toBeVisible();
   // No signup, no email, no password anywhere in the flow (SPEC §10).
   await expect(page.locator('input[type="email"], input[type="password"]')).toHaveCount(0);
 

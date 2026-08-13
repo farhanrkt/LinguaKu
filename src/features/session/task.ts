@@ -5,6 +5,7 @@ import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
+import { glossFor } from '../../data/glosses.ts';
 import { selectGraded } from '../../core/coverage.ts';
 import { tokenizeLatin } from '../../core/tokenize.ts';
 import { presentableLevel, TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
@@ -48,6 +49,11 @@ export interface Task {
   translation: string;
   /** Recognition only: the correct translation plus distractors, shuffled. */
   options?: string[];
+  /**
+   * Indonesian senses for L0's gloss (SPEC §2.3). Absent where the dictionary
+   * has nothing — coverage is partial and measured, never invented.
+   */
+  gloss?: readonly string[];
   /** Cloze rungs only. */
   cloze?: Cloze;
   /** Kanji cards only (SPEC §2.11). */
@@ -270,7 +276,18 @@ export const buildTask = async (
   }
 
   if (effective === 'exposure') {
-    return { ...withSentence, kind: 'exposure', answer: item.headword, asksConfidence: false };
+    return {
+      ...withSentence,
+      kind: 'exposure',
+      answer: item.headword,
+      asksConfidence: false,
+      // SPEC §2.3 L0 is "sentence + audio + gloss". The gloss half was missing
+      // until one was licence-cleared (R3), and it is still partial: a word
+      // without one shows the sentence and its translation, exactly as before.
+      ...(await glossFor(item.lang, item.band, itemId).then((senses) =>
+        senses.length > 0 ? { gloss: senses } : {},
+      )),
+    };
   }
 
   return {

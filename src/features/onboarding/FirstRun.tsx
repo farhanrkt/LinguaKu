@@ -16,27 +16,30 @@ interface FirstRunProps {
  * SPEC §10: no signup, no onboarding wall — one screen, two taps, done.
  * SPEC §2.14 (autonomy): the learner chooses the daily load; nothing here is
  * imposed and everything is editable later.
+ *
+ * **One language, not a set** (D53). `targets` is an array and stays one,
+ * because the other language keeps its own cards, ability estimate and
+ * unfinished session — but only `targets[0]` is ever taught, and offering a
+ * multi-select promised a thing the app does not do: a learner who ticked both
+ * got English and a heading that said nothing about the other one. The honest
+ * control is the one that matches the behaviour, plus copy that says switching
+ * is free.
  */
 export const FirstRun = ({ onStart }: FirstRunProps) => {
-  const [targets, setTargets] = useState<TargetLang[]>([]);
+  const [target, setTarget] = useState<TargetLang | null>(null);
   // SPEC §2.13: microlearning — 4 minutes is the default, not the minimum.
   const [minutes, setMinutes] = useState<DailyMinutes>(4);
-
-  const toggleTarget = (lang: TargetLang) =>
-    setTargets((current) =>
-      current.includes(lang) ? current.filter((l) => l !== lang) : [...current, lang],
-    );
 
   return (
     <Screen
       footer={
         <>
-          {targets.length === 0 ? (
+          {target === null ? (
             <p className="mb-2 text-center text-sm text-stone-600 dark:text-slate-400">
               {copy.firstRun.needTarget}
             </p>
           ) : null}
-          <Button disabled={targets.length === 0} onClick={() => onStart(targets, minutes)}>
+          <Button disabled={target === null} onClick={() => target && onStart([target], minutes)}>
             {copy.firstRun.start}
           </Button>
         </>
@@ -51,8 +54,8 @@ export const FirstRun = ({ onStart }: FirstRunProps) => {
             key={lang}
             label={copy.firstRun.targets[lang].label}
             hint={copy.firstRun.targets[lang].hint}
-            selected={targets.includes(lang)}
-            onToggle={() => toggleTarget(lang)}
+            selected={lang === target}
+            onToggle={() => setTarget(lang)}
           />
         ))}
       </div>

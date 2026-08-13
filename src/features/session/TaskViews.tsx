@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
+import { KanaInput } from '../../ui/KanaInput.tsx';
 import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import {
@@ -57,6 +58,16 @@ export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: Ta
       >
         {task.headword}
       </span>
+      {/* SPEC §2.3 L0: sentence + audio + gloss. Shown where the dictionary has
+          one; a word without one still has its sentence and translation. */}
+      {task.gloss && task.gloss.length > 0 ? (
+        <span
+          data-testid="task-gloss"
+          className="ml-2 text-lg text-stone-600 dark:text-slate-400"
+        >
+          {task.gloss.join('; ')}
+        </span>
+      ) : null}
     </p>
 
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
@@ -428,18 +439,32 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
           submit('yakin');
         }}
       >
-        <input
-          ref={input}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          aria-label={copy.session.production.placeholder}
-          placeholder={copy.session.production.placeholder}
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
-        />
+        {/* SPEC §10: Japanese production is where an IME headache would stop a
+            learner cold, so this is the one rung that gets the kana input. */}
+        {lang === 'ja' ? (
+          <div className="mt-6">
+            <KanaInput
+              value={value}
+              onChange={setValue}
+              placeholder={copy.session.production.placeholder}
+              data-testid="production-input"
+              onSubmit={() => submit('yakin')}
+            />
+          </div>
+        ) : (
+          <input
+            ref={input}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            aria-label={copy.session.production.placeholder}
+            placeholder={copy.session.production.placeholder}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+          />
+        )}
         <SpeakButton lang={lang} onTranscript={setValue} />
         <div className="mt-4 flex gap-3">
           <Button type="submit" disabled={value.trim().length === 0}>

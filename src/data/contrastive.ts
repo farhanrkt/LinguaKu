@@ -14,7 +14,7 @@ import type { TargetLang } from './types.ts';
 
 export const CONTENT_BASE = '/content';
 
-export type DrillType = 'mcq' | 'cloze' | 'minimal-pair';
+export type DrillType = 'mcq' | 'cloze' | 'minimal-pair' | 'correction';
 export type CategoryKind = 'morphosyntax' | 'phonology' | 'lexis';
 
 export interface Drill {

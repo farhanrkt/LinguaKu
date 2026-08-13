@@ -2,10 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
-import { selectReading, tokensOf, type ReaderItem } from '../../core/reader.ts';
+import {
+  selectPassages,
+  selectReading,
+  tokensOf,
+  type PassageItem,
+  type ReaderItem,
+} from '../../core/reader.ts';
 import { knownItemIds, lexemeIdFor } from '../../core/coverage.ts';
 import { isKanji, toHiragana } from '../../core/kana.ts';
 import { bandForAbility } from '../../core/placement.ts';
+import { glossFor } from '../../data/glosses.ts';
+import { loadPassages, type Passage } from '../../data/passages.ts';
+import { PassageView } from './PassageView.tsx';
 import { loadSentences, type AnchorSentence } from '../../data/content.ts';
 import { db } from '../../data/db.ts';
 import { vocabularyAbility } from '../../data/repositories/abilities.ts';
@@ -34,6 +43,8 @@ import type { Item, Profile } from '../../data/types.ts';
  */
 
 const READING_LENGTH = 20;
+/** Two passages a session: §2.13's four minutes is the constraint, not the shelf. */
+const PASSAGE_LENGTH = 2;
 
 interface ReaderScreenProps {
   profile: Profile;
@@ -44,8 +55,11 @@ interface Tapped {
   token: string;
   itemId: string;
   item: Item | null;
-  sentence: AnchorSentence;
+  /** Null when the word was tapped inside a passage rather than the feed. */
+  sentence: AnchorSentence | null;
   mined: boolean;
+  /** Indonesian senses, where this word has any (risk R3, partial by design). */
+  senses: readonly string[];
 }
 
 export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
@@ -54,6 +68,8 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
   const [mined, setMined] = useState<ReadonlySet<string>>(new Set());
   const [tapped, setTapped] = useState<Tapped | null>(null);
+  /** SPEC §8's graded reader proper — running text, English only for now. */
+  const [passages, setPassages] = useState<PassageItem<Passage>[]>([]);
 
   useEffect(() => {
     void (async () => {
@@ -70,8 +86,24 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         await Promise.all(bands.map((band) => loadSentences(lang, band)))
       ).flat();
 
+      // The passage corpus is Simple English Wikipedia; there is no free,
+      // licence-cleared graded corpus for Japanese, so Japanese keeps the feed
+      // and the screen says so rather than implying parity.
+      const passagePool = (
+        await Promise.all(bands.map((band) => loadPassages(lang, band)))
+      ).flat();
+
       setKnown(knownSet);
       setMined(await minedItemIds(profile.id));
+      setPassages(
+        selectPassages({
+          pool: passagePool,
+          known: knownSet,
+          lang,
+          limit: PASSAGE_LENGTH,
+          seed: Math.floor(Date.now() / 86_400_000),
+        }),
+      );
       setItems(
         selectReading({
           pool,
@@ -84,6 +116,18 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
     })();
   }, [profile.id, lang]);
 
+  const handleTapToken = useCallback(
+    async (token: string) => {
+      const itemId = lexemeIdFor(lang, token.toLowerCase());
+      const item = (await db.items.get(itemId)) ?? null;
+      // A word tapped inside a passage has no sentence pair behind it: the
+      // whole point of running text is that there is no translation beside it.
+      setTapped({ token, itemId, item, sentence: null, mined: mined.has(itemId),
+        senses: item ? await glossFor(lang, item.band, itemId) : [] });
+    },
+    [lang, mined],
+  );
+
   const handleTap = useCallback(
     async (token: string, sentence: AnchorSentence) => {
       const itemId = lexemeIdFor(lang, token.toLowerCase());
@@ -94,13 +138,16 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         item,
         sentence,
         mined: mined.has(itemId),
+        // Glossed where we have one, and honest where we do not — coverage is
+        // 30% of English and 4% of Japanese, measured (src/data/glosses.ts).
+        senses: item ? await glossFor(lang, item.band, itemId) : [],
       });
     },
     [lang, mined],
   );
 
   const handleMine = useCallback(async () => {
-    if (!tapped?.item) return;
+    if (!tapped?.item || !tapped.sentence) return;
     const next = new Set(mined);
     if (tapped.mined) {
       await unmineItem(profile.id, tapped.itemId);
@@ -117,6 +164,26 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
       <h1 className="text-2xl font-bold">{copy.reader.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.reader.intro}</p>
+
+      {passages.length > 0 ? (
+        <section data-testid="passages">
+          <h2 className="mt-8 text-lg font-bold">{copy.reader.passage.heading}</h2>
+          {passages.map((item) => (
+            <PassageView
+              key={item.passage.id}
+              item={item}
+              profileId={profile.id}
+              lang={lang}
+              known={known}
+              onTapWord={(token) => void handleTapToken(token)}
+            />
+          ))}
+        </section>
+      ) : lang === 'ja' ? (
+        <p className="mt-4 text-sm text-stone-500 dark:text-slate-500" data-testid="passages-absent">
+          {copy.reader.passage.onlyEnglish}
+        </p>
+      ) : null}
 
       {items === null ? (
         <p className="mt-8 text-stone-600 dark:text-slate-400">{copy.reader.loading}</p>
@@ -220,20 +287,32 @@ const WordPanel = ({
         </p>
       ) : null}
 
-      {/* R3: no cleared per-word dictionary, so meaning rests on the sentence —
-          which is what SPEC §2.5 chose deliberately, not a gap being papered. */}
-      <p className="mt-3 text-sm text-stone-500 dark:text-slate-500">
-        {copy.reader.word.noGloss}
-      </p>
-      <p className="mt-2 rounded-xl bg-stone-100 p-3 dark:bg-slate-900">
-        <span className="block text-sm text-stone-500 dark:text-slate-500">
-          {copy.reader.word.inSentence}
-        </span>
-        {sentence.tr.text}
-      </p>
+      {/* A gloss where one exists, and the honest empty state where none does.
+          Glosses are reference only: they are never graded against, because
+          coverage is partial and an unfair "wrong" is what §2.7 forbids. */}
+      {tapped.senses.length > 0 ? (
+        <p className="mt-3 text-base text-stone-800 dark:text-slate-200" data-testid="word-gloss">
+          {tapped.senses.join('; ')}
+        </p>
+      ) : (
+        <p className="mt-3 text-sm text-stone-500 dark:text-slate-500" data-testid="word-no-gloss">
+          {copy.reader.word.noGloss}
+        </p>
+      )}
+      {/* The feed's translation, where the tap came from the feed. A word
+          tapped in a passage has no translation beside it — that is what makes
+          running text a different exercise from a sentence pair. */}
+      {sentence ? (
+        <p className="mt-2 rounded-xl bg-stone-100 p-3 dark:bg-slate-900">
+          <span className="block text-sm text-stone-500 dark:text-slate-500">
+            {copy.reader.word.inSentence}
+          </span>
+          {sentence.tr.text}
+        </p>
+      ) : null}
 
       <div className="mt-4 flex gap-3">
-        {item ? (
+        {item && sentence ? (
           <Button onClick={onMine} data-testid="mine">
             {tapped.mined ? copy.reader.word.unmine : copy.reader.word.mine}
           </Button>

@@ -113,6 +113,13 @@ categories:
         explain: "\"Sedang\" = am/is/are + -ing. Ini satu-satunya penanda aspek yang cocok satu-satu dengan Indonesia."
         difficulty: 1080
 
+      - id: TENSE_ASPECT-8
+        type: correction
+        prompt: 'Last week my brother go to Surabaya by train.'
+        answer: 'Last week my brother went to Surabaya by train.'
+        explain: 'Kata waktunya sudah lampau, jadi kata kerjanya ikut berubah: go menjadi went. Penanda waktu saja tidak cukup di bahasa Inggris.'
+        difficulty: 1200
+
   - id: AGREEMENT_3SG
     kind: morphosyntax
     label: "Akhiran -s untuk dia"
@@ -189,6 +196,13 @@ categories:
         explain: "go → goes: kata yang berakhiran -o memakai -es."
         difficulty: 1130
 
+      - id: AGREEMENT_3SG-8
+        type: correction
+        prompt: 'My sister work at a bank near our house.'
+        answer: 'My sister works at a bank near our house.'
+        explain: 'Subjeknya orang ketiga tunggal, jadi kata kerjanya dapat akhiran -s: work menjadi works.'
+        difficulty: 1200
+
   - id: COPULA_BE
     kind: morphosyntax
     label: "Kata \"to be\" yang hilang"
@@ -264,6 +278,13 @@ categories:
         answer: "is"
         explain: "Bentuk negatif tetap butuh to be: she is not."
         difficulty: 1150
+
+      - id: COPULA_BE-8
+        type: correction
+        prompt: 'My father very tired after work.'
+        answer: 'My father is very tired after work.'
+        explain: 'Ayah saya capek tidak butuh kata penghubung di bahasa kita; bahasa Inggris butuh. Tambahkan is.'
+        difficulty: 1200
 
   - id: ARTICLES
     kind: morphosyntax
@@ -343,6 +364,13 @@ categories:
         answer: "a"
         explain: "Pertama kali disebut → a. Setelah itu pendengar sudah tahu → the."
         difficulty: 1260
+
+      - id: ARTICLES-8
+        type: correction
+        prompt: 'I saw dog in front of the school.'
+        answer: 'I saw a dog in front of the school.'
+        explain: 'Benda tunggal yang baru disebut pertama kali memakai a atau an. Bahasa Indonesia tidak punya penanda ini, jadi paling sering kelewat.'
+        difficulty: 1200
 
   - id: PLURAL_S
     kind: morphosyntax
@@ -424,6 +452,13 @@ categories:
         explain: "Jamak menular: these, shoes, dan are harus sepakat semuanya."
         difficulty: 1270
 
+      - id: PLURAL_S-8
+        type: correction
+        prompt: 'She bought three book at the market.'
+        answer: 'She bought three books at the market.'
+        explain: 'Meski jumlahnya sudah disebut, bendanya tetap ditandai jamak: book menjadi books. Bahasa Inggris menandainya dua kali.'
+        difficulty: 1200
+
   - id: PRONOUN_GENDER
     kind: morphosyntax
     label: "He / she tertukar"
@@ -500,6 +535,13 @@ categories:
         answer: "That book is hers."
         explain: "Berdiri sendiri tanpa kata benda → hers. Tidak pernah pakai apostrof."
         difficulty: 1330
+
+      - id: PRONOUN_GENDER-8
+        type: correction
+        prompt: 'My mother said he will come tomorrow.'
+        answer: 'My mother said she will come tomorrow.'
+        explain: 'Dia tidak bergender di bahasa kita, tapi ibu di bahasa Inggris adalah she. Ini kekeliruan yang paling sering muncul.'
+        difficulty: 1200
 
   - id: NP_WORD_ORDER
     kind: morphosyntax
@@ -586,6 +628,13 @@ categories:
         explain: "Semua yang menerangkan menumpuk di depan, dengan yang paling melekat paling dekat ke bendanya."
         difficulty: 1240
 
+      - id: NP_WORD_ORDER-8
+        type: correction
+        prompt: 'He drives a car red every morning.'
+        answer: 'He drives a red car every morning.'
+        explain: 'Di bahasa kita mobil merah; bahasa Inggris membalik urutannya menjadi red car.'
+        difficulty: 1200
+
   - id: PREPOSITIONS
     kind: morphosyntax
     label: "In / at / on / to"
@@ -660,6 +709,13 @@ categories:
         answer: "on"
         explain: "\"Depend on\" adalah pasangan tetap — bukan hasil menerjemahkan \"pada\"."
         difficulty: 1330
+
+      - id: PREPOSITIONS-8
+        type: correction
+        prompt: 'We arrived in Jakarta at Monday morning.'
+        answer: 'We arrived in Jakarta on Monday morning.'
+        explain: 'Hari memakai on, jam memakai at, bulan dan tahun memakai in. Satu kata di di bahasa kita terbagi tiga di sana.'
+        difficulty: 1200
 
   - id: PASSIVE_OVERUSE
     kind: morphosyntax
@@ -760,6 +816,13 @@ categories:
         explain: "Pasif present perfect: has been + bentuk ketiga."
         difficulty: 1360
 
+      - id: PASSIVE_OVERUSE-8
+        type: correction
+        prompt: 'The letter was written by me yesterday.'
+        answer: 'I wrote the letter yesterday.'
+        explain: 'Kalimat pasif ini benar secara tata bahasa tapi terdengar kaku. Bahasa Inggris sehari-hari memilih bentuk aktif.'
+        difficulty: 1200
+
   - id: MODAL_BISA
     kind: morphosyntax
     label: "Bisa → can / could / be able to"
@@ -842,6 +905,13 @@ categories:
         difficulty: 1220
 
   # ---------------------------------------------------------------- phonology
+
+      - id: MODAL_BISA-8
+        type: correction
+        prompt: 'Yesterday I can not come because I was sick.'
+        answer: 'Yesterday I could not come because I was sick.'
+        explain: 'Bisa satu kata di bahasa kita, tapi bentuk lampaunya could. Kalimatnya sudah lampau, jadi can ikut berubah.'
+        difficulty: 1200
 
   - id: PHON_TH
     kind: phonology

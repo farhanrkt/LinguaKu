@@ -40,6 +40,17 @@ export interface VoiceReport {
   localService: boolean;
   voiceCount: number;
   probedAt: number;
+  /**
+   * How long the test utterance actually took to reach `onend`, in ms, or null
+   * if it never did.
+   *
+   * The verdict only records whether it beat the deadline; the *number* is what
+   * answers the open question in the device matrix — is 500 ms right on a cheap
+   * Android? A run that completes at 620 ms is a device the app currently
+   * withholds L4 from and arguably should not, and that is invisible unless the
+   * elapsed time is kept.
+   */
+  onendMs: number | null;
 }
 
 const VOICES_TIMEOUT_MS = 2_000;
@@ -61,6 +72,32 @@ export const TTS_ONEND_DEADLINE_MS = 500;
 const synth = (): SpeechSynthesis | null =>
   typeof globalThis.speechSynthesis === 'undefined' ? null : globalThis.speechSynthesis;
 
+/**
+ * How long the very first `getVoices()` call took, in ms.
+ *
+ * M4 measured this at ~15 seconds on an environment with no speech service
+ * behind the API — the main thread gone, five times the entire icon-tap budget
+ * (R1). The probe is deferred past first paint because of it, and the deferral
+ * is a mitigation, not a fix: the stall still happens, just somewhere the
+ * learner is already looking at a question.
+ *
+ * Nothing in the app branches on this. It exists so the diagnostics screen can
+ * report a real number from a real device, because the open question in the
+ * matrix is whether that measurement reproduces on hardware at all.
+ */
+let firstCallMs: number | null = null;
+
+/** The measurement above, or null if `getVoices()` has not been called yet. */
+export const firstCallLatencyMs = (): number | null => firstCallMs;
+
+const timedGetVoices = (speech: SpeechSynthesis): SpeechSynthesisVoice[] => {
+  if (firstCallMs !== null) return speech.getVoices();
+  const started = performance.now();
+  const voices = speech.getVoices();
+  firstCallMs = performance.now() - started;
+  return voices;
+};
+
 /** BCP-47 prefix match: `en` accepts `en-US`, `en-GB`, `en_AU`. */
 const matchesLanguage = (voiceLang: string, language: string): boolean =>
   voiceLang.toLowerCase().replace('_', '-').startsWith(language.toLowerCase());
@@ -80,7 +117,7 @@ export const listVoices = async (
   const filter = (voices: SpeechSynthesisVoice[]) =>
     language === undefined ? voices : voices.filter((voice) => matchesLanguage(voice.lang, language));
 
-  const immediate = filter(speech.getVoices());
+  const immediate = filter(timedGetVoices(speech));
   if (immediate.length > 0) return immediate;
 
   return new Promise((resolve) => {
@@ -120,9 +157,12 @@ export const pickVoice = (
 const utteranceCompletes = async (
   voice: SpeechSynthesisVoice,
   timeoutMs = TTS_ONEND_DEADLINE_MS,
-): Promise<boolean> => {
+): Promise<{ completed: boolean; elapsedMs: number | null }> => {
   const speech = synth();
-  if (!speech || typeof globalThis.SpeechSynthesisUtterance === 'undefined') return false;
+  if (!speech || typeof globalThis.SpeechSynthesisUtterance === 'undefined') {
+    return { completed: false, elapsedMs: null };
+  }
+  const started = performance.now();
 
   return new Promise((resolve) => {
     let settled = false;
@@ -131,7 +171,7 @@ const utteranceCompletes = async (
       settled = true;
       clearTimeout(timer);
       speech.cancel();
-      resolve(completed);
+      resolve({ completed, elapsedMs: completed ? performance.now() - started : null });
     };
 
     const utterance = new SpeechSynthesisUtterance('.');
@@ -162,23 +202,21 @@ export const probeVoice = async (
   options: ProbeOptions = {},
 ): Promise<VoiceReport> => {
   const probedAt = Date.now();
-  if (!synth()) {
-    return { support: 'unsupported', voiceName: null, localService: false, voiceCount: 0, probedAt };
-  }
+  const absent = { voiceName: null, localService: false, voiceCount: 0, probedAt, onendMs: null };
+  if (!synth()) return { support: 'unsupported', ...absent };
 
   const voices = await listVoices(language, options.voicesTimeoutMs);
   const voice = pickVoice(voices);
-  if (!voice) {
-    return { support: 'no-voice', voiceName: null, localService: false, voiceCount: 0, probedAt };
-  }
+  if (!voice) return { support: 'no-voice', ...absent };
 
-  const completed = await utteranceCompletes(voice, options.utteranceTimeoutMs);
+  const { completed, elapsedMs } = await utteranceCompletes(voice, options.utteranceTimeoutMs);
   return {
     support: completed ? 'ready' : 'dead',
     voiceName: voice.name,
     localService: voice.localService,
     voiceCount: voices.length,
     probedAt,
+    onendMs: elapsedMs,
   };
 };
 
@@ -277,10 +315,43 @@ export const ttsReport = (language: string): VoiceReport | null =>
 export const isTtsLive = (language: string): boolean =>
   verdicts.get(language)?.support === 'ready';
 
+/**
+ * Adopts a verdict produced by an explicit learner action — the "Uji audio"
+ * button on the diagnostics screen — and reports whether it was taken up.
+ *
+ * This is D29's recorded cost being paid back. The boot probe cannot speak from
+ * inside a user gesture, so on iOS Safari, which requires one, it marks the
+ * engine dead where audio would in fact have worked. A probe run from inside a
+ * tap is the one context that requirement is satisfied in, so its answer is
+ * worth more than the boot probe's — and it arrives because the learner asked,
+ * so the rung appearing is a response to their action rather than the mid-session
+ * flicker D29 exists to prevent.
+ *
+ * Two rules keep it honest:
+ *
+ *  - **It can only raise capability.** A `dead` reading from a later probe does
+ *    not retract an engine that has already been heard to complete an utterance;
+ *    that would be exactly the flicker, and a transient failure is not evidence
+ *    the device cannot speak.
+ *  - **It is held to the same deadline as everything else.** A run that finishes
+ *    at 900 ms is reported as the number it is and is *not* adopted, because L4
+ *    is scheduled against `TTS_ONEND_DEADLINE_MS` and quietly admitting a slower
+ *    engine would put dictation cards in front of a learner who has to wait for
+ *    them.
+ */
+export const adoptVerdict = (language: string, report: VoiceReport): boolean => {
+  if (report.support !== 'ready') return false;
+  if (report.onendMs !== null && report.onendMs > TTS_ONEND_DEADLINE_MS) return false;
+  if (verdicts.get(language)?.support === 'ready') return false;
+  verdicts.set(language, report);
+  return true;
+};
+
 /** Test seam: the verdict is module state and would otherwise leak between cases. */
 export const resetTtsVerdict = (): void => {
   verdicts.clear();
   inFlight.clear();
+  firstCallMs = null;
 };
 
 // ------------------------------------------------------------------ speaking

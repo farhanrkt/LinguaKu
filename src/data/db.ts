@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type {
+  ReadingAttempt,
   Ability,
   Card,
   CategoryScore,
@@ -45,6 +46,7 @@ export class LinguaKuDb extends Dexie {
   drillAttempts!: Table<DrillAttempt, string>;
   minedItems!: Table<MinedItem, [string, string]>;
   deferredItems!: Table<DeferredItem, [string, string]>;
+  readingAttempts!: Table<ReadingAttempt, string>;
 
   constructor(name: string = DB_NAME) {
     super(name);
@@ -113,6 +115,13 @@ export class LinguaKuDb extends Dexie {
       deferredItems: '[profileId+itemId], profileId, [profileId+until]',
     });
 
+    // v6 (v1.4.0): the reading axis (SPEC §9). Additive, and its own table for
+    // the same reason drill attempts got one (D32) — a passage has no card, so
+    // these can never be review logs.
+    this.version(6).stores({
+      readingAttempts: 'id, profileId, [profileId+answeredAt], passageId',
+    });
+
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a
     // compound index (IndexedDB cannot index a nested path inside a compound
     // key). The mirror is derived here rather than at call sites so it cannot
@@ -138,6 +147,14 @@ export class LinguaKuDb extends Dexie {
     });
     this.reviewLogs.hook('deleting', () => {
       throw new AppendOnlyViolation('reviewLogs is append-only: delete rejected');
+    });
+
+    // Same rule, same reason: an attempt log that can be edited is not evidence.
+    this.readingAttempts.hook('updating', () => {
+      throw new AppendOnlyViolation('readingAttempts is append-only: update rejected');
+    });
+    this.readingAttempts.hook('deleting', () => {
+      throw new AppendOnlyViolation('readingAttempts is append-only: delete rejected');
     });
   }
 }

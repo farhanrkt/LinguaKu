@@ -23,7 +23,10 @@ interface DrillProps {
 export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
-  const typed = task.drill.type === 'cloze';
+  // Cloze and correction are both typed; only the instruction differs, because
+  // a correction asks for the whole sentence back rather than one word.
+  const correction = task.drill.type === 'correction';
+  const typed = task.drill.type === 'cloze' || correction;
 
   useEffect(() => {
     if (typed) input.current?.focus();
@@ -36,7 +39,20 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
       </p>
       <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{task.category.label}</p>
 
-      <p className="mt-5 text-xl leading-snug font-bold" data-testid="drill-prompt">
+      {/* SPEC §8's "perbaiki kalimat ini". The instruction has to come first:
+          a wrong sentence shown without it reads as something to copy. */}
+      {correction ? (
+        <p className="mt-4 text-sm text-stone-600 dark:text-slate-400">
+          {copy.session.drill.correctionInstruction}
+        </p>
+      ) : null}
+
+      <p
+        className={`mt-5 text-xl leading-snug font-bold ${
+          correction ? 'text-stone-500 line-through decoration-stone-400 dark:text-slate-400' : ''
+        }`}
+        data-testid="drill-prompt"
+      >
         {task.drill.prompt}
       </p>
 
@@ -63,8 +79,12 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
             ref={input}
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            aria-label={copy.session.drill.typePlaceholder}
-            placeholder={copy.session.drill.typePlaceholder}
+            aria-label={
+              correction ? copy.session.drill.correctionPlaceholder : copy.session.drill.typePlaceholder
+            }
+            placeholder={
+              correction ? copy.session.drill.correctionPlaceholder : copy.session.drill.typePlaceholder
+            }
             autoComplete="off"
             autoCapitalize="none"
             autoCorrect="off"

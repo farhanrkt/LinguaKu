@@ -155,7 +155,9 @@ describe('the genuine difficulties (SPEC §3.2)', () => {
   });
 
   it('keeps every multiple-choice answer among its options', () => {
-    for (const drill of drills.filter((d) => d.type !== 'cloze')) {
+    // Cloze and correction are both typed answers; only the choice types have
+    // options at all, and an answer missing from them is unanswerable.
+    for (const drill of drills.filter((d) => d.type === 'mcq' || d.type === 'minimal-pair')) {
       expect(drill.options).toContain(drill.answer);
     }
   });

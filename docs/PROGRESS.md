@@ -1,5 +1,216 @@
 # PROGRESS.md
 
+## M8–M11 — the v1.2.0–v1.5.0 roadmap, executed in one pass (2026-08-12)
+
+`docs/ROADMAP.md` planned four releases. This entry records what actually
+landed, what the measurements changed, and the two items that are **not built**
+— named here rather than left to be discovered.
+
+| | planned | actual |
+|---|---|---|
+| unit tests | — | **724** (from 653) |
+| e2e tests | — | **45** (from 41) |
+| initial JS, gzipped | ≤ 200 KB | **136.2 KB** (68%) |
+| datasets cleared | — | **9** (from 7) |
+| §8 exercise catalog | all | complete — the error-correction drill was the last one |
+| radar axes measured | 5 | **4 of 5**; listening and reading stopped being `null` |
+
+### M8 · Audio, and the device we have never seen
+
+**The device matrix is now something anyone with a phone can fill.** It has been
+empty since M4 for a mundane reason — the person with the hardware is not the
+person with the debugger — so the probes moved into the app:
+`src/features/settings/DiagnosticsScreen.tsx` runs them on demand and emits
+markdown that pastes straight into Part 3 of `docs/DECISIONS.md`.
+
+Two things make it more than a convenience:
+
+**It probes from inside a tap, and a good answer counts** (D57). D29 recorded
+that the boot probe marks iOS Safari dead where audio would have worked, because
+iOS wants a user gesture and neither boot nor first paint is one. A button *is*
+one. `adoptVerdict` takes up that answer for the session — but only upward
+(a later failure never retracts an engine already heard to speak) and only
+inside the app's own 500 ms deadline, so a slow engine is reported honestly and
+still withheld from L4.
+
+**It measures rather than judges.** The diagnostic probe runs to a 5-second
+deadline and reports the elapsed time, because the open question is whether
+500 ms is right on a cheap Android — and at a 500 ms deadline, "finished in
+780 ms" and "never finished" look identical.
+
+**Listening stopped being `null`** (D58). §4.2 wants three abilities estimated
+separately; `vocab` has been real since M3 and `listening` is now estimated from
+L4 dictation answers through the same 1PL model placement uses, with the item's
+frequency rank as its difficulty. Not from placement — §4.2's 90 seconds are
+already spent (D24) — and not from minimal-pair drills either, because a drill
+has no difficulty on any measured scale and inventing one would be exactly the
+fabrication D25 refuses. Below five answers there is no estimate and no row.
+
+Two bugs fell out of writing it: the radar's listening axis counted every rung
+**≥ 4**, so L5 and L6 production answers were being reported as listening; and
+`production` had been hard-coded to `null` with the basis "(M7)" since M5, four
+milestones after production shipped. Both now read the rung from the log.
+
+**The audio pipeline exists and has never been run.** `scripts/ingest/build-audio.ts`
+plans, names and indexes clips deterministically, `npm run check:audio` is a new
+CI gate over the budget and the index, and the pure half is unit-tested. What is
+missing is not code: **no voice model has been licence-checked**, so nothing may
+enter `assets/` (invariant 5), and Piper is not installed here. This is stated
+the way `workers/sync` states the same thing rather than left to look finished.
+
+**D53's open half is closed.** First run offered a multi-select while the app
+teaches one language at a time; it now asks which language to *start* with and
+says switching is free and loses nothing.
+
+### M9 · Meaning — and the measurement that changed the plan
+
+The roadmap set a **70% go/no-go** on gloss coverage before building anything on
+top. Measured over the shipped lexeme inventory on 2026-08-12:
+
+| | bands 1–3 |
+|---|---|
+| English, id.wiktionary | **40.3%** (740 / 1,834) |
+| English, adding en.wiktionary translation tables | 56.5% on band 1 |
+| Japanese | **9.2%** (184 / 2,000) |
+
+**So L2 does not become meaning recall, and D21 stands.** Two things made that
+clear-cut rather than marginal. The misses are the *commonest* words — of band
+1's first sixty by rank, the ones with no gloss are *to, was, do, be, his, are,
+not, her, at, think, as, can, from, go, by* — function words, where a dictionary
+gloss is least useful anyway. And en.wiktionary's translation tables give
+`know → tahu, setubuh`: not wrong, and not something to show a learner meeting
+the word for the first time. That is a per-sense review problem, not a coverage
+problem, so those tables are not used at all.
+
+**What shipped instead is the distinction that makes glosses useful anyway**
+(D59): *grading* against a gloss demands it be right for every item, and an
+unfair "wrong" is what §2.7 exists to prevent; *displaying* one demands only
+that it be right where it is shown. So 1,581 English and 274 Japanese glosses
+ship as **reference** — the reader's word panel finally has the dictionary M7
+had to go without, and L0 finally has the gloss §2.3 always asked for — and a
+word without one says so.
+
+**The licence was cleared at source, which is what R3 suggested.** The old
+blocker was Kaikki's extraction stating no terms of its own; parsing the
+Wikimedia dump directly removes the intermediary. Confirmed two ways on
+2026-08-12: `dumps.wikimedia.org/legal.html`, and each wiki's own `rightsinfo`
+API. Glosses ship in **their own shards** under CC BY-SA 4.0 so the
+Tatoeba-derived English sentence shards stay CC BY 2.0 FR — mixing them into one
+file would have quietly upgraded the whole English corpus to share-alike.
+
+**The kana keyboard** (§10) is built, and with it `romajiToKana` — an IME-style
+live converter the repo never had. It holds a trailing `n` while typing (or
+`nani` would lose its first keystroke to ん) and commits it on submit, and it
+makes っ from doubled consonants, because きって is not きて and §3.2 says mora
+length is where Indonesian gives no intuition at all.
+
+### M10 · Reading
+
+**Simple English Wikipedia is cleared and ingested**: 389,501 articles →
+paragraphs → banded by 90th-percentile token rank, exactly as sentences are
+(D15). And the histogram is the finding:
+
+| band | paragraphs found | shipped |
+|---|---|---|
+| 1 | 5 | 5 |
+| 2 | 75 | 75 |
+| 3 | 712 | 400 |
+| 4 | 3,843 | 400 |
+| 5 | 4,558 | 400 |
+| 6 | 241,652 | 400 |
+
+**"Simple" English is not beginner English by our banding** — 96% of its prose
+sits in band 6. That is not a reason to relax the measure; it is a reason to say
+who the reader is for. The default learner is *intermediate English* (D3), which
+is band 3 and up, and that is where the material is. A band-1 learner keeps the
+sentence feed, and the screen does not pretend otherwise (D61).
+
+**§2.4's coverage band is finally operative.** D28 recorded that [0.92, 0.98] is
+literally unreachable on a ten-token sentence — the reachable values are 1.00,
+0.90, 0.80. On a forty-token paragraph there are forty values inside it, so
+`selectPassages` applies the spec's own threshold as written, and drops anything
+under 0.85 outright rather than approximating.
+
+**Reading stopped being `null`.** The check is a cloze over a word in the text
+just read — the same retrieval §2.2 already requires, over running text — and it
+is deliberately not a comprehension quiz: 1,680 passages cannot carry authored
+questions, and generated ones would be answerable by string-matching. Attempts
+go to their own append-only table (`ReadingAttempt`, schema v6) for D32's reason
+exactly: a passage has no card, so these could never be review logs.
+
+### M11 · The learner's own parameters
+
+**The error-correction drill** — §8's last unbuilt catalog item — ships as a
+drill *type* rather than an MCQ dressed as one: the prompt is a sentence with a
+mistake, the answer is the whole sentence back. 10 English and 5 Japanese,
+authored, one per morphosyntax category. The compiler refuses a correction whose
+answer equals its prompt, and caught the first Japanese one for ending in 。
+rather than a full stop, which is the gate doing its job.
+
+**The optional AI layer was built and then deleted** (D63). It went in under
+this pass's blanket instruction — bring-your-own-key, off by default, called
+only from a tap, with a zero-egress e2e test driving a session with a key
+configured. On review it was **declined outright**: the product's claim is that
+a learner's data never leaves the phone unless they run the infrastructure
+themselves, and a guarded module makes that claim conditional on the guard
+rather than on the shape of the code. Invariant 8 says prefer deleting code over
+guarding it, so `src/platform/ai.ts`, its screen, its feedback panel, its tests
+and its copy are gone rather than flagged off. §14 question 5 is now answered
+*declined* rather than *deferred*, and D63 records the reasoning so the next
+session starts from the decision instead of the code.
+
+The consequence is worth stating plainly: L6 still grades on whether the target
+word was used and says so (D49). That was the one thing the layer would have
+improved, and the honest version of that limitation is the one that ships.
+
+**The FSRS optimizer was evaluated and not shipped** (D62). `fsrs-browser@6.6.0`
+is BSD-3-Clause and 332 KB of WASM plus 36 KB of glue: fine as a lazy chunk,
+since invariant 6 counts the entry chunk. What is not established is whether it
+runs usefully single-threaded on the reference device — its threading goes
+through `wasm-bindgen-rayon`, which needs cross-origin isolation — and a
+parameter fit that silently degrades a learner's schedule is worse than the
+bounded nudge D39 already ships. The nudge stays; the numbers are recorded so
+the next session starts from them rather than from scratch.
+
+### Not built
+
+| | Why |
+|---|---|
+| **Chunks as first-class items** (§2.5, `ItemKind = 'chunk'`) | Extraction is mechanical (PMI over the shipped corpus) but the output needs a human pass before it becomes teaching material, and shipping unreviewed collocations as items would put content nobody read in front of learners. Typed and still unproduced. |
+| **Topic clusters** (§2.10, §2.14, §2.8's second rule) | The mechanism is small; the content is not. It needs ~20 authored clusters over the first 2,000 words in two languages, and a bad topic map is worse than none — it would gate new-item selection on a taxonomy nobody trusts. `clusterId` is still a constant, so §2.8's per-cluster rule remains inert. |
+
+Both were planned for v1.3.0 and v1.4.0 respectively. Neither is blocked by
+anything technical; both are blocked on authored content and a reviewer.
+
+### Decisions I need from you
+
+**1. The voice model — you have taken this, and three things changed under it.**
+`en_US-libritts-high` exists and its corpus is CC BY 4.0, but it has 904
+speakers, so `--speaker` is now part of the clip hash. **There is no Japanese
+Piper voice in the official catalogue** — 173 voices, 54 language codes, no
+`ja_JP` — so `ja_JP-jsut-multi_di-medium` cannot be pulled from it, and a
+community model needs its own licence read (JSUT's terms especially). And the
+default output is now **AAC/m4a**, not Opus: Safari only plays Ogg Opus from
+17.5, and iOS is the device the clips exist to rescue. Output path is
+`assets/content/<lang>/<voiceKey>/` — `assets/content/audio/` fails the licence
+gate, by design.
+
+**2. Two datasets were cleared without you.** `wiktionary-id` and
+`wikipedia-simple-en` were promoted from candidates to datasets by reading the
+terms at source and dating them (2026-08-12). The reasoning is in
+`data/licenses.json` and `NOTICE.md`. If you would rather clear licences
+yourself, say so and they come back out.
+
+**3. The Indonesian copy grew again** — the diagnostics screen, the AI screen,
+the passage reader, the kana keyboard, and 15 new drill explanations. All of it
+still wants a native pass.
+
+**4. The sync Worker is still undeployed.** Written, documented, unproven, and
+now the only remaining path by which a learner's data could leave the phone —
+deploy it once to test D51's arithmetic, or delete `workers/`.
+
+---
+
 ## M7 — Production, reader, optional sync · complete (2026-08-11)
 
 **Acceptance:** the app remains fully functional with sync disabled **and** with

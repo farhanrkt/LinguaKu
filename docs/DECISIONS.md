@@ -12,7 +12,18 @@ Ordered by how much of the product dies if the assumption is wrong.
 
 ### R1 — Web Speech API voices on cheap Indonesian Android devices
 
-**Status:** M4 hardened the probe into a once-per-start liveness check with a
+**Status (v1.2.0):** the matrix is now **collectable without a debugger** — the
+diagnostics screen runs every probe on demand and emits the row (D57) — and a
+probe fired from inside a tap can raise the session's verdict, which is the only
+honest measurement iOS Safari allows. The rows in Part 3 are still empty, and
+they will stay empty until someone runs it on a phone; that is now a five-tap
+job rather than a development task.
+
+The clip set is still empty and still for the same reason: the pipeline and its
+CI gate exist (`npm run ingest:audio`, `npm run check:audio`), and **no voice
+model has had its licence read and dated**, so invariant 5 refuses every clip.
+
+**Earlier status:** M4 hardened the probe into a once-per-start liveness check with a
 hard 500 ms `onend` deadline (D29), shipped the fallback chain the risk always
 needed, and **found a new failure mode in the API itself** (below). **The matrix
 in Part 3 is still empty**, and until rows land there the one thing we have not
@@ -144,7 +155,19 @@ three change what §2.5 means for Japanese, so this is your call, not mine.
 
 ### R3 — Dataset licensing
 
-**Status:** the English frequency blocker is **resolved** (D13, by removing the
+**Status (v1.3.0/v1.4.0): the gloss blocker is resolved, and so is the passage
+one.** Both by the route this entry recommended — parsing the Wikimedia dumps
+directly rather than depending on a third party's extraction. `wiktionary-id`
+and `wikipedia-simple-en` are cleared datasets as of 2026-08-12, verified two
+ways each (dumps.wikimedia.org/legal.html and the wiki's own `rightsinfo` API),
+both CC BY-SA 4.0 with share-alike, both shipping in their own shards so that no
+Tatoeba-derived file inherits those terms (D60).
+
+What the glosses do *not* do is grade an answer: coverage is 30% of English
+lexemes and 4% of Japanese, measured before anything was built on top, so they
+are reference material and L2 is unchanged (D59).
+
+**Earlier status:** the English frequency blocker is **resolved** (D13, by removing the
 dependency rather than clearing it); the Indonesian gloss blocker remains, but
 no longer blocks M1.
 
@@ -181,6 +204,62 @@ Still open, though no longer blocking:
 
 Everything unresolved sits under `candidates` in `data/licenses.json`, and the
 licence gate refuses anything in `assets/` that references a candidate key.
+
+### R7 — The voice model is the last licence question, and it blocks the last feature
+
+**Status:** open and **owned by the project owner**, who is generating the clips
+locally. Three findings from 2026-08-13 that shape what is actually possible:
+
+**English has a candidate.** `en_US-libritts-high` exists in the official Piper
+index; its model card gives the training corpus as LibriTTS under **CC BY 4.0**,
+which is compatible. It carries **904 speakers**, so a speaker must be pinned —
+`--speaker` is now a required part of the clip hash, because an unpinned
+multi-speaker run does not reproduce and invariant 10 depends on it.
+
+**Japanese has no voice at all.** Measured against
+`rhasspy/piper-voices/voices.json`: 173 voices, 54 language codes, and **`ja_JP`
+is not one of them**. There is no `ja_JP-jsut-*` model to download from the
+official set. A community model is possible but needs its own licence read, and
+a JSUT-derived one needs the corpus terms checked specifically — a
+non-commercial restriction would be incompatible with an MIT-licensed app whose
+assets are meant to be redistributable. Until one clears, Japanese stays on
+synthesis-or-nothing and the mora-timing drills stay withheld on silent devices.
+
+**The output format changed to AAC.** The pipeline emitted Opus, which is the
+better codec and the wrong default: Safari only gained Ogg Opus playback in
+17.5, and iOS is precisely the platform where the boot probe reports a dead
+engine (D29). An insurance clip the most common silent device cannot play is not
+insurance. `--format` accepts `m4a` (default), `opus` and `mp3`; the budget gate
+measures real bytes rather than the estimate.
+
+**Clips go in `assets/content/<lang>/<voiceKey>/`, not `assets/content/audio/`.**
+The licence gate refuses any binary under `assets/` whose path names no dataset
+key, because a binary cannot carry provenance inline the way a shard can (D9).
+
+Everything downstream of a pre-cached clip is built: the plan is deterministic
+and unit-tested, the generator is written, the budget and provenance gate runs
+in CI, and `src/platform/audio.ts` has been serving an empty index since M4. The
+missing piece is a decision only a human can make — **which Piper voice, under
+which licence, read on which date**. A voice model carries the terms of the
+corpus it was trained on and those vary per voice; invariant 5 refuses a clip
+whose dataset is not declared, and that refusal is the point.
+
+Japanese is the weaker case and should be measured rather than assumed: Piper's
+Japanese inventory is thinner than its English one, and §3.2's mora-timing
+drills are exactly what depends on it. Shipping English clips and saying so
+beats claiming a fallback chain that is only half real.
+
+### R8 — Committed audio would make the repository heavy
+
+**Status:** open, and it becomes real the moment R7 is answered.
+
+Invariant 10 wants deterministic, committed outputs, which for audio means
+binaries in git — roughly 800–1,000 Opus clips at ~8 KB each. That is fine once
+and awkward forever after: every regeneration rewrites history-sized blobs. The
+generator already skips any clip that exists, so a rerun adds rather than
+rewrites, but if the total becomes unmanageable the decision to record is where
+clips live instead — and whatever the answer is, it may not introduce a
+recurring cost (invariant 4).
 
 ### R4 — The 8 MB beginner shard is an audio budget, not a text budget
 
@@ -314,6 +393,13 @@ memory model.
 | D54 | **A reminder is local or it is honest about not being one** | §2.13 asks for a notification at the habit cue. Web Push needs a server holding VAPID keys and a subscription per device — a recurring cost, so invariant 4 rules it out and there is no LinguaKu server to hold them. That leaves Notification Triggers (`TimestampTrigger`), which fires with the app closed and is Chromium-only, and otherwise an in-app cue shown on the next open after the time has passed. The screen names which of the two this device gets, in those words. The rejected option is the easy one: take the permission, store a time, and never fire — §2.6 already settled that a capability which does not exist is withheld and named, never faked. `scheduleReminder` returns whether anything was really scheduled, so a browser that advertises the API and then throws reports false rather than leaving the learner believing they will be reminded. |
 | D55 | **A skip records a request, never a rating** | §2.14 guarantees the learner can decline any item. Invariant 0 makes `recordReview` the only writer of scheduling state and it cannot be called without a rating, so a skip cannot go through it — and filing one as a lapse would be worse than offering no skip at all: it would let a learner exercising autonomy damage their own schedule, and it would put an item nobody answered into the §9 retention rate. So `deferredItems` holds the request and the composer honours it for new items and for cards already due; a deferred card stays due with its FSRS state untouched, and only what is *shown* changes. The window escalates 3 → 7 → 21 → 60 days and caps: §2.14 is autonomy, not deletion, and an item that vanished permanently could never be reconsidered. Expired rows are kept, because `times` is the record of how often this learner has declined — deleting it would read the fifth refusal as the first. |
 | D56 | **The weekly recap reports capability and offers no verdict** | §9's last line. Every honest summary of a week is one sentence away from a scoreboard, so the recap has no total, no score and no target — a quiet week is a fact rather than a shortfall, and there is no "you missed three days" because that sentence has no use except to make someone feel behind (§2.14, docs/ETHICS.md). Two consequences that took deciding: "first met" is read from the learner's whole history rather than the window, or a word met months ago would be relabelled new every week; and the comparison with the previous week is withheld until the profile is two weeks old, because comparing a first week against a range that did not exist manufactures a decline out of the fact that somebody is new. |
+| D57 | **The device matrix is collected by the app, and a probe fired from a tap may raise the verdict** | Part 3 sat empty from M4 to v1.2.0 not because the data was hard to get but because the person holding the phone is not the person holding the debugger. `DiagnosticsScreen` runs every probe on demand and emits the row as markdown. It also pays back a cost D29 recorded: iOS Safari will not speak outside a user gesture, so the boot probe marks a working engine dead there — a probe fired from inside a tap is the only honest measurement that platform allows, and `adoptVerdict` lets it count. Two rules keep that safe: it can only *raise* capability (a later failure never retracts an engine already heard to complete an utterance, which would be the mid-session flicker D29 exists to prevent), and it is held to the same 500 ms deadline as everything else, so a slower engine is reported as the number it is and still withheld from L4. |
+| D58 | **Listening is estimated from L4 answers, not from placement, and not from minimal-pair drills** | §4.2 requires three abilities estimated separately and gives placement 90 seconds and 25 items, which the vocabulary loop already spends (D24). §4.2's own answer is in the same paragraph: *"re-estimate continuously."* So listening comes from dictation answers through the 1PL model placement already uses, with the item's frequency rank as the item difficulty — the same scale, so the two numbers mean comparable things. Minimal-pair drills are listening and are deliberately excluded: a drill has no difficulty on any measured scale, and assigning one would make the estimate a fabrication rather than a measurement. They still move the phonology categories in the heatmap, which is where their evidence belongs, and they count in the radar's raw accuracy. Under five answers there is no estimate and no row (D33's floor, same reasoning). |
+| D59 | **Glosses are reference, never an answer key — and that is what let them ship at 30% coverage** | The v1.3.0 go/no-go was 70% and the measurement came back 40.3% over bands 1–3 for English and 9.2% for Japanese, worst on the commonest words. Grading a typed meaning against a gloss needs it to be right for *every* item, and marking a good answer wrong is the unfairness §2.7 exists to prevent — so L2 stays D21's supported cloze. Displaying a gloss needs it to be right only where it is shown, and a word without one keeps the honest empty state the reader already had. en.wiktionary's translation tables were measured too (+16 points on band 1) and rejected: they return `know → tahu, setubuh`, which is a per-sense review problem rather than a coverage one. |
+| D60 | **Glosses and passages ship in their own share-alike shards** | Both are CC BY-SA 4.0 and the Tatoeba-derived English shards are CC BY 2.0 FR. Folding either into an existing shard would upgrade the whole English corpus to share-alike by accident — a thing a reuser only discovers after shipping. D9's per-file provenance already supported this; the licence gate and the content tests now assert it in both directions. Both datasets were cleared by reading the terms at source rather than through a third party (dumps.wikimedia.org/legal.html plus each wiki's own `rightsinfo` API, both read 2026-08-12), which is exactly the route R3 recommended over depending on an extraction with unstated terms. |
+| D61 | **Passages come from Simple English Wikipedia; Japanese keeps the feed, and the screen says so** | D45 wrote the reader as a feed because Tatoeba has no documents, and wrote the selector so that only the source would change when a passage corpus cleared. This is that source — and the histogram is the finding: 96% of Simple English Wikipedia's prose bands at 6, and only 5 paragraphs in all of it band at 1. "Simple" is not "beginner" on our scale. That is not a reason to loosen the banding; it is a reason to be clear who the reader serves — the default learner is intermediate English (D3), which is band 3 and up, where the material actually is. There is no free, licence-cleared corpus of graded Japanese prose, so Japanese keeps the sentence feed and the screen names the difference rather than letting a learner infer parity. |
+| D62 | **The FSRS optimizer is measured and not shipped; the nudge stays** | §2.1 buys the review log for per-user parameter optimization and D39 ships a bounded nudge in the meantime, saying plainly that a real fit needs the optimizer. Measured 2026-08-12: `fsrs-browser@6.6.0` is BSD-3-Clause (free, so invariant 4 is untouched) and 332 KB of WASM plus 36 KB of glue, which is fine as a lazy chunk since invariant 6 counts the entry chunk and its static imports. What is *not* established is whether it trains usefully single-threaded on the reference device — its parallelism goes through `wasm-bindgen-rayon`, which needs cross-origin isolation, and enabling that site-wide is a deployment change this project cannot verify without hardware. A parameter fit that silently degrades a learner's schedule is worse than a nudge that moves one bounded step, so the nudge stays and the numbers are recorded rather than the question being re-opened from zero next time. |
+| D63 | **There is no AI layer. §14 question 5 is answered: declined** | §14 question 5 was left "deferred to post-M7" and D4 kept the seam out until then. The answer is now *no*, and the reason is stronger than the feature: the product's claim is that a learner's history never leaves their phone unless they run the infrastructure themselves (D52), and **a bring-your-own-key layer makes that claim conditional on a guard rather than on the code's shape**. Invariant 8 is explicit — prefer deleting code over guarding it — and a dormant module with a key field is exactly the scaffolding it bans, because the next person to read it sees a feature that is nearly on. It was implemented during v1.5.0 (off by default, consented per call, zero-egress e2e) and **deleted** on review. What that implementation would have bought was rubric feedback at L6, where D49 admits the app can only check that the word was used; that limitation stands and is stated to the learner, which is the honest version. If this is ever revisited, it starts from this row, not from the deleted code. |
 | D23 | **Lighthouse PWA gate replaced with direct installability assertions** | §13 asks for "Lighthouse PWA score ≥ 90", but Lighthouse removed the PWA category in v12 (Chrome 126) when Chrome revised its installability criteria. `e2e/coldstart.spec.ts` asserts what the score measured — manifest validity, icon resolution, maskable icon, service-worker control, offline start_url — with no new dependency. |
 
 ---
@@ -323,7 +409,14 @@ memory model.
 Speech APIs cannot be tested in CI. Results go here as they are gathered;
 empty rows are honest, invented ones are not.
 
-> **Still empty as of M4 (2026-08-11).** M4 was directed to proceed on the basis
+> **Still empty as of v1.5.0 (2026-08-12) — but no longer hard to fill.** The
+> app now collects every column of this table itself: Settings → *"Uji suara di
+> HP ini"* → *"Uji audio sekarang"* produces a markdown row to paste in below,
+> including the first-call latency this table asks for. Nothing has been written
+> in because nothing has been run on a phone; a row invented from a description
+> of testing would defeat the only purpose the table has.
+>
+> **The original note, from M4 (2026-08-11):** M4 was directed to proceed on the basis
 > that this matrix had been run, and the probe was built to the deadline that
 > direction specified (D29). No results were supplied, so nothing has been
 > written in below — filling these rows from a description of the testing rather

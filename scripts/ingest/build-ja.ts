@@ -462,7 +462,7 @@ console.log(
 await mkdir(OUT_DIR, { recursive: true });
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'glosses';
   band: FrequencyBand;
   path: string;
   count: number;

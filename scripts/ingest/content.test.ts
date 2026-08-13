@@ -16,7 +16,7 @@ import type { FrequencyBand } from '../../src/core/frequency.ts';
 const CONTENT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'content', 'en');
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'glosses' | 'passages';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -81,8 +81,21 @@ describe('provenance (SPEC §5.2)', () => {
   it('declares its source on the manifest and on every shard', () => {
     expect(manifest.sources).toEqual(['tatoeba']);
     for (const shard of manifest.shards) {
-      const payload = readShard<{ sources: string[] }>(shard.path);
-      expect(payload.sources).toEqual(['tatoeba']);
+      const payload = readShard<{ sources: string[]; license?: string }>(shard.path);
+      // Provenance is per file (D9), and the gloss shards are the reason that
+      // matters: they are Wiktionary-derived and share-alike, so folding them
+      // into a Tatoeba shard would quietly upgrade the whole English corpus to
+      // CC BY-SA. Separate files, separate licences.
+      if (shard.kind === 'glosses') {
+        expect(payload.sources).toEqual(['wiktionary-id']);
+        expect(payload.license).toBe('CC BY-SA 4.0');
+      } else if (shard.kind === 'passages') {
+        expect(payload.sources).toEqual(['wikipedia-simple-en']);
+        expect(payload.license).toBe('CC BY-SA 4.0');
+      } else {
+        expect(payload.sources).toEqual(['tatoeba']);
+        expect(payload.license).toBe('CC BY 2.0 FR');
+      }
     }
   });
 

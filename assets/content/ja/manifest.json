@@ -98,6 +98,51 @@
       "sha256": "6d8e4cb6e4ca8ee763b00abb4ea38943ecbefb71d124f3df8ad071da16ef7409"
     },
     {
+      "kind": "glosses",
+      "band": 1,
+      "path": "glosses.b1.json",
+      "count": 79,
+      "bytes": 3715,
+      "gzipBytes": 1724,
+      "sha256": "37bcdcc89895f20ed09ab77b99d62f770acb3e8ac0d0f1a4473df5a5e7602ac8"
+    },
+    {
+      "kind": "glosses",
+      "band": 2,
+      "path": "glosses.b2.json",
+      "count": 49,
+      "bytes": 2038,
+      "gzipBytes": 1029,
+      "sha256": "cfc479c49c5106cf8c5471724296a794a508960f36b487b3be67fd1737050371"
+    },
+    {
+      "kind": "glosses",
+      "band": 3,
+      "path": "glosses.b3.json",
+      "count": 50,
+      "bytes": 2209,
+      "gzipBytes": 1125,
+      "sha256": "6fad9c278780d31c1e440b6250b4aab58a584f005b84887492c875f22deb7e14"
+    },
+    {
+      "kind": "glosses",
+      "band": 4,
+      "path": "glosses.b4.json",
+      "count": 62,
+      "bytes": 2772,
+      "gzipBytes": 1376,
+      "sha256": "8fbf7a640b8656c8a5d9ba10eddcffbbb79cea7e7e3d461284c76a7d7ab1def7"
+    },
+    {
+      "kind": "glosses",
+      "band": 5,
+      "path": "glosses.b5.json",
+      "count": 34,
+      "bytes": 1513,
+      "gzipBytes": 846,
+      "sha256": "c46f3b683d05c1500b2b9a99acb29832cf61370b42c77e8ba91f4e73dd602632"
+    },
+    {
       "kind": "kanji",
       "band": 1,
       "path": "kanji.b1.json",
@@ -205,5 +250,10 @@
       "gzipBytes": 1561,
       "sha256": "8644f7f9f413cfeac691584309a3a5af73603d261b7a5644a94fe1a78309060d"
     }
-  ]
+  ],
+  "glossCoverage": {
+    "glossed": 274,
+    "lexemes": 6904,
+    "share": 0.0397
+  }
 }

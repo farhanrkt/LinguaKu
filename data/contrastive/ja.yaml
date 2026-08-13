@@ -219,6 +219,13 @@ categories:
         explain: "Pernyataan umum tentang sebuah topik memakai は."
         difficulty: 1180
 
+      - id: PARTICLES_WA_GA-6
+        type: correction
+        prompt: 'わたしがたなかです。はじめまして。'
+        answer: 'わたしはたなかです。はじめまして。'
+        explain: 'Memperkenalkan diri itu menyebut topik, bukan menjawab siapa. Topik pakai は; が dipakai kalau kamu menegaskan orangnya.'
+        difficulty: 1200
+
   - id: PARTICLES_NI_DE
     kind: morphosyntax
     label: "に dan で"
@@ -275,6 +282,13 @@ categories:
         explain: "Keberadaan → に. Bandingkan 家で勉強します (belajar di rumah), yang pakai で."
         difficulty: 1230
 
+      - id: PARTICLES_NI_DE-6
+        type: correction
+        prompt: 'としょかんにほんをよみます。'
+        answer: 'としょかんでほんをよみます。'
+        explain: 'Tempat berlangsungnya kegiatan pakai で. に dipakai untuk tujuan atau keberadaan, bukan untuk tempat melakukan sesuatu.'
+        difficulty: 1200
+
   - id: WORD_ORDER_SOV
     kind: morphosyntax
     label: "Kata kerja di akhir"
@@ -325,6 +339,13 @@ categories:
         answer: "私はご飯を食べません。"
         explain: "Bentuk negatif tetap menempel di kata kerja, dan kata kerjanya tetap di akhir."
         difficulty: 1240
+
+      - id: WORD_ORDER_SOV-5
+        type: correction
+        prompt: 'わたしはたべますごはんを。'
+        answer: 'わたしはごはんをたべます。'
+        explain: 'Kata kerja bahasa Jepang selalu di akhir kalimat. Urutan Indonesia (subjek-kerja-objek) harus dibalik jadi subjek-objek-kerja.'
+        difficulty: 1200
 
   - id: MORA_TIMING
     kind: phonology
@@ -483,6 +504,13 @@ categories:
         explain: "Lampau + negatif digabung: ませんでした. Polanya tetap, tidak perlu dihafal per kata."
         difficulty: 1330
 
+      - id: VERB_CONJUGATION-5
+        type: correction
+        prompt: 'きのう ともだちに あいます。'
+        answer: 'きのう ともだちに あいました。'
+        explain: 'きのう sudah lampau, jadi kata kerjanya ikut berubah: あいます menjadi あいました. Kata kerja Jepang berubah bentuk, tidak seperti kata kerja kita.'
+        difficulty: 1200
+
   - id: ADJ_CONJUGATION
     kind: morphosyntax
     label: "Kata sifat ikut berubah"
@@ -524,6 +552,13 @@ categories:
         answer: "く"
         explain: "面白い → 面白くない. Perhatikan い berubah jadi く."
         difficulty: 1270
+
+      - id: ADJ_CONJUGATION-4
+        type: correction
+        prompt: 'きのうのえいがは おもしろいでした。'
+        answer: 'きのうのえいがは おもしろかったです。'
+        explain: 'Kata sifat berakhiran い berubah sendiri jadi かった, bukan ditempeli でした. Ini beda dari kata sifat な.'
+        difficulty: 1200
 
   - id: GIVING_RECEIVING
     kind: pragmatics

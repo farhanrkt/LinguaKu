@@ -1,6 +1,6 @@
 {
   "name": "linguaku",
-  "version": "1.1.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "description": "Offline-first PWA teaching English and Japanese to Indonesian speakers.",
@@ -20,11 +20,15 @@
     "check:bundle": "node scripts/check-bundle.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
     "icons": "node scripts/gen-icons.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:licenses && npm run build && npm run check:bundle",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:licenses && npm run check:audio && npm run build && npm run check:bundle",
     "ingest:fetch": "node scripts/ingest/fetch.ts",
     "ingest:en": "node scripts/ingest/build-en.ts",
     "ingest:contrastive": "node scripts/ingest/build-contrastive.ts",
-    "ingest:ja": "node --max-old-space-size=6144 scripts/ingest/build-ja.ts"
+    "ingest:ja": "node --max-old-space-size=6144 scripts/ingest/build-ja.ts",
+    "check:audio": "node scripts/check-audio.mjs",
+    "ingest:audio": "node scripts/ingest/build-audio.ts",
+    "ingest:fetch:wiki": "node scripts/ingest/fetch-wikimedia.ts",
+    "ingest:glosses": "node scripts/ingest/build-glosses.ts"
   },
   "dependencies": {
     "dexie": "^4.4.4",

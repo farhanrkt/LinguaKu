@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   COVERAGE_MIN_TOKENS,
   MAX_UNKNOWN_PER_SENTENCE,
+  selectPassages,
   selectReading,
   tokensOf,
 } from './reader.ts';
@@ -145,5 +146,90 @@ describe('the floors that catch what the count rule misses', () => {
     const pool = [sentence('good', 'the cat sat on the rug')];
     const known = knowing('the', 'cat', 'sat', 'on');
     expect(selectReading({ pool, known, lang: 'en', limit: 5, seed: 1 })).toHaveLength(1);
+  });
+});
+
+describe('selectPassages — §2.4 on running text', () => {
+  /** A passage of `tokens` distinct words, `unknownCount` of them unknown. */
+  const withCoverage = (id: string, tokens: number, unknownCount: number) => {
+    const words = Array.from({ length: tokens }, (_, i) => `${id}w${i}`);
+    return {
+      passage: {
+        id,
+        title: id,
+        text: `${words.join(' ')}.`,
+        tokens,
+        vocab: words,
+      },
+      known: new Set(
+        words.slice(0, tokens - unknownCount).map((word) => lexemeIdFor('en', word)),
+      ),
+    };
+  };
+
+  it('reaches §2.4s band, which a single sentence cannot (D28)', () => {
+    // 50 tokens, 2 unknown → 0.96, inside [0.92, 0.98]. On a 10-token sentence
+    // there is no reachable value in that band at all.
+    const { passage: text, known } = withCoverage('p1', 50, 2);
+    const [item] = selectPassages({ pool: [text], known, lang: 'en', limit: 5, seed: 1 });
+    expect(item?.coverage).toBeCloseTo(0.96, 2);
+    expect(item?.inBand).toBe(true);
+  });
+
+  it('never returns a passage below the floor §2.4 sets', () => {
+    const { passage: text, known } = withCoverage('p1', 50, 15); // 0.70
+    expect(selectPassages({ pool: [text], known, lang: 'en', limit: 5, seed: 1 })).toEqual([]);
+  });
+
+  it('prefers in-band passages over merely-readable ones', () => {
+    const easy = withCoverage('easy', 50, 0); // 1.00 — nothing new
+    const banded = withCoverage('banded', 50, 2); // 0.96
+    const known = new Set([...easy.known, ...banded.known]);
+    const picked = selectPassages({
+      pool: [easy.passage, banded.passage],
+      known,
+      lang: 'en',
+      limit: 2,
+      seed: 1,
+    });
+    expect(picked[0]?.passage.id).toBe('banded');
+  });
+
+  it('counts words outside the inventory as unknown rather than absent', () => {
+    // Ten known words and forty the app has never heard of. Scoring over the
+    // in-inventory slice would call that perfect comprehension; it is 20%.
+    const inInventory = Array.from({ length: 10 }, (_, i) => `known${i}`);
+    const rest = Array.from({ length: 40 }, (_, i) => `obscure${i}`);
+    const known = new Set(inInventory.map((word) => lexemeIdFor('en', word)));
+    const picked = selectPassages({
+      pool: [
+        {
+          id: 'p',
+          title: 'p',
+          text: `${[...inInventory, ...rest].join(' ')}.`,
+          tokens: 50,
+          vocab: inInventory,
+        },
+      ],
+      known,
+      lang: 'en',
+      limit: 1,
+      seed: 1,
+    });
+    expect(picked).toEqual([]);
+  });
+
+  it('is deterministic under a seed', () => {
+    const pool = Array.from({ length: 8 }, (_, i) => withCoverage(`p${i}`, 50, 2));
+    const known = new Set(pool.flatMap((entry) => [...entry.known]));
+    const run = () =>
+      selectPassages({
+        pool: pool.map((entry) => entry.passage),
+        known,
+        lang: 'en',
+        limit: 3,
+        seed: 7,
+      }).map((item) => item.passage.id);
+    expect(run()).toEqual(run());
   });
 });

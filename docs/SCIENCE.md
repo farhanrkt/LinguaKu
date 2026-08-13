@@ -70,10 +70,13 @@ effect on accuracy stays measurable.
 **Acceptance:** an item that has only ever been answered at L1 cannot display
 as mastered.
 
-**Status:** **shipped for L0–L4** (M2, L4 in M4); L5–L6 wait on production input
-(M7). R5 resolved as one card per item (D18). L2 ships as a supported cloze
-rather than typed meaning (D21) — a documented deviation forced by the missing
-gloss source.
+**Status:** **shipped, L0–L6** (M2, L4 in M4, L5–L6 in M7). R5 resolved as one
+card per item (D18). L2 still ships as a supported cloze rather than typed
+meaning (D21): glosses landed in v1.3.0 but cover 30% of English lexemes and 4%
+of Japanese, and the misses are the commonest words — grading against a set that
+thin would mark good answers wrong, which is the unfairness §2.7 exists to
+prevent (D59). L0 now carries the gloss the table always specified, where one
+exists.
 
 L4 is dictation of a short anchor sentence (≤10 tokens), not the audio-cloze the
 implementation line also allows: the answer is then determined entirely by what
@@ -132,13 +135,18 @@ each other; listening is a distinct skill that reading practice does not build.
 **Implementation:** `src/platform/speech.ts` probes once on boot — waits for
 `voiceschanged`, prefers `localService`, then speaks a zero-volume utterance and
 requires **`onend` within 500 ms** (D29). The verdict stands for the session.
-`src/platform/audio.ts` puts a pre-cached clip ahead of synthesis; the clip set is
-empty until an audio dataset clears licence review (R3).
+`src/platform/audio.ts` puts a pre-cached clip ahead of synthesis; the clip set
+is still empty, now because no **voice model** has had its licence read and
+dated (R7) rather than because no generator exists — `npm run ingest:audio` and
+the `check:audio` gate shipped in v1.2.0. A probe fired from the diagnostics
+screen's button can raise the session's verdict, which is the only honest
+measurement iOS Safari allows (D57).
 
 **Acceptance:** an item with no working audio is **excluded from L4
 scheduling**, never silently degraded to a text card.
 
-**Status:** **shipped** (M2 probe, M4 boot verdict and L4). The exclusion is
+**Status:** **shipped** (M2 probe, M4 boot verdict and L4, v1.2.0 diagnostics).
+The exclusion is
 `ladderCeiling(hasAudio)` in `src/core/ladder.ts`: an inaudible item is never
 promoted into L4, and a card already there when audio dies is demoted *visibly*,
 with the review log recording the rung actually presented. The same gate withholds

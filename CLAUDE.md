@@ -16,7 +16,12 @@ npm run icons        # regenerate public/icons/ (committed; run only on redesign
 
 npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)
 npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
-npm run ingest:contrastive  # compile data/contrastive/en.yaml → contrastive.json
+npm run ingest:contrastive  # compile data/contrastive/*.yaml → contrastive.json
+
+npm run ingest:fetch:wiki   # download the Wikimedia dumps into .cache/ (needs bunzip2)
+npm run ingest:glosses      # id.wiktionary → assets/content/*/glosses.b*.json
+npm run ingest:passages     # Simple English Wikipedia → passages.b*.json
+npm run ingest:audio        # Piper → pre-cached clips. Never run: see R7.
 ```
 
 Ingest scripts are TypeScript run directly by Node — no transpiler — so they
@@ -24,7 +29,8 @@ share `src/core` with the app rather than duplicating the tokenizer or the
 difficulty scorer. That is why **every relative import in this repo carries its
 file extension** (`./frequency.ts`, not `./frequency`).
 
-`npm run verify` is what CI runs. If it is red, the milestone is not done.
+`npm run verify` is what CI runs — typecheck → lint → unit → licences → **audio
+budget** → build → bundle budget. If it is red, the milestone is not done.
 
 ## Architecture
 
@@ -32,11 +38,12 @@ file extension** (`./frequency.ts`, not `./frequency`).
 src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   (from M2)
                  scheduler · ladder · sessionComposer · grader · cloze · rng
                  coverage · forecast · placement · pseudoword · difficulty
-                 recap
+                 recap · listening
                  frequency · tokenize · properNoun · elo · interference
                  vocabulary · retention · reader · delta · kana · furigana
 src/data/        Dexie schema, migrations, repositories. The source of truth.
 src/features/    session, reader, placement, progress, habit, settings — screens.
+                 settings holds attribution, sync and diagnostics (R1).
 src/ui/          presentational primitives.
 src/platform/    browser capability wrappers: speech, storage, notifications.
 src/i18n/        all learner-facing copy. Components hold no literal strings.
@@ -150,6 +157,29 @@ needs React state to work, it is in the wrong place.
 26. **Mining records an intention, never a card** (D46). A card is the product
     of an answer (invariant 0); `minedItems` holds the intention and the
     composer acts on it next session.
+27. **No audio clip exists without a licence-cleared *voice model*** (D57, R7).
+    Invariant 5 applied to a generator rather than a corpus: `build-audio.ts`
+    refuses to write before checking `data/licenses.json`, and
+    `npm run check:audio` polices the budget and the index in CI. The clip set
+    is empty today because no voice has been chosen — that is the honest state,
+    not an oversight.
+28. **Glosses and passages ship in their own share-alike shards** (D60). Both
+    are CC BY-SA 4.0; the Tatoeba-derived English shards are CC BY 2.0 FR.
+    A shard's licence is never widened by mixing sources into it, and the
+    content tests assert the split in both directions.
+29. **A gloss is reference, never an answer key** (D59). Coverage is 30% of
+    English lexemes and 4% of Japanese, measured. Displaying one where it exists
+    is honest; grading against a set that thin would mark good answers wrong,
+    which is what §2.7 exists to prevent. L2 stays D21's supported cloze.
+30. **There is no AI layer, and there is no seam for one** (D63). Not a flag,
+    not a dormant module, not a key field. §14 question 5 is answered *declined*:
+    the app must be structurally incapable of sending a learner's data to a
+    model, and a guarded implementation is not that. It was built once during
+    v1.5.0 and deleted; do not rebuild it.
+31. **Reading and drill attempts are not review logs** (D32, extended). Neither
+    a passage nor a drill has an FSRS card, so `ReadingAttempt` and
+    `DrillAttempt` are their own append-only tables. Putting either into
+    `ReviewLog` would corrupt the retention rate §9 reports.
 
 ## Conventions
 

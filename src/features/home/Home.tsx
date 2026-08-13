@@ -31,6 +31,7 @@ interface HomeProps {
   onAttribution: () => void;
   onRead: () => void;
   onSync: () => void;
+  onDiagnostics: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => void;
   /**
@@ -62,6 +63,7 @@ export const Home = ({
   onAttribution,
   onRead,
   onSync,
+  onDiagnostics,
   onPractise,
   onChange,
   cueDue,
@@ -210,6 +212,18 @@ export const Home = ({
               : copy.home.audioDead}
         </li>
       </ul>
+
+      {/* Risk R1: the probe runs on a timer and iOS will not speak outside a
+          gesture, so a silent verdict is not always the truth. This is the way
+          to ask on purpose — and the way the device matrix gets filled. */}
+      <button
+        type="button"
+        onClick={onDiagnostics}
+        data-testid="diagnostics-open"
+        className="mt-3 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+      >
+        {copy.diagnostics.open}
+      </button>
 
       {/* SPEC §5.2: EDRDG's licence requires this acknowledgement to be
           reachable from the app, not only from the repository. */}

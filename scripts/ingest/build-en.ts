@@ -274,7 +274,7 @@ console.log(`  ${pseudowords.length} pseudowords from ${modelWords.length.toLoca
 await mkdir(OUT_DIR, { recursive: true });
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'glosses';
   band: FrequencyBand;
   path: string;
   count: number;

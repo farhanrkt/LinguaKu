@@ -1,5 +1,12 @@
 # Production build verification — v1.0.0
 
+> **Numbers below are v1.0.0's and have not been re-measured for v1.5.0.** The
+> current figures are in `CHANGELOG.md`: 724 unit tests, 45 e2e, 136.2 KB
+> initial JS, 9 cleared datasets. The *procedure* is unchanged and still the
+> one to follow. Two items moved: 5.3's device matrix is now collectable from
+> inside the app (Settings → "Uji suara di HP ini"), and the pre-cached audio
+> blocker is now risk **R7** — a voice model's licence, not a code path.
+
 Run top to bottom. Each item says **how to check** and **what passing looks
 like**, with the numbers this build actually produced on 2026-08-11 so a
 regression is visible rather than merely absent.

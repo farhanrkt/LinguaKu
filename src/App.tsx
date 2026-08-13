@@ -7,9 +7,10 @@ import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
 import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
 import { ReaderScreen } from './features/reader/ReaderScreen.tsx';
 import { SyncScreen } from './features/settings/SyncScreen.tsx';
+import { DiagnosticsScreen } from './features/settings/DiagnosticsScreen.tsx';
 import { HabitScreen } from './features/habit/HabitScreen.tsx';
 import { copy } from './i18n/id.ts';
-import { hasBeenPlaced } from './data/repositories/abilities.ts';
+import { hasBeenPlaced, refreshListeningAbility } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import { findResumable, startSession } from './data/repositories/sessions.ts';
 import { getHabit, lastPractisedAt } from './data/repositories/habits.ts';
@@ -34,6 +35,7 @@ type Screen =
   | { name: 'attribution'; profile: Profile }
   | { name: 'reader'; profile: Profile }
   | { name: 'sync'; profile: Profile }
+  | { name: 'diagnostics'; profile: Profile }
   | { name: 'habit'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
@@ -196,7 +198,12 @@ export const App = () => {
   const handleFinish = useCallback(async () => {
     const profile = await getCurrentProfile();
     if (!profile) return;
-    setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
+    const lang = profile.targets[0] ?? 'en';
+    // SPEC §4.2: re-estimate continuously, never make the learner retake
+    // anything. A session is the natural moment — new dictation answers exist
+    // or they do not, and where they do not this writes nothing at all.
+    void refreshListeningAbility(profile.id, lang, Date.now());
+    setResumable(await findResumable(profile.id, lang));
     // They just practised, so the cue has been answered (§2.14).
     setCueDue(null);
     setScreen({ name: 'home', profile });
@@ -246,6 +253,17 @@ export const App = () => {
           }}
         />
       );
+    case 'diagnostics':
+      return (
+        <DiagnosticsScreen
+          onProbed={(lang, report) => {
+            // Only the active language drives the home screen's audio line; the
+            // other language's verdict is still adopted inside the probe.
+            if (lang === (screen.profile.targets[0] ?? 'en')) setVoice(report);
+          }}
+          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+        />
+      );
     case 'sync':
       return (
         <SyncScreen
@@ -282,6 +300,7 @@ export const App = () => {
           onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
           onRead={() => setScreen({ name: 'reader', profile: screen.profile })}
           onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
+          onDiagnostics={() => setScreen({ name: 'diagnostics', profile: screen.profile })}
           cueDue={cueDue}
           onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
           onDismissCue={() => setCueDue(null)}

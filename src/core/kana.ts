@@ -155,3 +155,111 @@ export const toRomaji = (kana: string): string => {
 
   return result;
 };
+
+// ------------------------------------------------------------ romaji → kana
+
+/**
+ * The reverse table, longest romaji first.
+ *
+ * Built from `ROMAJI` rather than written out again, so the two directions
+ * cannot drift. Ambiguity is resolved deliberately: several kana share a
+ * romanization (じ/ぢ both `ji`, ず/づ both `zu`, を/お both `o`), and the first
+ * entry in `ROMAJI` wins — which is the common spelling in every case.
+ */
+const KANA_BY_ROMAJI: ReadonlyArray<readonly [string, string]> = ([
+  ...ROMAJI.map(([kana, romaji]) => [romaji, kana] as const),
+  // Alternative spellings a learner may reasonably type. `si`/`ti`/`tu` are
+  // Kunrei-shiki, which Indonesian keyboards and older textbooks still use.
+  ['si', 'し'], ['ti', 'ち'], ['tu', 'つ'], ['hu', 'ふ'], ['zi', 'じ'],
+  ['sya', 'しゃ'], ['syu', 'しゅ'], ['syo', 'しょ'],
+  ['tya', 'ちゃ'], ['tyu', 'ちゅ'], ['tyo', 'ちょ'],
+  ['jya', 'じゃ'], ['jyu', 'じゅ'], ['jyo', 'じょ'],
+  ['nn', 'ん'], ['wo', 'を'],
+] as ReadonlyArray<readonly [string, string]>)
+  .filter(([romaji]) => /^[a-z]+$/.test(romaji))
+  .sort((a, b) => b[0].length - a[0].length);
+
+/** Romaji that could still grow into a longer syllable — held, not converted. */
+const isPrefixOfSyllable = (text: string): boolean =>
+  KANA_BY_ROMAJI.some(([romaji]) => romaji.length > text.length && romaji.startsWith(text));
+
+/**
+ * Romaji → kana, as an IME does it (SPEC §10: *"Japanese input without an IME
+ * headache: on-screen kana keyboard + romaji input with live conversion"*).
+ *
+ * Written for **live** conversion, which is what makes it different from a
+ * batch converter: it runs on every keystroke, so a trailing fragment that is
+ * still on its way to being a syllable must be left alone. Typing `kyo` passes
+ * through `k` and `ky`, and converting either of those early would fight the
+ * learner's fingers.
+ *
+ * Two rules Indonesian has no analogue for, and both are meaning-bearing
+ * (SPEC §3.2 `MORA_TIMING`):
+ *
+ *  - a **doubled consonant** becomes っ — `kitte` → きって, which is not きて;
+ *  - **`n`** is held until the next character decides it: `na` → な, but `nka`
+ *    → んか, and a trailing `n` stays latin until something follows, because
+ *    the learner may be halfway through `na`.
+ */
+export const romajiToKana = (input: string, final = false): string => {
+  const source = input.toLowerCase();
+  let result = '';
+  let buffer = '';
+
+  const flush = (): void => {
+    // Whatever is left that cannot become a syllable is passed through, so a
+    // learner always sees what they typed rather than losing characters.
+    result += buffer;
+    buffer = '';
+  };
+
+  for (const character of source) {
+    if (!/[a-z]/.test(character)) {
+      flush();
+      result += character;
+      continue;
+    }
+
+    // A doubled consonant is っ plus the rest — but only where the doubling is
+    // not itself a syllable: `nn` is ん, not っn.
+    if (
+      buffer.length === 1 &&
+      buffer === character &&
+      !/[aiueon]/.test(character)
+    ) {
+      result += 'っ';
+      buffer = character;
+      continue;
+    }
+
+    // `n` followed by a consonant that cannot continue it is ん.
+    if (buffer === 'n' && /[bcdfghjkmpqrstvwxyz]/.test(character) && character !== 'y') {
+      result += 'ん';
+      buffer = character;
+      continue;
+    }
+
+    buffer += character;
+
+    const exact = KANA_BY_ROMAJI.find(([romaji]) => romaji === buffer);
+    if (exact && !isPrefixOfSyllable(buffer)) {
+      result += exact[1];
+      buffer = '';
+    } else if (buffer.length >= 3 && !isPrefixOfSyllable(buffer)) {
+      // Nothing this can still become: emit the longest syllable inside it and
+      // carry the remainder, rather than dropping keystrokes.
+      const match = KANA_BY_ROMAJI.find(([romaji]) => buffer.startsWith(romaji));
+      if (match) {
+        result += match[1];
+        buffer = buffer.slice(match[0].length);
+      } else {
+        flush();
+      }
+    }
+  }
+
+  // On commit, a trailing `n` is ん: the learner has stopped typing, so there
+  // is no `na` still coming. Live conversion must not do this — it would turn
+  // the first keystroke of `nani` into ん under their fingers.
+  return final && buffer === 'n' ? `${result}ん` : result + buffer;
+};

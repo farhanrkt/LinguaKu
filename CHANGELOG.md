@@ -5,6 +5,125 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.5.0 — 2026-08-12
+
+The four releases `docs/ROADMAP.md` planned for v1.2 through v1.5, executed in
+one pass. Each was meant to close one entry in the risk register and turn one
+`null` on the progress screen into a measurement. Three of the four did.
+
+### Measured
+
+| | v1.1.0 | v1.5.0 |
+|---|---|---|
+| unit tests | 653 | **715** |
+| e2e tests | 41 | **43** |
+| initial JS, gzipped | 128.3 KB | **136.2 KB** (68% of budget) |
+| cleared datasets | 7 | **9** |
+| radar axes with a measurement | 3 of 5 | **4 of 5** |
+| §8 exercise catalog | 12 of 13 | **13 of 13** |
+| paths by which learner data can leave the device | 1 (opt-in sync) | **1** (opt-in sync) |
+
+Schema v6, additive: `readingAttempts` is a new append-only table and no
+existing row changes shape.
+
+### Audio, and the device we have never seen (was v1.2.0)
+
+**The R1 device matrix is now a five-tap job.** It has been empty since M4
+because the person with the phone is not the person with the debugger, so the
+probes moved into the app: Settings → *"Uji suara di HP ini"* runs every probe
+on demand and emits a markdown row for `docs/DECISIONS.md`.
+
+It probes **from inside a tap**, which matters more than convenience. D29
+recorded that iOS Safari will not speak outside a user gesture, so the boot
+probe marks a working engine dead there; a probe fired from a button is the only
+honest measurement that platform allows, and a good answer now counts for the
+session — upward only, and still held to the same 500 ms deadline (D57).
+
+**Listening stopped being an unmeasured axis** (D58), estimated from L4
+dictation through the same 1PL model placement uses. Two bugs surfaced while
+wiring it: the radar counted every rung ≥ 4 as listening, so production answers
+were being reported as listening; and `production` had been hard-coded to `null`
+since M5 — four milestones after production shipped.
+
+**The audio pipeline exists and has never run.** `npm run ingest:audio` and a
+new `npm run check:audio` CI gate are in place; no voice model has had its
+licence read and dated, so invariant 5 refuses every clip. Stated plainly rather
+than left looking finished.
+
+### Meaning (was v1.3.0)
+
+The release opened with a measurement and a **70% go/no-go**, and the
+measurement said no: Indonesian glosses cover **40.3%** of English bands 1–3 and
+**9.2%** of Japanese — worst on the commonest words, and en.wiktionary's
+translation tables add coverage along with senses like `know → setubuh`.
+
+**So L2 is unchanged** and D21's supported cloze stands. What shipped is the
+distinction that makes partial coverage useful anyway (D59): a gloss is
+*reference*, never an answer key — grading needs it right for every item,
+showing it needs it right only where shown. 1,581 English and 274 Japanese
+glosses now fill the reader's word panel and L0's long-missing gloss slot, and a
+word without one says so.
+
+Cleared by reading the terms at source, which is the route R3 recommended:
+parsing the Wikimedia dump directly removes Kaikki's unstated extraction terms.
+Own shards, CC BY-SA 4.0, so the English sentence corpus stays CC BY 2.0 FR.
+
+**The kana keyboard** (§10) landed with it, and with `romajiToKana` — live
+conversion that holds a trailing `n` while typing and makes っ from a doubled
+consonant, because きって is not きて.
+
+### Reading (was v1.4.0)
+
+**Simple English Wikipedia, cleared and ingested**: 389,501 articles into banded
+passages. The histogram is the finding — 96% of its prose bands at 6, and five
+paragraphs in the entire corpus band at 1. *Simple English is not beginner
+English on our scale*, which is a reason to say who the reader serves (the
+default learner is intermediate English, D3) rather than to loosen the measure.
+
+**§2.4's coverage band is finally operative.** [0.92, 0.98] is unreachable on a
+ten-token sentence (D28); on a forty-token paragraph it is not, so the selector
+applies the spec's threshold as written and drops anything under 0.85.
+
+**Reading stopped being `null`**, measured by a cloze over a word in the text
+just read — not a comprehension quiz, because 1,680 passages cannot carry
+authored questions and generated ones are answerable by string-matching.
+
+### The learner's own parameters (was v1.5.0)
+
+**The error-correction drill** — §8's last unbuilt catalog item — ships as its
+own drill type, 10 English and 5 Japanese, one per morphosyntax category. The
+compiler refuses a correction whose answer equals its prompt.
+
+**§14 question 5 is answered: there will be no AI layer** (D63). A
+bring-your-own-key implementation was built during this pass and **deleted on
+review** — not flagged off, not left as a seam. The claim that a learner's data
+stays on their phone should rest on the shape of the code rather than on a
+guard, and invariant 8 is explicit about preferring deletion to dormant
+scaffolding. L6 continues to check only that the target word was used, and to
+say so (D49).
+
+**The FSRS optimizer was evaluated and not shipped** (D62). `fsrs-browser` is
+BSD-3-Clause and 332 KB of WASM, which is fine lazily; what is unestablished is
+single-threaded performance on the reference device, since its parallelism needs
+cross-origin isolation. A parameter fit that silently degrades a schedule is
+worse than D39's bounded nudge, so the nudge stays and the numbers are on record.
+
+### Not in this release
+
+**Chunks** (§2.5) and **topic clusters** (§2.10) were planned and are not built.
+Neither is blocked technically; both need authored content and a reviewer, and
+shipping an unreviewed collocation list or a topic taxonomy nobody trusts would
+put content in front of learners that nobody read. `ItemKind = 'chunk'` stays
+typed and unproduced, and §2.8's per-cluster rule stays inert.
+
+Unchanged and still blocked on things code cannot supply: the **R1 device
+matrix** needs a phone, **Piper audio** needs a voice-model licence chosen and
+dated (now risk R7), the **sync Worker** is written and still undeployed, and
+the **Indonesian copy** wants a native pass — now including the diagnostics
+screen, the AI screen, the passage reader and 15 new drill explanations.
+
+---
+
 ## v1.1.0 — 2026-08-11
 
 **Every `§2` requirement now has an implementation.** v1.0.0 shipped with three

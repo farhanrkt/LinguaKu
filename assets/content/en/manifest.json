@@ -93,6 +93,51 @@
       "sha256": "010c3114f9ef2f0a6cffd7f0ad46e6d61930b712b53367aba78ddd6f7181ad42"
     },
     {
+      "kind": "glosses",
+      "band": 1,
+      "path": "glosses.b1.json",
+      "count": 195,
+      "bytes": 7192,
+      "gzipBytes": 2602,
+      "sha256": "eaf1ae42b25e25ebb53ecb9a0ce187d6d0adc3e0b06670d33efd9d264246be32"
+    },
+    {
+      "kind": "glosses",
+      "band": 2,
+      "path": "glosses.b2.json",
+      "count": 216,
+      "bytes": 7036,
+      "gzipBytes": 2485,
+      "sha256": "0e4f5b70d19ce78109ec07620df29222df14d8d448da1fa3960793e11068285d"
+    },
+    {
+      "kind": "glosses",
+      "band": 3,
+      "path": "glosses.b3.json",
+      "count": 329,
+      "bytes": 11314,
+      "gzipBytes": 3991,
+      "sha256": "4ad3054b2f70ab9f68764cb56a523ab438accbbe2990439fe3ad033ec9f25c8e"
+    },
+    {
+      "kind": "glosses",
+      "band": 4,
+      "path": "glosses.b4.json",
+      "count": 501,
+      "bytes": 17661,
+      "gzipBytes": 6029,
+      "sha256": "6f9bcc9ec383f574f783fd1adaa1dbf9f38584fdee943bd55b2ddd9e49472155"
+    },
+    {
+      "kind": "glosses",
+      "band": 5,
+      "path": "glosses.b5.json",
+      "count": 340,
+      "bytes": 11628,
+      "gzipBytes": 3996,
+      "sha256": "0e3f68c9325da1c6ef402912bbc1142c7781045ed0e940bede3f26bddc5d0a37"
+    },
+    {
       "kind": "lexemes",
       "band": 1,
       "path": "lexemes.b1.json",
@@ -136,6 +181,60 @@
       "bytes": 252069,
       "gzipBytes": 39419,
       "sha256": "98222105c5013366f70829fa8581e2f901b2ceeffac5ebbb34ff6c0d89443921"
+    },
+    {
+      "kind": "passages",
+      "band": 1,
+      "path": "passages.b1.json",
+      "count": 5,
+      "bytes": 2731,
+      "gzipBytes": 1108,
+      "sha256": "0e98ae4ea2647292bb907d2e485482a4d3e4604967e354cee5b21f9c58452a58"
+    },
+    {
+      "kind": "passages",
+      "band": 2,
+      "path": "passages.b2.json",
+      "count": 75,
+      "bytes": 51542,
+      "gzipBytes": 16263,
+      "sha256": "67270b5d358b577668092a2ab51411c8e2681414828bdba9a8148fcfd37434f4"
+    },
+    {
+      "kind": "passages",
+      "band": 3,
+      "path": "passages.b3.json",
+      "count": 400,
+      "bytes": 287287,
+      "gzipBytes": 87887,
+      "sha256": "c484e0c21f22ef3443ff266001493b34755afd9e741afc0930c838b2ba4e0869"
+    },
+    {
+      "kind": "passages",
+      "band": 4,
+      "path": "passages.b4.json",
+      "count": 400,
+      "bytes": 294808,
+      "gzipBytes": 81678,
+      "sha256": "ac9e79b186d0867d3f540e2ecca873b6826e4bf875a8ac9a22b1a3e6a2ea5724"
+    },
+    {
+      "kind": "passages",
+      "band": 5,
+      "path": "passages.b5.json",
+      "count": 400,
+      "bytes": 317218,
+      "gzipBytes": 101739,
+      "sha256": "376b7928dc616feeb79d70c2e3c6ce2841d4b4458a58b2a5ef1d181d10ace8d7"
+    },
+    {
+      "kind": "passages",
+      "band": 6,
+      "path": "passages.b6.json",
+      "count": 400,
+      "bytes": 295503,
+      "gzipBytes": 82709,
+      "sha256": "0950538c2ac866557d039343603c4f35df1768f148515a37d24685b47a033d11"
     },
     {
       "kind": "sentences",
@@ -191,5 +290,46 @@
       "gzipBytes": 132918,
       "sha256": "aba5d9f64ed9747aa11b0f62886aee1ad10f992b9ed13a0a3c58264583305530"
     }
-  ]
+  ],
+  "glossCoverage": {
+    "glossed": 1581,
+    "lexemes": 5245,
+    "share": 0.3014
+  },
+  "passages": {
+    "articles": 389501,
+    "kept": 1680,
+    "perBand": [
+      {
+        "band": 1,
+        "found": 5,
+        "shipped": 5
+      },
+      {
+        "band": 2,
+        "found": 75,
+        "shipped": 75
+      },
+      {
+        "band": 3,
+        "found": 712,
+        "shipped": 400
+      },
+      {
+        "band": 4,
+        "found": 3843,
+        "shipped": 400
+      },
+      {
+        "band": 5,
+        "found": 4558,
+        "shipped": 400
+      },
+      {
+        "band": 6,
+        "found": 241652,
+        "shipped": 400
+      }
+    ]
+  }
 }

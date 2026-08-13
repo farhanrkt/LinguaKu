@@ -38,7 +38,7 @@ const MIN_FALSE_FRIENDS = 60;
 
 // ------------------------------------------------------------------- shapes
 
-type DrillType = 'mcq' | 'cloze' | 'minimal-pair';
+type DrillType = 'mcq' | 'cloze' | 'minimal-pair' | 'correction';
 type CategoryKind = 'morphosyntax' | 'phonology' | 'lexis' | 'script' | 'pragmatics';
 
 interface AuthoredDrill {
@@ -151,7 +151,22 @@ for (const lang of LANGS) {
         }
         if (new Set(options).size !== options.length) fail(`${drill.id}: duplicate options`);
       } else if (drill.options) {
-        fail(`${drill.id}: a cloze drill is typed, so it must not carry options`);
+        fail(`${drill.id}: a typed drill must not carry options`);
+      }
+
+      // SPEC §8's "perbaiki kalimat ini". The prompt is a sentence with a
+      // mistake in it and the answer is the same sentence without one, so the
+      // two must differ — a correction drill whose answer equals its prompt is
+      // a trick question, and the compiler is the only place that catches it.
+      if (drill.type === 'correction') {
+        if (drill.prompt?.trim() === drill.answer?.trim()) {
+          fail(`${drill.id}: a correction drill whose prompt is already correct`);
+        }
+        // Japanese ends a sentence with 。, not a full stop — the gate caught
+        // exactly that on the first Japanese correction drill written.
+        if (!/[.!?。！？]$/.test(drill.answer?.trim() ?? '')) {
+          fail(`${drill.id}: a correction drill's answer is a whole sentence`);
+        }
       }
 
       if (drill.type === 'minimal-pair') {

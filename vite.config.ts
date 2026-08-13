@@ -102,6 +102,11 @@ export default defineConfig({
           'content/*/{lexemes,anchors}.b1.json',
           'content/*/{lexemes,anchors}.b2.json',
           'content/*/{lexemes,anchors}.b3.json',
+          // Glosses for the same bands: ~33 KB raw across both languages, and
+          // the first exposure card of the first offline session wants one.
+          'content/*/glosses.b1.json',
+          'content/*/glosses.b2.json',
+          'content/*/glosses.b3.json',
         ],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,

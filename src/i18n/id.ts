@@ -14,8 +14,11 @@ export const copy = {
     tagline: 'Belajar bahasa, tanpa akun, tanpa kuota.',
   },
   firstRun: {
-    heading: 'Mau belajar bahasa apa?',
-    subheading: 'Bisa diubah kapan saja. Tidak perlu daftar.',
+    heading: 'Mau mulai dari bahasa apa?',
+    // D53: one language at a time, said out loud. Switching later costs nothing
+    // and loses nothing, so the copy promises exactly that and no more.
+    subheading:
+      'Satu dulu. Nanti bisa ganti kapan saja — yang satunya tetap tersimpan, tidak hilang. Tidak perlu daftar.',
     targets: {
       en: { label: 'Bahasa Inggris', hint: 'Untuk kamu yang sudah belajar di sekolah' },
       ja: { label: 'Bahasa Jepang', hint: 'Mulai dari nol, dari hiragana' },
@@ -28,7 +31,7 @@ export const copy = {
       15: { label: '15 menit', hint: 'Kalau kamu lagi niat' },
     },
     start: 'Mulai',
-    needTarget: 'Pilih dulu minimal satu bahasa.',
+    needTarget: 'Pilih dulu bahasa yang mau kamu mulai.',
   },
   home: {
     greeting: 'Halo!',
@@ -47,6 +50,14 @@ export const copy = {
     audioProbing: 'Mengecek suara di HP ini…',
     audioReady: 'Suara aktif — latihan mendengar tersedia',
     audioDead: 'HP ini belum bisa mengeluarkan suara, jadi latihan mendengar kami sembunyikan dulu',
+  },
+  /** SPEC §10: Japanese input without an IME headache. */
+  kana: {
+    showKeyboard: 'Papan kana',
+    hideKeyboard: 'Tutup papan kana',
+    hiragana: 'あ hiragana',
+    katakana: 'ア katakana',
+    hint: 'Ketik pakai huruf latin — otomatis jadi kana. Atau ketuk hurufnya di bawah.',
   },
   langNames: {
     en: 'Inggris',
@@ -172,6 +183,10 @@ export const copy = {
       // SPEC §3: framed as a pattern worth knowing, never as a weakness to fix.
       heading: 'Pola yang sering bikin kepeleset',
       typePlaceholder: 'Ketik jawabanmu',
+      // SPEC §8: "perbaiki kalimat ini". Framed as a fix, never as a mistake
+      // the learner made — they have not written this sentence.
+      correctionInstruction: 'Ada satu yang keliru di kalimat ini. Tulis ulang yang benar.',
+      correctionPlaceholder: 'Tulis kalimat yang benar',
       submit: 'Jawab',
       whyHeading: 'Kenapa begitu',
       l1Heading: 'Di bahasa Indonesia',
@@ -233,6 +248,19 @@ export const copy = {
     newWord: 'baru',
     tapHint: 'Ketuk kata untuk melihat artinya.',
 
+    /** SPEC §8 + §2.4: real running text, where the coverage band is reachable. */
+    passage: {
+      from: (title: string) => `Dari artikel “${title}” (Wikipedia Bahasa Inggris Sederhana)`,
+      check: 'Cek pemahaman',
+      checkInstruction: 'Satu kata dihilangkan dari teks tadi. Kata apa?',
+      checkPlaceholder: 'Ketik kata yang hilang',
+      // Japanese has no graded passage corpus that is free and cleared, and
+      // saying so is better than letting the learner infer parity.
+      onlyEnglish:
+        'Bacaan panjang baru ada untuk bahasa Inggris. Untuk bahasa Jepang, kami sajikan kalimat satu per satu dulu.',
+      heading: 'Bacaan panjang',
+    },
+
     word: {
       reading: 'Dibaca',
       band: (band: number) => `Kata tingkat ${band}`,
@@ -244,13 +272,55 @@ export const copy = {
       mined: 'Sudah masuk daftar',
       unmine: 'Batalkan',
       minedNote: 'Akan muncul di sesi latihan berikutnya.',
-      // R3: no Indonesian gloss source is licence-cleared, so the reader shows
-      // what it actually has rather than inventing a definition.
+      // Glosses cover 30% of English words and 4% of Japanese (measured), and
+      // the gaps are mostly function words. Where there is nothing, say so —
+      // the sentence translation is a real answer, not a consolation.
       noGloss:
-        'Kami belum punya kamus kata per kata. Sementara ini, terjemahan kalimatnya di bawah yang jadi petunjuk.',
+        'Kata ini belum ada di kamus kami. Terjemahan kalimat di bawah yang jadi petunjuknya.',
       components: 'Tersusun dari',
       close: 'Tutup',
     },
+  },
+
+  /**
+   * Risk R1's device matrix, run by whoever is holding the phone.
+   *
+   * The tone rule is the same as everywhere else — this says what the device
+   * can do, in plain words, and never implies the learner did something wrong
+   * by owning a phone with no speech engine.
+   */
+  diagnostics: {
+    open: 'Uji suara di HP ini',
+    heading: 'Uji perangkat',
+    intro:
+      'Kalau latihan mendengar tidak muncul, di sini tempat mengeceknya. Tombolnya membunyikan suara sekali dan mencatat hasilnya. Tidak ada yang dikirim ke mana pun.',
+    run: 'Uji audio sekarang',
+    running: 'Sedang mengecek…',
+    again: 'Uji lagi',
+    langHeading: (lang: string) => `Suara bahasa ${lang}`,
+    ready: (ms: number) => `Bunyi, selesai dalam ${ms} milidetik.`,
+    // Being over the deadline is a real outcome and it is explained, not hidden.
+    slow: (ms: number) =>
+      `Bunyi, tapi baru selesai setelah ${ms} milidetik. Untuk soal dikte itu kelamaan, jadi latihan mendengar tetap kami sembunyikan.`,
+    noVoice: 'Belum ada suara untuk bahasa ini di HP kamu.',
+    dead: 'Suaranya terdaftar, tapi tidak pernah benar-benar berbunyi.',
+    unsupported: 'Peramban ini tidak punya fitur suara sama sekali.',
+    // The one case where pressing the button changes what the app will offer.
+    adopted: 'Ternyata bisa. Latihan mendengar kami buka sekarang.',
+    firstCall: (ms: number) => `Panggilan pertama ke mesin suara makan waktu ${ms} milidetik.`,
+    firstCallSlow:
+      'Itu lama sekali, dan bukan salahmu — pengecekan suara memang kami tunda supaya aplikasinya tidak ikut macet.',
+    recognitionReady: 'HP ini bisa mendengar suaramu untuk latihan berbicara.',
+    recognitionAbsent: 'HP ini belum bisa mengenali suaramu. Latihan tetap jalan, tinggal diketik.',
+    remindersScheduled: 'Pengingat bisa muncul walau aplikasi tertutup.',
+    remindersInApp: 'Pengingat hanya muncul saat kamu buka aplikasi.',
+    remindersNone: 'Peramban ini tidak punya pengingat.',
+    copyHeading: 'Kirim ke pengembang',
+    copyHint:
+      'Salin teks ini dan kirimkan ke kami. Isinya cuma tentang kemampuan HP-mu — tidak ada satu pun jawaban latihanmu di dalamnya.',
+    copy: 'Salin',
+    copied: 'Tersalin.',
+    back: 'Kembali',
   },
 
   /**

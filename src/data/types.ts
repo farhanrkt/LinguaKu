@@ -289,6 +289,34 @@ export interface DeferredItem {
   times: number;
 }
 
+/**
+ * One comprehension check on a passage the learner has just read (SPEC §9's
+ * reading axis, §2.4).
+ *
+ * Its own table, for D32's reason exactly: a passage has no FSRS card behind
+ * it — nothing scheduled, no stability — so filing these among the review logs
+ * would put unscheduled items into the retention rate §9 promises to report
+ * honestly, and `ReviewLog.cardId` would be a lie. Append-only, like the other
+ * two attempt logs.
+ */
+export interface ReadingAttempt {
+  id: string;
+  profileId: string;
+  lang: TargetLang;
+  passageId: string;
+  /** The lexeme that was blanked out of the text. */
+  itemId: string;
+  correct: Flag;
+  answerRaw: string;
+  /**
+   * Known-token coverage of the passage at the moment it was shown. Kept
+   * because a right answer on a text at 0.99 coverage and one at 0.92 are not
+   * the same evidence, and the difference is unrecoverable afterwards.
+   */
+  coverage: number;
+  answeredAt: Timestamp;
+}
+
 export interface Session {
   id: string;
   profileId: string;

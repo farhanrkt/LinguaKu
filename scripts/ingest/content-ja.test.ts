@@ -20,7 +20,7 @@ import type { FrequencyBand } from '../../src/core/frequency.ts';
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'content', 'ja');
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'glosses';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -288,6 +288,13 @@ describe('provenance and licence (SPEC §5.2)', () => {
   it('declares every dataset it draws on', () => {
     for (const shard of manifest.shards) {
       const sources = read<{ sources: string[] }>(shard.path).sources;
+      // Glosses are their own shard with their own single source (D9): the
+      // Japanese shards are already CC BY-SA through EDRDG, but keeping the
+      // provenance exact is what lets the attribution screen tell the truth.
+      if (shard.kind === 'glosses') {
+        expect(sources).toEqual(['wiktionary-id']);
+        continue;
+      }
       expect(sources).toContain('tatoeba');
       expect(sources).toContain('kanjidic2');
       expect(sources).toContain('ipadic');
