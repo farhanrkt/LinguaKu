@@ -144,11 +144,16 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
         >
           {copy.progress.data.importLabel}
         </Button>
+        {/* The visible control is the button above, which opens this input.
+            A screen reader meets the input itself, though, so it carries its own
+            name — without one it is announced as an unlabelled file field, and
+            the learner has no idea what they are being asked to hand over. */}
         <input
           ref={fileInput}
           type="file"
           accept="application/json,.json"
           className="sr-only"
+          aria-label={copy.progress.data.importLabel}
           data-testid="import-file"
           onChange={(event) => {
             const file = event.target.files?.[0];

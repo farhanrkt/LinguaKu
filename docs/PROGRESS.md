@@ -1,5 +1,37 @@
 # PROGRESS.md
 
+## v1.8.0 — accessibility, gated (2026-08-13)
+
+§10 has promised WCAG AA contrast, `motion-safe:` on every transition, 56px tap
+targets and *"full keyboard operation on desktop"* since M0. §13 listed CI gates
+for the bundle, the licences, the cold start and installability — and for none
+of that. Four promises, held up by care alone, for eleven milestones.
+
+**The first run found a real one.** The JSON restore control is a styled button
+in front of a visually hidden file input; a screen reader met an **unlabelled
+file field**, critical severity, on the single screen where a learner hands over
+their entire history. Fixed, and it is the kind of defect that only a gate
+finds — nothing about it is visible to someone looking at the screen.
+
+**The keyboard is checked by using it** (D68). axe cannot observe "full keyboard
+operation", so that test drives the app with nothing but Tab and Enter, from the
+home screen into a session and through an answer, with no clicks and no test ids
+reached past the UI. Reduced motion is checked by asking the browser for the
+preference and asserting nothing declares a transition.
+
+**axe is a floor, not a verdict**, and the spec comment says so: it catches
+contrast, names, roles and labels, and it cannot tell whether a screen makes
+sense to a person.
+
+### Still ahead
+
+| | | |
+|---|---|---|
+| **v1.9.0** | The honest close | Whatever the device matrix reports, the native copy pass integrated, the launch checklist re-measured. The last v1. |
+| **v2.0.0** | — | Gated on decisions and hardware rather than code: audio shipped, the matrix filled, the Indonesian reviewed by a native speaker, sync deployed or deleted. |
+
+---
+
 ## v1.7.0 — the glossary (2026-08-13)
 
 Named at v1.6.0 as the obvious next thing and left rather than rushed; built

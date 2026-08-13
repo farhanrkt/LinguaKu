@@ -11,7 +11,8 @@ this app is supposed to trace to a named finding there.
 npm run dev          # Vite dev server (no service worker — offline is prod-only)
 npm run verify       # the gate: typecheck → lint → unit → licences → build → bundle budget
 npm run test:watch   # Vitest in watch mode
-npm run test:e2e     # Playwright smoke against a real production build
+npm run test:e2e     # Playwright against a real production build, including
+                     # the WCAG 2.1 AA and keyboard-operation gates (§10)
 npm run icons        # regenerate public/icons/ (committed; run only on redesign)
 
 npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)

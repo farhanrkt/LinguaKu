@@ -1,6 +1,6 @@
 {
   "name": "linguaku",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "description": "Offline-first PWA teaching English and Japanese to Indonesian speakers.",
@@ -39,6 +39,7 @@
     "ts-fsrs": "^5.4.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@sglkc/kuromoji": "^1.1.0",

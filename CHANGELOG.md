@@ -5,6 +5,46 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.8.0 — 2026-08-13
+
+**The accessibility promises now have a gate.** §10 has asked for WCAG AA
+contrast, reduced-motion support, 56px targets and *"full keyboard operation on
+desktop"* since M0, and §13 listed a gate for none of them — so all four were
+claims held up by care.
+
+### Found on the first run
+
+**A screen reader met an unlabelled file field on the restore control**
+(critical). The JSON import input is visually hidden behind a styled button, so
+sighted learners see the button and everyone else met an anonymous file input —
+on the one screen where a learner hands over their entire history. It has a name
+now.
+
+### The gate
+
+- **axe** over every screen a learner reaches — first run, home, reader,
+  progress, glossary, settings, attribution — and over a session, mid-answer.
+  `@axe-core/playwright`, MPL-2.0, devDependency only: nothing enters the bundle.
+- **The keyboard, by using it.** Tab and Enter from the home screen into a
+  session and through an answer, with no clicks and nothing reached past the UI.
+  "Full keyboard operation" is a behaviour; no static rule observes it.
+- **Reduced motion**, by asking the browser for the preference and asserting
+  that nothing on screen declares a transition.
+
+axe is a floor rather than a verdict (D68): it catches contrast, names, roles
+and labels, and it cannot tell whether a screen makes sense.
+
+### Measured
+
+| | v1.7.0 | v1.8.0 |
+|---|---|---|
+| e2e tests | 45 | **49** |
+| unit tests | 752 | 752 |
+| initial JS, gzipped | 136.7 KB | **136.7 KB** |
+| WCAG 2.1 AA violations | unmeasured | **0** |
+
+---
+
 ## v1.7.0 — 2026-08-13
 
 **The glossary** — the one kind of browsing SPEC §2.2 allows, and the last
