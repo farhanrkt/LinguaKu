@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, openFromSettings } from './helpers.ts';
 
 /**
  * SPEC §5.2 and the EDRDG licence. This screen is a **licence condition**: an
@@ -10,7 +10,7 @@ import { firstRun } from './helpers.ts';
 
 test('the attribution screen satisfies the licence conditions', async ({ page }) => {
   await firstRun(page);
-  await page.getByTestId('attribution-open').click();
+  await openFromSettings(page, 'attribution-open');
 
   const list = page.getByTestId('attribution-list');
   await expect(list).toBeVisible({ timeout: 15_000 });
@@ -36,7 +36,7 @@ test('the attribution screen satisfies the licence conditions', async ({ page })
 
 test('does not attribute datasets the build does not use', async ({ page }) => {
   await firstRun(page);
-  await page.getByTestId('attribution-open').click();
+  await openFromSettings(page, 'attribution-open');
   const list = page.getByTestId('attribution-list');
   await expect(list).toBeVisible({ timeout: 15_000 });
 

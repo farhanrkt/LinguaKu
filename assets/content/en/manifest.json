@@ -93,6 +93,42 @@
       "sha256": "010c3114f9ef2f0a6cffd7f0ad46e6d61930b712b53367aba78ddd6f7181ad42"
     },
     {
+      "kind": "chunks",
+      "band": 1,
+      "path": "chunks.b1.json",
+      "count": 47,
+      "bytes": 10032,
+      "gzipBytes": 2788,
+      "sha256": "93a9021ab9df06a2ec408c9158b31eee886fd39fe6df494c30f42033540bc86e"
+    },
+    {
+      "kind": "chunks",
+      "band": 2,
+      "path": "chunks.b2.json",
+      "count": 14,
+      "bytes": 3225,
+      "gzipBytes": 1094,
+      "sha256": "1bd4eccde5745a5e34a573d352f0446baf3b5385dea083c21d3cea8aab8f09e5"
+    },
+    {
+      "kind": "chunks",
+      "band": 3,
+      "path": "chunks.b3.json",
+      "count": 9,
+      "bytes": 1785,
+      "gzipBytes": 664,
+      "sha256": "bb161bd5444d1abd9702cdc50f3b006b8fccca3887abf27c27b030b904688f1e"
+    },
+    {
+      "kind": "chunks",
+      "band": 4,
+      "path": "chunks.b4.json",
+      "count": 3,
+      "bytes": 642,
+      "gzipBytes": 326,
+      "sha256": "d633fb27fb56e24be308b7de7ac3176fe4fcf0a608b2a7c96f13091eea7d25b0"
+    },
+    {
       "kind": "glosses",
       "band": 1,
       "path": "glosses.b1.json",
@@ -289,6 +325,15 @@
       "bytes": 473736,
       "gzipBytes": 132918,
       "sha256": "aba5d9f64ed9747aa11b0f62886aee1ad10f992b9ed13a0a3c58264583305530"
+    },
+    {
+      "kind": "topics",
+      "band": 0,
+      "path": "topics.json",
+      "count": 12,
+      "bytes": 10009,
+      "gzipBytes": 2419,
+      "sha256": "fb71bf562ed306d1a0cfa16deaec8c6517d33e6ea2c52df392981face0a50431"
     }
   ],
   "glossCoverage": {

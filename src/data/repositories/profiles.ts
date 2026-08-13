@@ -71,7 +71,9 @@ export const scriptModeOnSwitch = (
 
 export const updateProfile = async (
   id: string,
-  changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'requestRetention'>>,
+  changes: Partial<
+    Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'requestRetention' | 'topics'>
+  >,
 ): Promise<void> => {
   await db.profiles.update(id, changes);
 };

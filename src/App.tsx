@@ -8,6 +8,7 @@ import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
 import { ReaderScreen } from './features/reader/ReaderScreen.tsx';
 import { SyncScreen } from './features/settings/SyncScreen.tsx';
 import { DiagnosticsScreen } from './features/settings/DiagnosticsScreen.tsx';
+import { SettingsScreen } from './features/settings/SettingsScreen.tsx';
 import { HabitScreen } from './features/habit/HabitScreen.tsx';
 import { copy } from './i18n/id.ts';
 import { hasBeenPlaced, refreshListeningAbility } from './data/repositories/abilities.ts';
@@ -17,6 +18,7 @@ import { getHabit, lastPractisedAt } from './data/repositories/habits.ts';
 import { cueIsDue, scheduleReminder } from './platform/notifications.ts';
 import { ensureBands, STARTER_BANDS } from './data/content.ts';
 import { loadContrastive } from './data/contrastive.ts';
+import { loadTopics } from './data/topics.ts';
 import {
   getStorageDurability,
   requestPersistentStorage,
@@ -36,6 +38,7 @@ type Screen =
   | { name: 'reader'; profile: Profile }
   | { name: 'sync'; profile: Profile }
   | { name: 'diagnostics'; profile: Profile }
+  | { name: 'settings'; profile: Profile }
   | { name: 'habit'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
@@ -116,6 +119,9 @@ export const App = () => {
       // Warm the contrastive pack off the critical path, so it is in memory by
       // the time the composer looks for it (SPEC §5.4).
       void loadContrastive(profile?.targets[0] ?? 'en');
+      // The composer reads the topic map from memory and must never wait on a
+      // fetch inside the ≤3s budget (§5.4), so it is warmed here like the pack.
+      void loadTopics(profile?.targets[0] ?? 'en');
       if (!profile) {
         setScreen({ name: 'first-run' });
         return;
@@ -157,10 +163,10 @@ export const App = () => {
   }, []);
 
   const handleChange = useCallback(
-    async (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => {
+    async (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'topics'>>) => {
       setScreen((current) =>
-        current.name === 'home'
-          ? { name: 'home', profile: { ...current.profile, ...changes } }
+        current.name === 'home' || current.name === 'settings'
+          ? { ...current, profile: { ...current.profile, ...changes } }
           : current,
       );
       const profile = await getCurrentProfile();
@@ -174,6 +180,7 @@ export const App = () => {
       const lang = changes.targets?.[0];
       if (!lang) return;
       void loadContrastive(lang);
+      void loadTopics(lang);
       void ensureBands(lang, STARTER_BANDS).catch(() => undefined);
       const [resume, placed] = await Promise.all([
         findResumable(profile.id, lang),
@@ -249,7 +256,7 @@ export const App = () => {
           profile={screen.profile}
           onDone={() => {
             setCueDue(null);
-            setScreen({ name: 'home', profile: screen.profile });
+            setScreen({ name: 'settings', profile: screen.profile });
           }}
         />
       );
@@ -261,6 +268,18 @@ export const App = () => {
             // other language's verdict is still adopted inside the probe.
             if (lang === (screen.profile.targets[0] ?? 'en')) setVoice(report);
           }}
+          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
+        />
+      );
+    case 'settings':
+      return (
+        <SettingsScreen
+          profile={screen.profile}
+          onChange={(changes) => void handleChange(changes)}
+          onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
+          onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
+          onDiagnostics={() => setScreen({ name: 'diagnostics', profile: screen.profile })}
+          onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
           onBack={() => setScreen({ name: 'home', profile: screen.profile })}
         />
       );
@@ -268,13 +287,13 @@ export const App = () => {
       return (
         <SyncScreen
           profile={screen.profile}
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
         />
       );
     case 'attribution':
       return (
         <AttributionScreen
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
         />
       );
     case 'progress':
@@ -297,12 +316,9 @@ export const App = () => {
           onReady={() => probeAudio(screen.profile.targets[0] ?? 'en')}
           onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
           onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}
-          onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
           onRead={() => setScreen({ name: 'reader', profile: screen.profile })}
-          onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
-          onDiagnostics={() => setScreen({ name: 'diagnostics', profile: screen.profile })}
+          onSettings={() => setScreen({ name: 'settings', profile: screen.profile })}
           cueDue={cueDue}
-          onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
           onDismissCue={() => setCueDue(null)}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}

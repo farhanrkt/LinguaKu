@@ -105,3 +105,63 @@ const countAnswers = (page: Page): Promise<number> =>
         };
       }),
   );
+
+/**
+ * SPEC §2.14: *"learner picks topic clusters"*, and §2.10: frequency order
+ * *"modulated by learner-selected topic goals"*.
+ *
+ * The control has to be reachable, honest about what it does, and costless to
+ * leave alone — a preference that reads as a syllabus would be the opposite of
+ * the autonomy it is there for.
+ */
+test('topics are offered, and choosing none costs nothing', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('settings-open').click();
+
+  const list = page.getByTestId('topic-list');
+  await expect(list).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Belum ada yang dipilih/)).toBeVisible();
+
+  await list.locator('button[aria-pressed]').first().click();
+  await expect(page.getByText(/Bisa diubah atau dikosongkan kapan saja/)).toBeVisible();
+
+  // Wait for the write to land before reloading. The toggle updates the screen
+  // optimistically and persists in the background, so a reload fired
+  // immediately after the tap can beat the write — which is a race in the test,
+  // not in the app, but it would look identical to a lost preference.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          async () =>
+            await new Promise<string>((resolve) => {
+              const open = indexedDB.open('linguaku');
+              open.onsuccess = () => {
+                const query = open.result
+                  .transaction('profiles')
+                  .objectStore('profiles')
+                  .getAll();
+                query.onsuccess = () =>
+                  resolve(JSON.stringify((query.result[0] as { topics?: string[] })?.topics ?? []));
+              };
+            }),
+        ),
+      { timeout: 10_000 },
+    )
+    .not.toBe('[]');
+
+  // And it survives a cold start, because it is a profile field, not state.
+  await page.reload();
+  await page.getByTestId('settings-open').click();
+  // The list is fetched, so wait for it rather than racing the render.
+  await expect(page.getByTestId('topic-list')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('topic-list').locator('button[aria-pressed="true"]')).toHaveCount(
+    1,
+    { timeout: 15_000 },
+  );
+
+  // Nothing is gated on it: the session still starts either way.
+  await page.getByRole('button', { name: 'Selesai' }).click();
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+});

@@ -54,6 +54,11 @@ export interface Task {
    * has nothing — coverage is partial and measured, never invented.
    */
   gloss?: readonly string[];
+  /**
+   * A chunk's L1 trap, in Indonesian (SPEC §2.5, §2.9). Present only where the
+   * phrase has one — "take a shower" does, "have lunch" does not.
+   */
+  chunkNote?: string;
   /** Cloze rungs only. */
   cloze?: Cloze;
   /** Kanji cards only (SPEC §2.11). */
@@ -281,12 +286,19 @@ export const buildTask = async (
       kind: 'exposure',
       answer: item.headword,
       asksConfidence: false,
+      // A chunk arrives with its meaning authored (SPEC §2.5): its parts do not
+      // compose, so a per-word gloss cannot stand in for it.
+      ...(item.gloss !== undefined ? { gloss: [item.gloss] } : {}),
+      ...(item.chunkNote !== undefined ? { chunkNote: item.chunkNote } : {}),
       // SPEC §2.3 L0 is "sentence + audio + gloss". The gloss half was missing
       // until one was licence-cleared (R3), and it is still partial: a word
       // without one shows the sentence and its translation, exactly as before.
-      ...(await glossFor(item.lang, item.band, itemId).then((senses) =>
-        senses.length > 0 ? { gloss: senses } : {},
-      )),
+      // A chunk's own gloss above wins — it was authored for this phrase.
+      ...(item.gloss === undefined
+        ? await glossFor(item.lang, item.band, itemId).then((senses) =>
+            senses.length > 0 ? { gloss: senses } : {},
+          )
+        : {}),
     };
   }
 

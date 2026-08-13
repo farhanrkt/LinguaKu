@@ -53,6 +53,17 @@ export interface Profile {
    * older profile needs no backfill, because absent already means "the default".
    */
   requestRetention?: number;
+  /**
+   * SPEC §2.14 (autonomy): *"learner picks topic clusters"*, and SPEC §2.10:
+   * frequency order *"modulated by learner-selected topic goals"*.
+   *
+   * Absent or empty means no preference, which is not the same as "none" — a
+   * learner who has chosen nothing gets the frequency order they always got.
+   * Choosing a topic *reorders* new items; it never restricts them, because a
+   * learner who picks "food" still needs the function words that hold a
+   * sentence together.
+   */
+  topics?: string[];
 }
 
 /** SPEC §4.2: three abilities are estimated separately, never collapsed. */
@@ -108,6 +119,19 @@ export interface Item {
   levelTag?: string;
   /** SPEC §2.11: kanji components, e.g. 校 → ['木', '交']. */
   componentsOf?: string[];
+  /**
+   * Chunks only (SPEC §2.5): the Indonesian meaning, and the L1 trap where
+   * there is one.
+   *
+   * A lexeme's meaning comes from its anchor sentences and, where one exists,
+   * the gloss shard — but a chunk is authored *with* its meaning, because the
+   * whole reason it is an item is that its parts do not add up to it. Carrying
+   * two short authored strings on the item is cheaper than a shard lookup for
+   * ninety-six rows, and it keeps the authored content and its licence
+   * together.
+   */
+  gloss?: string;
+  chunkNote?: string;
   /** SPEC §3: contrastive category IDs this item exercises. */
   interferenceTags: string[];
   sourceRef: SourceRef;

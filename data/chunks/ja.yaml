@@ -1,0 +1,79 @@
+# Japanese formulaic chunks (SPEC §2.5).
+#
+# §2.5 names 「お世話になります」 specifically, and it is the right example: it is
+# not built from its parts in any way a learner can reconstruct, it is said
+# constantly, and no Indonesian sentence maps onto it. Japanese has more of
+# these than English does — most of the language's politeness lives in fixed
+# formulas — so they are taught whole, which is what a chunk is for.
+#
+# Validated against the shipped corpus exactly as the English list is: a chunk
+# the pipeline cannot anchor to a real sentence fails the build.
+#
+# The Indonesian is a draft by a non-native writer and wants a native pass, and
+# the Japanese wants a native reviewer more than the English does — the same
+# caveat M6 recorded for the Japanese contrastive drills.
+
+version: 1
+lang: ja
+l1: id
+
+chunks:
+  # ------------------------------------------------------------- greetings
+  - text: 'おはようございます'
+    id: 'selamat pagi (sopan)'
+  - text: 'こんにちは'
+    id: 'selamat siang, halo'
+  - text: 'こんばんは'
+    id: 'selamat malam (saat bertemu)'
+  - text: 'おやすみなさい'
+    id: 'selamat tidur'
+  - text: 'さようなら'
+    id: 'selamat tinggal'
+  - text: 'ありがとうございます'
+    id: 'terima kasih (sopan)'
+  - text: 'どういたしまして'
+    id: 'sama-sama'
+  - text: 'すみません'
+    id: 'permisi; maaf'
+    note: 'Satu kata untuk tiga hal — memanggil orang, minta maaf, dan berterima kasih halus. Konteksnya yang menentukan.'
+  - text: 'ごめんなさい'
+    id: 'maaf'
+    note: 'Lebih personal daripada すみません, dan tidak dipakai untuk memanggil pelayan.'
+  - text: 'いただきます'
+    id: '(ucapan sebelum makan)'
+    note: 'Tidak ada padanannya. Bukan doa — ini ucapan terima kasih atas makanannya, dan selalu diucapkan.'
+  - text: 'ごちそうさまでした'
+    also: ['ごちそうさま']
+    id: '(ucapan setelah makan)'
+
+  # -------------------------------------------------------- meeting people
+  - text: 'はじめまして'
+    id: 'salam kenal'
+  - text: 'よろしくお願いします'
+    id: 'mohon kerja samanya'
+    note: 'Diucapkan saat berkenalan, saat memulai kerja sama, dan di akhir permintaan. Tidak ada terjemahan tunggalnya.'
+  - text: 'お世話になります'
+    also: ['お世話になっております', 'お世話になりました', 'お世話になって']
+    id: 'terima kasih atas bantuannya'
+    note: '§2.5 menyebut frasa ini sebagai contoh. Artinya kira-kira "saya berutang budi pada Anda" dan dipakai sebagai sapaan biasa di dunia kerja.'
+  - text: 'お元気ですか'
+    id: 'apa kabar'
+  - text: 'お名前は'
+    id: 'siapa namanya'
+
+  # ------------------------------------------------------------ everyday
+  - text: 'ちょっと待ってください'
+    id: 'tunggu sebentar'
+  - text: 'もう一度'
+    id: 'sekali lagi'
+  - text: '大丈夫です'
+    id: 'tidak apa-apa; saya baik-baik saja'
+  - text: 'わかりました'
+    id: 'saya mengerti, baik'
+  - text: 'わかりません'
+    id: 'saya tidak mengerti'
+  - text: 'しかたがない'
+    id: 'mau bagaimana lagi'
+  - text: 'そうですね'
+    id: 'iya ya, benar juga'
+    note: 'Sering hanya pengisi jeda sambil berpikir, bukan persetujuan penuh.'

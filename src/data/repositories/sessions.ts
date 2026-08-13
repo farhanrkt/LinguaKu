@@ -17,7 +17,8 @@ import { minedItemIds } from './mining.ts';
 import { deferredItemIds } from './deferrals.ts';
 import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { Profile, Session, TargetLang, Timestamp } from '../types.ts';
+import { peekTopics, type TopicPack } from '../topics.ts';
+import type { Item, Profile, Session, TargetLang, Timestamp } from '../types.ts';
 
 /**
  * SPEC §2.13: sessions are interruption-safe. The cursor is persisted after
@@ -39,6 +40,27 @@ const BASE_NEW_ITEMS = 40;
  * against the Japanese ability. Sessions written before v1.0.1 carry no `lang`
  * and are never resumed; the review logs they produced are untouched.
  */
+/**
+ * The item kind the composer interleaves on (SPEC §2.8).
+ *
+ * Kanji and chunks each count as their own type, so two of either cannot land
+ * back to back; everything else is a lexeme as far as spacing is concerned.
+ */
+const itemKindFor = (item: Item): 'lexeme' | 'kanji' | 'chunk' =>
+  item.kind === 'kanji' ? 'kanji' : item.kind === 'chunk' ? 'chunk' : 'lexeme';
+
+/**
+ * The cluster §2.8 spaces on.
+ *
+ * A topic where the item has one, and the frequency band otherwise. The band
+ * was the stand-in from M2 until topics existed, and it is still the right
+ * fallback: it groups like with like, which is all the spacing rule needs. The
+ * difference is that "three food words in a row" is now a thing the rule can
+ * see, and it could not before.
+ */
+const clusterFor = (item: Item, topics: TopicPack | null): string =>
+  topics?.byItem.get(item.id) ?? `b${item.band}`;
+
 export const findResumable = async (
   profileId: string,
   lang: TargetLang,
@@ -74,6 +96,7 @@ const newCandidates = async (
   const items = [
     ...(await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray()),
     ...(await db.items.where('[lang+kind]').equals([lang, 'kanji']).toArray()),
+    ...(await db.items.where('[lang+kind]').equals([lang, 'chunk']).toArray()),
   ].sort((a, b) => a.freqRank - b.freqRank);
   const started = new Set(
     (await db.cards.where('profileId').equals(profile.id).toArray()).map((card) => card.itemId),
@@ -96,11 +119,29 @@ const newCandidates = async (
       !started.has(item.id),
   );
 
-  // Mined words first, then nearest the frontier — which is where the learning
-  // is for everything the learner did not specifically ask for.
+  // SPEC §2.10: frequency order, *modulated by* the learner's chosen topics.
+  // Modulated, not filtered — someone who picks "food" still needs the function
+  // words that hold a sentence together, and restricting the queue to a topic
+  // would starve them of exactly the words that make the topic usable.
+  const topics = peekTopics(lang);
+  const chosen = new Set(profile.topics ?? []);
+  const inChosenTopic = (itemId: string): boolean => {
+    const topic = topics?.byItem.get(itemId);
+    return topic !== undefined && chosen.has(topic);
+  };
+
+  // Mined words first, then anything in a topic the learner asked for, then
+  // nearest the frontier — which is where the learning is for everything they
+  // did not specifically ask for.
   eligible.sort((a, b) => {
     const minedRank = (item: typeof a) => (mined.has(item.id) ? 0 : 1);
-    return minedRank(a) - minedRank(b) || b.band - a.band || a.freqRank - b.freqRank;
+    const topicRank = (item: typeof a) => (inChosenTopic(item.id) ? 0 : 1);
+    return (
+      minedRank(a) - minedRank(b) ||
+      topicRank(a) - topicRank(b) ||
+      b.band - a.band ||
+      a.freqRank - b.freqRank
+    );
   });
 
   return eligible.slice(0, limit).map((item) => ({
@@ -109,10 +150,10 @@ const newCandidates = async (
     cardId: null,
     slice: 'new' as const,
     ladderLevel: 0 as const,
-    clusterId: `b${item.band}`,
+    clusterId: clusterFor(item, topics),
     retrievability: 0,
     lapses: 0,
-    itemKind: item.kind === 'kanji' ? ('kanji' as const) : ('lexeme' as const),
+    itemKind: itemKindFor(item),
   }));
 };
 
@@ -189,6 +230,7 @@ const dueCandidates = async (
 ): Promise<Candidate[]> => {
   const cards = await dueCards(profile.id, now);
   const items = await db.items.bulkGet(cards.map((card) => card.itemId));
+  const topics = peekTopics(profile.targets[0] ?? 'en');
 
   return cards.flatMap((card, index) => {
     const item = items[index];
@@ -203,10 +245,10 @@ const dueCandidates = async (
         cardId: card.id,
         slice: 'review' as const,
         ladderLevel: card.ladderLevel,
-        clusterId: `b${item.band}`,
+        clusterId: clusterFor(item, topics),
         retrievability: retrievability(card.fsrs, now),
         lapses: card.fsrs.lapses,
-        itemKind: item.kind === 'kanji' ? ('kanji' as const) : ('lexeme' as const),
+        itemKind: itemKindFor(item),
       },
     ];
   });

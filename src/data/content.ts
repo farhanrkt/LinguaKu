@@ -59,6 +59,17 @@ interface WireLexeme {
   share?: number;
 }
 
+/** An authored collocation or formula (SPEC §2.5). */
+interface WireChunk {
+  id: string;
+  headword: string;
+  gloss: string;
+  note?: string;
+  freqRank: number;
+  band: FrequencyBand;
+  anchors: string[];
+}
+
 /** A kanji, from KANJIDIC2 and KRADFILE (SPEC §2.11). */
 export interface WireKanji {
   id: string;
@@ -77,7 +88,7 @@ export interface WireKanji {
 }
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'chunks' | 'glosses' | 'passages';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -130,6 +141,30 @@ const toItem = (wire: WireLexeme, lang: TargetLang): Item => ({
 });
 
 /**
+ * A chunk becomes an `Item` like any other, and gets a card, a schedule and a
+ * place in the session. SPEC §2.5 is explicit that collocations and formulaic
+ * chunks are *first-class items, not derived from single words* — teaching
+ * `take` and `shower` separately never adds up to "take a shower", which is the
+ * whole reason the requirement exists.
+ *
+ * It carries its meaning with it, because that meaning is authored rather than
+ * looked up: the parts do not compose, so a per-word gloss cannot help.
+ */
+const toChunkItem = (wire: WireChunk, lang: TargetLang): Item => ({
+  id: wire.id,
+  lang,
+  kind: 'chunk',
+  headword: wire.headword,
+  gloss: wire.gloss,
+  ...(wire.note !== undefined ? { chunkNote: wire.note } : {}),
+  anchorSentenceIds: wire.anchors,
+  freqRank: wire.freqRank,
+  band: wire.band,
+  interferenceTags: [],
+  sourceRef: { dataset: 'linguaku-authored', externalId: wire.headword },
+});
+
+/**
  * A kanji becomes an `Item` like any other, so it gets a card, a schedule and a
  * place in the session — SPEC §2.11 teaches kanji, it does not merely display
  * them. `componentsOf` carries the breakdown the card renders, and the anchors
@@ -177,7 +212,9 @@ export const ensureBands = async (
     // not follow the vocabulary bands, and 1,748 records is small enough that
     // splitting it would cost more requests than it saves bytes.
     const wanted =
-      shard.kind === 'kanji' ? true : shard.kind === 'lexemes' && bands.includes(shard.band);
+      shard.kind === 'kanji'
+        ? true
+        : (shard.kind === 'lexemes' || shard.kind === 'chunks') && bands.includes(shard.band);
     if (!wanted) continue;
 
     const existing = await db.contentShards.get(shard.path);
@@ -186,13 +223,17 @@ export const ensureBands = async (
       continue;
     }
 
-    const payload = await fetchJson<{ lexemes?: WireLexeme[]; kanji?: WireKanji[] }>(
-      `${CONTENT_BASE}/${lang}/${shard.path}`,
-    );
+    const payload = await fetchJson<{
+      lexemes?: WireLexeme[];
+      kanji?: WireKanji[];
+      chunks?: WireChunk[];
+    }>(`${CONTENT_BASE}/${lang}/${shard.path}`);
     const rows =
       shard.kind === 'kanji'
         ? (payload.kanji ?? []).map((wire) => toKanjiItem(wire, lang))
-        : (payload.lexemes ?? []).map((wire) => toItem(wire, lang));
+        : shard.kind === 'chunks'
+          ? (payload.chunks ?? []).map((wire) => toChunkItem(wire, lang))
+          : (payload.lexemes ?? []).map((wire) => toItem(wire, lang));
     await db.items.bulkPut(rows);
     await db.contentShards.put({
       path: shard.path,

@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.5.1
+## Status — v1.6.0
 
 **Milestones 0 through 11 complete.** Every §2 requirement is implemented and
 the §8 exercise catalog is finished. See [`CHANGELOG.md`](CHANGELOG.md) for the
@@ -21,12 +21,12 @@ production verification procedure.
 |---|---|
 | icon tap → first answerable question | **1.4 s** (budget 3 s) |
 | initial JS / CSS, gzipped | **136.2 KB** / **6.7 KB** (budgets 200 / 40) |
-| tests | **718** unit · **43** e2e |
+| tests | **745** unit · **44** e2e |
 | recurring cost | **zero** |
 
 English: 23,497 banded sentence pairs, 5,245 lexemes, 1,581 Indonesian glosses,
-1,680 graded reading passages, 21 contrastive categories, 126 drills, 75 false
-friends. Japanese: 15,324 pairs, 6,904 lexemes, all 1,748 kanji with component
+1,680 graded reading passages, 73 authored collocations, 12 topic clusters, 21
+contrastive categories, 126 drills, 75 false friends. Japanese: 15,324 pairs, 6,904 lexemes, all 1,748 kanji with component
 breakdowns, 14 contrastive categories including **six positive-transfer notes**.
 
 Two things are deliberately still missing and are named rather than hidden: the

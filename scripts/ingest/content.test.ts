@@ -16,7 +16,7 @@ import type { FrequencyBand } from '../../src/core/frequency.ts';
 const CONTENT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'content', 'en');
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'glosses' | 'passages';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'glosses' | 'passages' | 'chunks' | 'topics';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -89,6 +89,15 @@ describe('provenance (SPEC §5.2)', () => {
       if (shard.kind === 'glosses') {
         expect(payload.sources).toEqual(['wiktionary-id']);
         expect(payload.license).toBe('CC BY-SA 4.0');
+      } else if (shard.kind === 'topics') {
+        // The topic map is authored here and derives from no corpus at all: it
+        // names members of the inventory rather than reproducing any of it.
+        expect(payload.sources).toEqual(['linguaku-authored']);
+        expect(payload.license).toBe('MIT');
+      } else if (shard.kind === 'chunks') {
+        // Authored phrases (linguaku-authored) taught through Tatoeba
+        // sentences: provenance is per file, and this file has two sources.
+        expect(payload.sources).toEqual(['linguaku-authored', 'tatoeba']);
       } else if (shard.kind === 'passages') {
         expect(payload.sources).toEqual(['wikipedia-simple-en']);
         expect(payload.license).toBe('CC BY-SA 4.0');

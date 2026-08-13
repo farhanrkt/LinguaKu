@@ -70,6 +70,17 @@ export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: Ta
       ) : null}
     </p>
 
+    {/* SPEC §2.5 + §2.9: where a chunk has an L1 trap, naming it is the whole
+        value of teaching the phrase whole rather than word by word. */}
+    {task.chunkNote ? (
+      <p
+        className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+        data-testid="chunk-note"
+      >
+        {task.chunkNote}
+      </p>
+    ) : null}
+
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
 
     <div className="mt-8">

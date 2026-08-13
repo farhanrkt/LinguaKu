@@ -20,7 +20,7 @@ import type { FrequencyBand } from '../../src/core/frequency.ts';
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'content', 'ja');
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'glosses';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'glosses' | 'chunks' | 'topics';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -281,7 +281,11 @@ describe('provenance and licence (SPEC §5.2)', () => {
     // mixes them takes the stricter licence, not the more convenient one.
     expect(manifest.license).toBe('CC BY-SA 4.0');
     for (const shard of manifest.shards) {
-      expect(read<{ license: string }>(shard.path).license).toBe('CC BY-SA 4.0');
+      // Except the topic map, which contains no corpus content to inherit a
+      // licence from — it is a list of ids the project wrote (D9: provenance
+      // is per file, and so is the licence that follows from it).
+      const expected = shard.kind === 'topics' ? 'MIT' : 'CC BY-SA 4.0';
+      expect(read<{ license: string }>(shard.path).license).toBe(expected);
     }
   });
 
@@ -293,6 +297,18 @@ describe('provenance and licence (SPEC §5.2)', () => {
       // provenance exact is what lets the attribution screen tell the truth.
       if (shard.kind === 'glosses') {
         expect(sources).toEqual(['wiktionary-id']);
+        continue;
+      }
+      // Chunks are authored here (SPEC §2.5) and anchored to Tatoeba sentences,
+      // so they name both and neither EDRDG file — no kanji data goes into them.
+      if (shard.kind === 'chunks') {
+        expect(sources).toEqual(['linguaku-authored', 'tatoeba']);
+        continue;
+      }
+      // The topic map reproduces no corpus content — it names inventory members
+      // — so it is authored content under the project licence, not EDRDG's.
+      if (shard.kind === 'topics') {
+        expect(sources).toEqual(['linguaku-authored']);
         continue;
       }
       expect(sources).toContain('tatoeba');

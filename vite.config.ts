@@ -107,6 +107,12 @@ export default defineConfig({
           'content/*/glosses.b1.json',
           'content/*/glosses.b2.json',
           'content/*/glosses.b3.json',
+          // Chunks (SPEC §2.5): 96 authored phrases, a few KB, and they are
+          // items the very first session can introduce.
+          'content/*/topics.json',
+          'content/*/chunks.b1.json',
+          'content/*/chunks.b2.json',
+          'content/*/chunks.b3.json',
         ],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,

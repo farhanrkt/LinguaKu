@@ -28,10 +28,8 @@ interface HomeProps {
   onReady: () => void;
   onPlacement: () => void;
   onProgress: () => void;
-  onAttribution: () => void;
   onRead: () => void;
-  onSync: () => void;
-  onDiagnostics: () => void;
+  onSettings: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => void;
   /**
@@ -39,7 +37,6 @@ interface HomeProps {
    * no practice, otherwise null. Their words, not ours — that is the mechanism.
    */
   cueDue: string | null;
-  onHabit: () => void;
   onDismissCue: () => void;
 }
 
@@ -60,14 +57,11 @@ export const Home = ({
   onReady,
   onPlacement,
   onProgress,
-  onAttribution,
   onRead,
-  onSync,
-  onDiagnostics,
+  onSettings,
   onPractise,
   onChange,
   cueDue,
-  onHabit,
   onDismissCue,
 }: HomeProps) => {
   // Sessions, content, drills and the ability estimate all follow `targets[0]`,
@@ -213,46 +207,19 @@ export const Home = ({
         </li>
       </ul>
 
-      {/* Risk R1: the probe runs on a timer and iOS will not speak outside a
-          gesture, so a silent verdict is not always the truth. This is the way
-          to ask on purpose — and the way the device matrix gets filled. */}
+      {/* Everything that is not practice lives one tap deeper (SPEC §10): the
+          home screen's job is to get a learner into a session, and it had grown
+          seven links between them and the button that does it. */}
       <button
         type="button"
-        onClick={onDiagnostics}
-        data-testid="diagnostics-open"
-        className="mt-3 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+        onClick={onSettings}
+        data-testid="settings-open"
+        className="mt-6 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
       >
-        {copy.diagnostics.open}
+        {copy.settings.open}
       </button>
 
-      {/* SPEC §5.2: EDRDG's licence requires this acknowledgement to be
-          reachable from the app, not only from the repository. */}
-      <button
-        type="button"
-        onClick={onHabit}
-        data-testid="habit-open"
-        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
-      >
-        {copy.habit.open}
-      </button>
 
-      <button
-        type="button"
-        onClick={onSync}
-        data-testid="sync-open"
-        className="mt-2 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
-      >
-        {copy.sync.open}
-      </button>
-
-      <button
-        type="button"
-        onClick={onAttribution}
-        data-testid="attribution-open"
-        className="mt-2 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
-      >
-        {copy.attribution.open}
-      </button>
     </Screen>
   );
 };

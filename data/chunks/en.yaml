@@ -1,0 +1,202 @@
+# English formulaic chunks and collocations (SPEC §2.5).
+#
+# §2.5 makes these **first-class items, not derived from single words**, and it
+# names "take a shower" specifically. The reason is the reason they are hard:
+# a learner who knows every word in "take a shower" still cannot produce it,
+# because Indonesian says *mandi* — one word, no verb to choose. Teaching
+# `take` and `shower` separately never adds up to the phrase.
+#
+# ## Authored, then validated against the corpus
+#
+# Every entry here is hand-written. The pipeline then requires each one to occur
+# in a sentence we actually ship, with an Indonesian translation, and **fails
+# the build for any chunk it cannot anchor** — §2.5's ingestion rule, applied to
+# chunks exactly as it is applied to lexemes. A chunk with no example sentence
+# would be a naked word-pair flashcard with extra steps.
+#
+# ## Fields
+#
+#   text  the chunk, as it appears in running text
+#   id    the Indonesian meaning — short, and the whole point where a
+#         word-by-word reading fails
+#   note  optional: the L1 trap, in Indonesian. Present only where there is a
+#         real one; most chunks just need their meaning.
+#
+# The Indonesian here is a draft by a non-native writer and wants the same
+# native pass as data/contrastive/*.yaml.
+
+version: 1
+lang: en
+l1: id
+
+chunks:
+  # ---------------------------------------------------------- daily routine
+  - text: 'take a shower'
+    id: 'mandi'
+    note: 'Bahasa Indonesia cuma butuh satu kata, "mandi". Bahasa Inggris butuh kata kerja take — bukan "do" dan bukan terjemahan harfiah dari mandi.'
+  - text: 'take a bath'
+    id: 'berendam, mandi berendam'
+  - text: 'brush my teeth'
+    id: 'menggosok gigi'
+  - text: 'get up'
+    id: 'bangun (dari tempat tidur)'
+    note: '"get up" itu bangkit dari kasur; "wake up" itu terjagaan. Bahasa Indonesia memakai "bangun" untuk keduanya.'
+  - text: 'wake up'
+    id: 'terbangun, bangun tidur'
+  - text: 'go to bed'
+    id: 'pergi tidur'
+    note: 'Bukan "go to sleep" kalau maksudnya naik ke kasur. "go to bed" soal tempatnya, "fall asleep" soal tertidurnya.'
+  - text: 'have breakfast'
+    id: 'sarapan'
+    note: 'Kata kerjanya have, bukan eat. "eat breakfast" dimengerti tapi terdengar asing.'
+  - text: 'have lunch'
+    id: 'makan siang'
+  - text: 'have dinner'
+    id: 'makan malam'
+  - text: 'do the dishes'
+    id: 'mencuci piring'
+  - text: 'do the laundry'
+    id: 'mencuci baju'
+  - text: 'make the bed'
+    id: 'merapikan tempat tidur'
+    note: 'make, bukan clean. Ini merapikan seprai, bukan membersihkan kasur.'
+
+  # ------------------------------------------------------------ getting about
+  - text: 'get on'
+    id: 'naik (bus, kereta, pesawat)'
+    note: 'Kendaraan yang bisa dimasuki sambil berdiri pakai get on; mobil dan taksi pakai get in.'
+  - text: 'get off'
+    id: 'turun (dari bus, kereta)'
+  - text: 'get in'
+    id: 'masuk (ke mobil, taksi)'
+  - text: 'get out of'
+    id: 'keluar dari'
+  - text: 'pick up'
+    id: 'menjemput, mengambil'
+  - text: 'drop off'
+    id: 'mengantar, menurunkan'
+  - text: 'on foot'
+    id: 'jalan kaki'
+  - text: 'get lost'
+    id: 'tersesat'
+  - text: 'on the way'
+    id: 'sedang di jalan'
+  - text: 'right now'
+    id: 'sekarang juga'
+  - text: 'at least'
+    id: 'setidaknya, paling tidak'
+
+  # -------------------------------------------------------------- at work
+  - text: 'make a mistake'
+    id: 'membuat kesalahan'
+    note: 'make, bukan do. "do a mistake" salah, dan ini pasangan kata yang harus dihafal utuh.'
+  - text: 'make a decision'
+    id: 'mengambil keputusan'
+    note: 'Bahasa Indonesia "mengambil" keputusan, bahasa Inggris "make" — kebalikan dari tebakan harfiah.'
+  - text: 'make money'
+    id: 'menghasilkan uang'
+  - text: 'make sure'
+    id: 'memastikan'
+  - text: 'do my best'
+    id: 'berusaha sebaik mungkin'
+    note: 'do, bukan make. "make my best" tidak dipakai.'
+  - text: 'do homework'
+    id: 'mengerjakan PR'
+  - text: 'take a break'
+    id: 'istirahat sebentar'
+  - text: 'take care of'
+    id: 'mengurus, menjaga'
+  - text: 'take a look'
+    id: 'melihat sebentar'
+  - text: 'pay attention'
+    id: 'memperhatikan'
+    note: 'Kata kerjanya pay, seolah-olah perhatian itu dibayar. Tidak ada padanan harfiahnya di bahasa Indonesia.'
+  - text: 'work hard'
+    id: 'bekerja keras'
+  - text: 'give up'
+    id: 'menyerah'
+  - text: 'find out'
+    id: 'mencari tahu'
+  - text: 'look for'
+    id: 'mencari'
+    note: 'Cari itu look for; look at itu melihat. Satu kata di bahasa kita, dua arah di sana.'
+  - text: 'look at'
+    id: 'melihat, memandang'
+  - text: 'look after'
+    id: 'menjaga, mengasuh'
+  - text: 'turn on'
+    id: 'menyalakan'
+  - text: 'turn off'
+    id: 'mematikan'
+  - text: 'put on'
+    id: 'memakai (baju, sepatu)'
+  - text: 'take off'
+    id: 'melepas (baju); lepas landas (pesawat)'
+  - text: 'fill out'
+    id: 'mengisi (formulir)'
+  - text: 'hand in'
+    id: 'mengumpulkan (tugas)'
+
+  # -------------------------------------------------------- talking to people
+  - text: 'how are you'
+    id: 'apa kabar'
+  - text: 'nice to meet you'
+    id: 'senang bertemu denganmu'
+  - text: 'excuse me'
+    id: 'permisi'
+  - text: 'thank you very much'
+    id: 'terima kasih banyak'
+  - text: 'you''re welcome'
+    id: 'sama-sama'
+  - text: 'of course'
+    id: 'tentu saja'
+  - text: 'I think so'
+    id: 'kurasa begitu'
+  - text: 'I don''t think so'
+    id: 'kurasa tidak'
+  - text: 'never mind'
+    id: 'tidak apa-apa, sudahlah'
+  - text: 'by the way'
+    id: 'ngomong-ngomong'
+  - text: 'in fact'
+    id: 'sebenarnya, malahan'
+  - text: 'for example'
+    id: 'misalnya'
+  - text: 'as soon as possible'
+    id: 'secepat mungkin'
+  - text: 'at the same time'
+    id: 'pada saat yang sama'
+  - text: 'a lot of'
+    id: 'banyak'
+  - text: 'a little bit'
+    id: 'sedikit'
+  - text: 'kind of'
+    id: 'agak, lumayan'
+  - text: 'I''d like to'
+    id: 'saya ingin'
+    note: 'Lebih sopan daripada "I want to", dan inilah bentuk yang dipakai di toko, restoran, atau ke orang yang belum dikenal.'
+  - text: 'would you like'
+    id: 'apakah kamu mau'
+  - text: 'how much is'
+    id: 'berapa harganya'
+  - text: 'how long does it take'
+    id: 'berapa lama waktunya'
+    note: 'Kata kerjanya take. Waktu "diambil", bukan "dipakai" seperti terjemahan harfiahnya.'
+
+  # ------------------------------------------------------------- feeling
+  - text: 'feel like'
+    id: 'ingin, kepingin'
+    note: '"feel like" + kegiatan berarti ingin melakukannya, bukan "merasa seperti".'
+  - text: 'be afraid of'
+    id: 'takut pada'
+  - text: 'be interested in'
+    id: 'tertarik pada'
+  - text: 'be good at'
+    id: 'pandai dalam'
+    note: 'Preposisinya at, bukan in. "good in English" adalah kekeliruan yang paling sering muncul.'
+  - text: 'be tired of'
+    id: 'bosan dengan'
+  - text: 'get angry'
+    id: 'menjadi marah'
+  - text: 'have fun'
+    id: 'bersenang-senang'

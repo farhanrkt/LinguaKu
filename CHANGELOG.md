@@ -5,6 +5,77 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.6.0 — 2026-08-13
+
+Learning material and the screens around it. Two spec requirements that had been
+typed and empty since M0 now have content behind them, and the home screen gave
+back the space they needed.
+
+### §2.5 — collocations are items now
+
+`ItemKind = 'chunk'` has existed, unproduced, since the schema was written.
+**73 English and 23 Japanese chunks** ship: *take a shower*, *make a mistake*,
+*pay attention*, 「よろしくお願いします」, 「お世話になります」 — the phrase §2.5 names
+as its own example.
+
+They are **authored, then validated against the corpus** (D64). Mining them
+statistically was tried and rejected: Tatoeba is saturated with `tom said`, PMI
+cannot separate a collocation from a frequent accident, and there are no
+part-of-speech tags to filter with. So a human wrote the list and the corpus
+holds it to §2.5's own ingestion rule — a chunk with no real example sentence
+fails the build.
+
+Writing that gate surfaced two matcher bugs that had been quietly rejecting real
+phrases. The corpus contains *"took a shower"*, not the base form, so the
+leading verb is inflected before matching. And separable phrasal verbs appear as
+*"drop me off"*, so a two-word verb is matched around an object pronoun. Between
+them they recovered a third of the list.
+
+Each chunk carries its Indonesian meaning, because its parts do not compose —
+that is the whole reason it is an item — and where there is an L1 trap the card
+names it: *"take a shower: bahasa Indonesia cuma butuh satu kata, mandi."*
+
+### §2.10 and §2.14 — the learner can pick topics
+
+Twelve English topics and seven Japanese, chosen in settings. §2.14 promised
+that *"the learner picks topic clusters"* and the app has never offered a
+control for it; §2.10 said frequency order is *"modulated by learner-selected
+topic goals"* and there was nothing to modulate by.
+
+**It reorders, it never restricts** (D65). Someone who picks "food" still gets
+the function words that hold a sentence together — filtering the queue to a
+topic would starve them of exactly the words that make the topic usable. The map
+is authored and **partial on purpose**: 6.9% of the English inventory, 2.0% of
+the Japanese, published in the shard rather than implied, and a word in no topic
+loses nothing.
+
+This also makes §2.8's second interleaving rule real. *"Never more than 3 from
+the same topic cluster"* has been running against the frequency band since M2,
+which made it a near-duplicate of the band gate; now three food words in a row
+is something the composer can see.
+
+The compiler refuses a topic word that is not in the shipped inventory, which
+caught three authoring errors on the first run — including a Cyrillic word that
+had slipped into the Japanese list.
+
+### The home screen got shorter
+
+Seven links had accumulated between the learner and the button that starts a
+session (D66). Habit, sync, diagnostics and attribution moved behind one
+**Pengaturan** screen — which is also where the topic picker belongs. Home keeps
+practice, the reader, progress, and the settings that change what a session *is*.
+
+### Measured
+
+| | v1.5.1 | v1.6.0 |
+|---|---|---|
+| unit tests | 720 | **745** |
+| e2e tests | 43 | **44** |
+| initial JS, gzipped | 134.5 KB | **135.4 KB** (68%) |
+| §2 requirements with content behind them | 14 of 15 | **15 of 15** |
+
+---
+
 ## v1.5.1 — 2026-08-13
 
 **The device matrix has its first real row, and it was worth collecting.** One

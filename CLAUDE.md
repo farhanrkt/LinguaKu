@@ -17,6 +17,8 @@ npm run icons        # regenerate public/icons/ (committed; run only on redesign
 npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)
 npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
 npm run ingest:contrastive  # compile data/contrastive/*.yaml → contrastive.json
+npm run ingest:chunks       # compile data/chunks/*.yaml, validated against the corpus
+npm run ingest:topics       # compile data/topics/*.yaml → topics.json
 
 npm run ingest:fetch:wiki   # download the Wikimedia dumps into .cache/ (needs bunzip2)
 npm run ingest:glosses      # id.wiktionary → assets/content/*/glosses.b*.json
@@ -50,7 +52,8 @@ src/i18n/        all learner-facing copy. Components hold no literal strings.
 scripts/         offline build-time tooling (content pipeline, CI gates).
 workers/         optional sync Worker + D1 schema. Deployed separately; nothing
                  in src/ imports it, and the app is complete without it.
-data/            authored, versioned content: licences, contrastive YAML.
+data/            authored, versioned content: licences, contrastive YAML,
+                 chunks (§2.5) and topic clusters (§2.10).
 assets/content/  generated content shards (from M1).
 ```
 
@@ -183,6 +186,15 @@ needs React state to work, it is in the wrong place.
     a passage nor a drill has an FSRS card, so `ReadingAttempt` and
     `DrillAttempt` are their own append-only tables. Putting either into
     `ReviewLog` would corrupt the retention rate §9 reports.
+32. **Authored content is validated against the corpus, never trusted** (D64,
+    D65). A chunk without a real example sentence fails the build (§2.5's own
+    ingestion rule); a topic word that is not in the shipped inventory fails the
+    build. Both compilers exist so that a hand-written file cannot rot silently
+    as the corpus changes.
+33. **A topic reorders new items; it never restricts them** (D65). Coverage is
+    partial by design and published in the shard, and a word in no topic keeps
+    its band as its §2.8 cluster — the behaviour the app had before topics.
+
 
 ## Conventions
 

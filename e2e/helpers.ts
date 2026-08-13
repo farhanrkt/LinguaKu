@@ -73,3 +73,15 @@ export const waitForOfflineReady = async (page: Page): Promise<void> => {
   });
   await expect(page.getByTestId('offline-status')).toHaveText('Siap dipakai offline');
 };
+
+/**
+ * Opens something that lives behind the settings screen.
+ *
+ * Everything that is not practice moved one tap deeper when the home screen
+ * had grown seven links between the learner and the practise button (SPEC §10).
+ * Tests go the way a learner does rather than reaching past the UI.
+ */
+export const openFromSettings = async (page: Page, testId: string): Promise<void> => {
+  await page.getByTestId('settings-open').click();
+  await page.getByTestId(testId).click();
+};

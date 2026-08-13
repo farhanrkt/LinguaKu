@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, openFromSettings } from './helpers.ts';
 
 /**
  * Risk R1's device matrix is manual by nature — but the *screen* that collects
@@ -13,7 +13,7 @@ import { firstRun } from './helpers.ts';
 test('the device report reaches a verdict on a device with no voices', async ({ page }) => {
   await firstRun(page);
 
-  await page.getByTestId('diagnostics-open').click();
+  await openFromSettings(page, 'diagnostics-open');
   await page.getByTestId('diagnostics-run').click();
 
   // Both languages get their own answer. One verdict for the app would let an
@@ -34,10 +34,12 @@ test('the device report reaches a verdict on a device with no voices', async ({ 
 
 test('a silent device still says so on the home screen after the check', async ({ page }) => {
   await firstRun(page);
-  await page.getByTestId('diagnostics-open').click();
+  await openFromSettings(page, 'diagnostics-open');
   await page.getByTestId('diagnostics-run').click();
   await expect(page.getByTestId('diagnostics-voice-en')).toBeVisible({ timeout: 30_000 });
   await page.getByTestId('diagnostics-back').click();
+  // Back lands on settings, one tap from home rather than past it.
+  await page.getByRole('button', { name: 'Selesai' }).click();
 
   // SPEC §2.6: withheld and named, never faked.
   await expect(page.getByTestId('audio-status')).toContainText('belum bisa mengeluarkan suara');

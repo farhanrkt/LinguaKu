@@ -1,6 +1,6 @@
 {
   "name": "linguaku",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "description": "Offline-first PWA teaching English and Japanese to Indonesian speakers.",
@@ -28,7 +28,9 @@
     "check:audio": "node scripts/check-audio.mjs",
     "ingest:audio": "node scripts/ingest/build-audio.ts",
     "ingest:fetch:wiki": "node scripts/ingest/fetch-wikimedia.ts",
-    "ingest:glosses": "node scripts/ingest/build-glosses.ts"
+    "ingest:glosses": "node scripts/ingest/build-glosses.ts",
+    "ingest:chunks": "node scripts/ingest/build-chunks.ts",
+    "ingest:topics": "node scripts/ingest/build-topics.ts"
   },
   "dependencies": {
     "dexie": "^4.4.4",

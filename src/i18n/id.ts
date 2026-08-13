@@ -282,6 +282,23 @@ export const copy = {
     },
   },
 
+  /** SPEC §10: one place for everything that is not practice. */
+  settings: {
+    open: 'Pengaturan',
+    heading: 'Pengaturan',
+    done: 'Selesai',
+    loading: 'Memuat…',
+    // SPEC §2.14: autonomy. The wording has to make clear this is a preference,
+    // not a syllabus you are locked into.
+    topicsHeading: 'Topik yang kamu butuhkan',
+    topicsIntro:
+      'Pilih topik yang paling kamu perlukan sekarang. Kata-kata dari topik itu akan lebih dulu muncul — tapi kata dasar yang bikin kalimat nyambung tetap diajarkan.',
+    topicsNone: 'Belum ada yang dipilih. Kami ikut urutan kata yang paling sering dipakai.',
+    topicsNote: 'Bisa diubah atau dikosongkan kapan saja.',
+    noTopics: 'Belum ada daftar topik untuk bahasa ini.',
+    moreHeading: 'Lainnya',
+  },
+
   /**
    * Risk R1's device matrix, run by whoever is holding the phone.
    *

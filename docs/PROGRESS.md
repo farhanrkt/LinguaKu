@@ -1,5 +1,72 @@
 # PROGRESS.md
 
+## v1.6.0 — learning material, and the screen that had run out of room (2026-08-13)
+
+Two §2 requirements had been typed and empty since M0. Both now have content
+behind them, and both were built the same way: authored by a person, then held
+to the corpus by a compiler that fails the build.
+
+### §2.5 — chunks
+
+73 English and 23 Japanese collocations and formulas. The design question was
+authored versus mined, and mining lost on quality: Tatoeba is saturated with
+`tom said`, PMI cannot tell a collocation from a frequent accident, and D34
+already records that this pipeline has no part-of-speech tags to filter with.
+The output would have been teaching material nobody had read.
+
+So the corpus **validates** instead of generating (D64): every chunk must occur
+in a sentence the app actually ships, or the build fails — §2.5's own ingestion
+rule, the one that rejected 2,185 lexemes at M1.
+
+**The gate immediately found two bugs in itself, which is the useful part.**
+Seventeen chunks failed on the first run, and the cause was the matcher rather
+than the corpus: English inflects, so the corpus holds *"took a shower"* and not
+the base form; and separable phrasal verbs appear as *"drop me off"*. Fixing
+both recovered a third of the list. What stayed rejected — *get dressed*, *take
+it easy*, 「ただいま」 — genuinely is not in a 23,497-pair corpus, and was deleted
+rather than shipped without an example.
+
+A chunk carries its own Indonesian meaning, because its parts do not compose,
+and counts as its own card type so two cannot land back to back (§2.8).
+
+### §2.10 and §2.14 — topics
+
+Twelve English topics, seven Japanese, picked in settings. This closes the last
+promise §2.14 was making without a control: *"the learner picks topic clusters"*.
+
+**It reorders, never restricts** (D65) — a learner who picks "food" still needs
+the function words that make a sentence, and filtering to a topic would starve
+them of exactly those. The map is partial (6.9% of the English inventory, 2.0%
+of the Japanese) and says so in the shard, because a wrong topic is worse than
+no topic when topics steer what gets taught next.
+
+It also makes §2.8's second rule real for the first time. *"Never more than 3
+from the same topic cluster"* has been running against the frequency band since
+M2, which made it a restatement of the band gate; three food words in a row is
+now something the composer can actually see.
+
+The compiler caught three authoring errors on the first run, including a
+Cyrillic word that had slipped into the Japanese list — which is the argument
+for having it.
+
+### The home screen
+
+Seven links had accumulated between the learner and the practise button, each
+one shipped for a good reason (D66). Habit, sync, diagnostics and attribution
+are now behind one settings screen, which is where the topic picker lives too.
+The e2e suite goes through the same door a learner does rather than reaching
+past the UI, which is why four specs changed.
+
+### Not built, and worth naming
+
+A **browsable glossary** — §2.2 explicitly permits one ("a passive glossary is
+fine, but it does not create or advance cards") and there is still no screen
+where a learner can look at what they know. The progress screen counts it; it
+cannot show it. That is the obvious next thing here and it was left rather than
+rushed alongside two content pipelines.
+
+---
+
 ## M8–M11 — the v1.2.0–v1.5.0 roadmap, executed in one pass (2026-08-12)
 
 `docs/ROADMAP.md` planned four releases. This entry records what actually

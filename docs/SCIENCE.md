@@ -122,10 +122,12 @@ example sentences. Collocations and formulaic chunks are first-class `Item`s
 **Acceptance:** pipeline test — a lexeme with no linked sentence fails
 ingestion rather than shipping bare.
 
-**Status:** **shipped for English** (M1). The pipeline rejected 2,185 otherwise
-qualifying lexemes for having no example sentence, and a CI test asserts that
-every shipped lexeme resolves to at least one sentence that actually ships.
-Still **at risk for Japanese** (R2).
+**Status:** **shipped for English** (M1), Japanese resolved at M6 (R2), and the
+*collocation* half shipped at v1.6.0: 73 English and 23 Japanese chunks,
+authored and then held to the same ingestion rule — a chunk with no example
+sentence in the shipped corpus fails the build (D64). `ItemKind = 'chunk'` had
+been typed and unproduced since M0; "take a shower", the phrase §2.5 names, is
+now an item.
 
 ## §2.6 Dual coding and audio-first
 
