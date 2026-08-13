@@ -106,6 +106,7 @@ learner's work to a model rather than merely configured not to.
 | [`docs/ETHICS.md`](docs/ETHICS.md) | Mechanics this project will not ship, and why |
 | [`docs/PROGRESS.md`](docs/PROGRESS.md) | Per-milestone engineering log and deviations |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | What v1.2–v1.5 were for, and what each measurement decided |
+| [`docs/AUDIO-RUNBOOK.md`](docs/AUDIO-RUNBOOK.md) | Generating the pre-cached audio: licences, formats, verification |
 | [`NOTICE.md`](NOTICE.md) | Data attribution and licence terms |
 
 ## Licence

@@ -87,6 +87,9 @@ const walk = (dir) =>
   });
 
 let checkedFiles = 0;
+/** Datasets actually referenced by something in the build. */
+const referenced = new Set();
+
 if (existsSync(ASSETS)) {
   for (const file of walk(ASSETS)) {
     const rel = relative(ROOT, file);
@@ -105,13 +108,35 @@ if (existsSync(ASSETS)) {
       }
       for (const source of sources) {
         if (!keys.has(source)) fail(`${rel}: unknown dataset key "${source}"`);
+        referenced.add(source);
       }
     } else {
       const segments = relative(ASSETS, file).split(sep).slice(0, -1);
       if (!segments.some((segment) => keys.has(segment))) {
         fail(`${rel}: no path segment names a dataset in data/licenses.json`);
       }
+      for (const segment of segments) if (keys.has(segment)) referenced.add(segment);
     }
+  }
+}
+
+// The mirror of the check above, and the one this file was missing.
+//
+// SPEC §5.2's hard rule stops an *unattributed* dataset from shipping. The
+// in-app attribution screen renders this same file, so the opposite drift is
+// just as much of a lie: a dataset declared here but referenced by nothing is
+// the app claiming a provenance it does not have. That is not hypothetical —
+// `jmnedict` sat in `datasets` from M6 to v1.5.0 for a proper-name feature that
+// was never built, and was named on the attribution screen the whole time.
+//
+// It also fixes the sequencing for pre-cached audio: a voice model may only be
+// promoted out of `candidates` in the same commit as the clips it licenses.
+for (const dataset of datasets) {
+  if (!referenced.has(dataset.key)) {
+    fail(
+      `${dataset.key}: declared as a shipped dataset, but no file in assets/ references it. ` +
+        'Move it to `candidates` until something uses it — the attribution screen renders this list.',
+    );
   }
 }
 

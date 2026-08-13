@@ -27,18 +27,6 @@
       "notes": "EDRDG requires acknowledgement on each screen that displays dictionary content, or on a dedicated About screen for apps. Share-alike: any shard derived from this data must ship under CC BY-SA 4.0 or a compatible licence."
     },
     {
-      "key": "jmnedict",
-      "name": "JMnedict (Electronic Dictionary Research and Development Group)",
-      "url": "https://www.edrdg.org/enamdict/enamdict_doc.html",
-      "use": "Japanese proper names, for tokenizer and reader disambiguation (M6).",
-      "license": "CC BY-SA 4.0",
-      "licenseUrl": "https://www.edrdg.org/edrdg/licence.html",
-      "attributionRequired": true,
-      "shareAlike": true,
-      "verifiedOn": "2026-08-10",
-      "notes": "Same EDRDG terms as JMdict."
-    },
-    {
       "key": "kanjidic2",
       "name": "KANJIDIC2 (Electronic Dictionary Research and Development Group)",
       "url": "https://www.edrdg.org/wiki/index.php/KANJIDIC_Project",
@@ -113,12 +101,6 @@
   ],
   "candidates": [
     {
-      "key": "tatoeba-audio",
-      "name": "Tatoeba audio",
-      "url": "https://tatoeba.org/en/downloads",
-      "blocker": "Licence is per-clip and chosen by the contributor; clips with an empty licence field are unusable. The pipeline must filter per file and record each clip's licence individually before any audio enters assets/."
-    },
-    {
       "key": "freq-en",
       "name": "English frequency list",
       "url": "https://github.com/rspeer/wordfreq",
@@ -129,6 +111,12 @@
       "name": "JLPT level wordlists",
       "url": "",
       "blocker": "Official JLPT lists are not published; community lists vary in provenance and licence. Needs a specific, licence-clear list before M6 level banding."
+    },
+    {
+      "key": "jmnedict",
+      "name": "JMnedict (Electronic Dictionary Research and Development Group)",
+      "url": "https://www.edrdg.org/enamdict/enamdict_doc.html",
+      "blocker": "Declared as a shipped dataset at M6 for a use — proper-name disambiguation in the tokenizer and reader — that was never built. Found 2026-08-13 by the new declared-but-unreferenced check: no shard names it, nothing in scripts/ or src/ mentions it, and the fetch step never downloaded it. It was therefore being listed on the in-app attribution screen while the app shipped nothing derived from it, which claims a provenance we do not have. Its EDRDG terms (CC BY-SA 4.0, verified 2026-08-10) are unchanged and it can be promoted the moment something actually uses it."
     },
     {
       "key": "librivox",
@@ -147,6 +135,12 @@
       "name": "Piper Japanese voice — none exists in the official catalogue",
       "url": "https://huggingface.co/rhasspy/piper-voices/blob/main/voices.json",
       "blocker": "Measured 2026-08-13 against the official voice index: 173 voices across 54 language codes, and **ja_JP is not among them**. There is no ja_JP-jsut-* voice to download. A community model would need its own licence check, and JSUT-derived weights in particular need their corpus terms read before use — a non-commercial restriction would be incompatible with an MIT-licensed app whose assets are meant to be redistributable. Until a Japanese voice clears, JA stays on synthesis-or-nothing and the mora-timing drills stay withheld on silent devices (SPEC §2.6)."
+    },
+    {
+      "key": "tatoeba-audio",
+      "name": "Tatoeba audio",
+      "url": "https://tatoeba.org/en/downloads",
+      "blocker": "Licence is per-clip and chosen by the contributor; clips with an empty licence field are unusable. The pipeline must filter per file and record each clip's licence individually before any audio enters assets/."
     }
   ]
 }

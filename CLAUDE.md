@@ -77,9 +77,12 @@ needs React state to work, it is in the wrong place.
    inside a compound key.
 4. **Zero recurring cost** (§0 rule 1). No dependency, dataset or service that
    is not free at the tier we use. If there is no free path, stop and report.
-5. **No dataset in `assets/` without an entry in `data/licenses.json`** and a
-   matching section in `NOTICE.md`. `npm run check:licenses` enforces it.
-   Datasets under `candidates` in that file are **not** cleared for use.
+5. **The licence manifest and the build agree in both directions.** No dataset
+   in `assets/` without an entry in `data/licenses.json` and a matching section
+   in `NOTICE.md` — *and* no entry in `datasets` that no asset references, since
+   the in-app attribution screen renders that list and would otherwise claim a
+   provenance the app does not have. `npm run check:licenses` enforces both.
+   Datasets under `candidates` are **not** cleared for use.
 6. **Initial JS ≤ 200 KB gzipped**, initial CSS ≤ 40 KB. `npm run check:bundle`
    enforces it against the real build manifest. Language content is lazy and
    never enters the JS bundle.

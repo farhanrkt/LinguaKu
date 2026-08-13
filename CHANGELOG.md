@@ -108,6 +108,17 @@ single-threaded performance on the reference device, since its parallelism needs
 cross-origin isolation. A parameter fit that silently degrades a schedule is
 worse than D39's bounded nudge, so the nudge stays and the numbers are on record.
 
+### Fixed
+
+**The attribution screen was naming a dataset the build does not use.**
+`jmnedict` entered `datasets` at M6 for proper-name disambiguation that was
+never implemented — no fetch step, no parser, no shard referencing it — so the
+screen has been claiming it since. Demoted to `candidates`, removed from
+`NOTICE.md`, and `npm run check:licenses` now fails on any declared dataset that
+no asset references, which is the mirror of the rule it already enforced. Found
+by building the guard that stops a voice model being promoted before its clips
+exist (`docs/AUDIO-RUNBOOK.md`).
+
 ### Not in this release
 
 **Chunks** (§2.5) and **topic clusters** (§2.10) were planned and are not built.
@@ -190,6 +201,17 @@ week against a range that did not exist manufactures a decline out of being new
 
 Schema v5, additive. No migration risk: `deferredItems` is a new table and no
 existing row changes shape.
+
+### Fixed
+
+**The attribution screen was naming a dataset the build does not use.**
+`jmnedict` entered `datasets` at M6 for proper-name disambiguation that was
+never implemented — no fetch step, no parser, no shard referencing it — so the
+screen has been claiming it since. Demoted to `candidates`, removed from
+`NOTICE.md`, and `npm run check:licenses` now fails on any declared dataset that
+no asset references, which is the mirror of the rule it already enforced. Found
+by building the guard that stops a voice model being promoted before its clips
+exist (`docs/AUDIO-RUNBOOK.md`).
 
 ### Not in this release
 

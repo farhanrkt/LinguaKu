@@ -182,6 +182,21 @@ the next session starts from them rather than from scratch.
 Both were planned for v1.3.0 and v1.4.0 respectively. Neither is blocked by
 anything technical; both are blocked on authored content and a reviewer.
 
+### One defect found on the way out
+
+Writing the declared-but-unreferenced check for the audio sequencing turned up a
+live one: **`jmnedict` has been listed as a shipped dataset since M6** — and
+therefore named on the in-app attribution screen — for a proper-name
+disambiguation feature that was never built. Nothing fetches it, nothing parses
+it, no shard declares it. The screen was claiming a provenance the app does not
+have, which is the mirror of the failure M6 wrote that screen to avoid, and the
+e2e test only checked the other direction.
+
+It is now a candidate, `NOTICE.md` no longer attributes it, the e2e test asserts
+it is absent, and `check-licenses.mjs` fails the build on any dataset that
+nothing references. The same check is what will stop a voice model from being
+promoted before its clips exist.
+
 ### Decisions I need from you
 
 **1. The voice model — you have taken this, and three things changed under it.**

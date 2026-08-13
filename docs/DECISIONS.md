@@ -236,6 +236,16 @@ measures real bytes rather than the estimate.
 The licence gate refuses any binary under `assets/` whose path names no dataset
 key, because a binary cannot carry provenance inline the way a shard can (D9).
 
+**The voice may only be promoted in the same commit as the clips.** The gate now
+fails on the mirror case too — a dataset declared but referenced by nothing —
+because the attribution screen renders `datasets` directly. Found by writing
+that check: **`jmnedict` had been in `datasets` since M6** for a proper-name
+feature that was never built, so the app had been naming a source it did not
+use. Demoted to `candidates`; its EDRDG terms are unchanged and it can return
+the moment something uses it.
+
+The whole procedure is `docs/AUDIO-RUNBOOK.md`.
+
 Everything downstream of a pre-cached clip is built: the plan is deterministic
 and unit-tested, the generator is written, the budget and provenance gate runs
 in CI, and `src/platform/audio.ts` has been serving an empty index since M4. The

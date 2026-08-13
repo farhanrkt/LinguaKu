@@ -117,14 +117,6 @@ Japanese lexicon: headwords, readings and senses.
 - Licence: **CC BY-SA 4.0** — <https://www.edrdg.org/edrdg/licence.html>
 - Verified: 2026-08-10
 
-## JMnedict (Electronic Dictionary Research and Development Group)
-
-Japanese proper names.
-
-- Source: <https://www.edrdg.org/enamdict/enamdict_doc.html>
-- Licence: **CC BY-SA 4.0** — <https://www.edrdg.org/edrdg/licence.html>
-- Verified: 2026-08-10
-
 ## KRADFILE / RADKFILE (Electronic Dictionary Research and Development Group)
 
 Kanji decomposition into visible components — what makes SPEC §2.11's
