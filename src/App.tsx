@@ -4,6 +4,7 @@ import { Home } from './features/home/Home.tsx';
 import { SessionScreen } from './features/session/SessionScreen.tsx';
 import { PlacementScreen } from './features/placement/PlacementScreen.tsx';
 import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
+import { GlossaryScreen } from './features/progress/GlossaryScreen.tsx';
 import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
 import { ReaderScreen } from './features/reader/ReaderScreen.tsx';
 import { SyncScreen } from './features/settings/SyncScreen.tsx';
@@ -39,6 +40,7 @@ type Screen =
   | { name: 'sync'; profile: Profile }
   | { name: 'diagnostics'; profile: Profile }
   | { name: 'settings'; profile: Profile }
+  | { name: 'glossary'; profile: Profile }
   | { name: 'habit'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
@@ -296,10 +298,18 @@ export const App = () => {
           onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
         />
       );
+    case 'glossary':
+      return (
+        <GlossaryScreen
+          profile={screen.profile}
+          onBack={() => setScreen({ name: 'progress', profile: screen.profile })}
+        />
+      );
     case 'progress':
       return (
         <ProgressScreen
           profile={screen.profile}
+          onGlossary={() => setScreen({ name: 'glossary', profile: screen.profile })}
           onBack={() => setScreen({ name: 'home', profile: screen.profile })}
         />
       );

@@ -282,6 +282,33 @@ export const copy = {
     },
   },
 
+  /**
+   * SPEC §2.2's passive glossary — the one browsing the spec allows, because it
+   * creates and advances nothing. §2.14 is why it is worth having: capability
+   * you can scroll through is evidence, where a number is a claim.
+   */
+  glossary: {
+    open: 'Lihat daftar katamu',
+    heading: 'Kata yang sudah kamu temui',
+    intro:
+      'Semua kata yang pernah kamu jawab, yang paling kuat di atas. Melihat daftar ini tidak mengubah jadwal latihanmu sama sekali.',
+    search: 'Cari kata',
+    count: (total: number) => `${total.toLocaleString('id-ID')} kata`,
+    more: (rest: number) => `Dan ${rest.toLocaleString('id-ID')} lagi. Ketik di kotak cari untuk menemukannya.`,
+    empty:
+      'Belum ada isinya. Setiap kata yang kamu jawab — benar atau salah — langsung masuk ke sini.',
+    noMatch: 'Tidak ada kata yang cocok.',
+    noGloss: 'Belum ada artinya di kamus kami; contoh kalimatnya yang jadi petunjuk.',
+    band: (band: number) => `Kata tingkat ${band}`,
+    // Capability, never a score (§2.14): each of these is a state, not a grade.
+    strength: {
+      mastered: 'Sudah nempel',
+      known: 'Kamu kenal',
+      weak: 'Mulai pudar',
+      leech: 'Diajarkan ulang',
+    },
+  },
+
   /** SPEC §10: one place for everything that is not practice. */
   settings: {
     open: 'Pengaturan',

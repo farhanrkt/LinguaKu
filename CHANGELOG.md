@@ -5,6 +5,37 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.7.0 — 2026-08-13
+
+**The glossary** — the one kind of browsing SPEC §2.2 allows, and the last
+learner-facing surface the app was missing.
+
+The progress screen could say *"kamu mengenali sekitar 1.200 kata"* and never
+show a single one of them. A number is a claim; a list you can scroll is
+evidence, and evidence is what §2.14 asks progress to be made of.
+
+Everything answered, strongest first — *sudah nempel*, *kamu kenal*, *mulai
+pudar*, *diajarkan ulang* — with its meaning where one exists, its example
+sentence on tap, and a search box. Only items with a card appear, because a card
+is the product of an answer: this is what a learner has met, not what the app
+ships.
+
+**And it advances nothing** (D67). That is the condition §2.2 attaches, so it is
+enforced structurally rather than by care: the query opens no transaction, calls
+no writer, and cannot reach `recordReview`. A test builds the glossary against a
+timestamp thirty days in the future and asserts the card is byte-identical
+afterwards.
+
+### Measured
+
+| | v1.6.0 | v1.7.0 |
+|---|---|---|
+| unit tests | 745 | **752** |
+| e2e tests | 44 | **45** |
+| initial JS, gzipped | 135.4 KB | **136.7 KB** (68%) |
+
+---
+
 ## v1.6.0 — 2026-08-13
 
 Learning material and the screens around it. Two spec requirements that had been

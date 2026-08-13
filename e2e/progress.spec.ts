@@ -146,3 +146,43 @@ test('the recap reports capability, never a score', async ({ page }) => {
   // §2.14 and docs/ETHICS.md: no points, no XP, no streak, no target missed.
   await expect(recap).not.toContainText(/XP|poin|skor|nilai|beruntun|gagal/i);
 });
+
+/**
+ * SPEC §2.2 permits exactly one kind of browsing: *"a passive glossary is fine,
+ * but it does not create or advance cards."* Both halves are asserted here —
+ * that a learner can look at what they know, and that looking changes nothing.
+ */
+test('the glossary shows what was answered, and answers nothing', async ({ page }) => {
+  await firstRun(page);
+
+  // Empty before anything is answered, and it says so rather than looking broken.
+  await page.getByTestId('progress-open').click();
+  await page.getByTestId('glossary-open').click();
+  await expect(page.getByTestId('glossary-empty')).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole('button', { name: 'Kembali' }).click();
+  await page.getByRole('button', { name: 'Kembali' }).click();
+
+  // Answer a few cards, then look at them.
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+  for (let index = 0; index < 3; index++) await answerOne(page);
+  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+
+  await page.getByTestId('progress-open').click();
+  await page.getByTestId('glossary-open').click();
+
+  const list = page.getByTestId('glossary-list');
+  await expect(list).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('glossary-count')).toContainText('kata');
+
+  // Opening an entry reveals its example — and is not an answer.
+  await list.locator('button[aria-expanded]').first().click();
+  await expect(list.locator('button[aria-expanded="true"]')).toHaveCount(1);
+  await expect(page.getByTestId('feedback')).toHaveCount(0);
+
+  // Searching narrows rather than schedules.
+  const first = (await list.locator('button[aria-expanded]').first().innerText()).split('\n')[0] ?? '';
+  await page.getByTestId('glossary-search').fill(first.slice(0, 3));
+  await expect(page.getByTestId('glossary-list')).toBeVisible();
+});

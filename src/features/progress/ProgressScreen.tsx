@@ -28,6 +28,8 @@ import type { Profile } from '../../data/types.ts';
 interface ProgressScreenProps {
   profile: Profile;
   onBack: () => void;
+  /** SPEC §2.2's passive glossary: the numbers here, made browsable. */
+  onGlossary: () => void;
 }
 
 interface HeatRow {
@@ -37,7 +39,7 @@ interface HeatRow {
 
 const percent = (value: number): number => Math.round(value * 100);
 
-export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
+export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
   const [report, setReport] = useState<ProgressReport | null>(null);
   const [rows, setRows] = useState<HeatRow[] | null>(null);
@@ -101,6 +103,17 @@ export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
       <h1 className="text-2xl font-bold">{copy.progress.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.localOnly}</p>
+
+      {/* SPEC §2.2's passive glossary. The numbers below count what a learner
+          knows; this is where they can look at it. */}
+      <button
+        type="button"
+        onClick={onGlossary}
+        data-testid="glossary-open"
+        className="mt-5 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+      >
+        {copy.glossary.open}
+      </button>
 
       {report === null ? null : (
         <>

@@ -1,5 +1,38 @@
 # PROGRESS.md
 
+## v1.7.0 — the glossary (2026-08-13)
+
+Named at v1.6.0 as the obvious next thing and left rather than rushed; built
+now. SPEC §2.2 permits exactly one kind of browsing — *"a passive glossary is
+fine, but it does not create or advance cards"* — and the app had the ban
+without the permission.
+
+**Why it is worth a release.** The progress screen has been able to *count* a
+learner's vocabulary since M5 and never able to *show* it. §2.14 asks progress
+to be expressed as capability; a number is a claim about capability, a list you
+can scroll through is the thing itself.
+
+**The second half of §2.2's sentence is the design** (D67). `buildGlossary`
+opens no transaction, calls no writer, and has no path to `recordReview` — the
+only function permitted to move FSRS state (invariant 0). The test that matters
+builds the glossary against a timestamp thirty days later and asserts the card
+is byte-identical afterwards: looking at your own vocabulary must not schedule
+it.
+
+Ordered strongest first, which is a §2.14 decision rather than a technical one.
+Opening it shows what a learner has secured, not what they are currently
+failing.
+
+### The plan from here
+
+| | | |
+|---|---|---|
+| **v1.8.0** | Reachable | §10 promises WCAG AA, reduced motion and *"full keyboard operation on desktop"*; §13 gates none of it. An axe-core run and a keyboard-traversal test in CI, plus whatever they find. |
+| **v1.9.0** | The honest close | Whatever the device matrix reports, the native copy pass integrated, the launch checklist re-measured against real numbers. The last v1. |
+| **v2.0.0** | — | Gated on decisions rather than code: audio shipped, the matrix filled, the Indonesian reviewed by a native speaker, sync deployed or deleted. The first release whose every claim has been checked by a person on real hardware. |
+
+---
+
 ## v1.6.0 — learning material, and the screen that had run out of room (2026-08-13)
 
 Two §2 requirements had been typed and empty since M0. Both now have content
