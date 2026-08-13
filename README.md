@@ -1,4 +1,4 @@
-# LinguaKu
+# LinguaKu - farhanrkt
 
 An offline-first PWA that teaches **English and Japanese to Indonesian
 speakers** — no account, no paywall, no ads, and no engagement dark patterns.
