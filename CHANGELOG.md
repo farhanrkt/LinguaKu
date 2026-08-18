@@ -5,6 +5,60 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.9.0 — 2026-08-18
+
+The deploy audit, and it found two ways the offline promise was already broken.
+
+### Fixed — the runtime cache was one shard from evicting content
+
+The content cache has been capped at **64 entries** since M2, when the app
+shipped 47 files. Glosses, chunks, topics and passages took the count to **65**.
+Workbox evicts least-recently-used entries past the cap, so a learner who
+touched both languages was one fetch away from losing content they had already
+downloaded — and the failure only shows up on a plane. Raised to 192, with
+`purgeOnQuotaError` so a full device drops re-fetchable content rather than
+failing.
+
+### Fixed — audio would not have been cached at all
+
+Every runtime caching rule matched `.json`. The first pre-cached clip would have
+matched none of them: re-fetched on every play, unavailable offline, which is
+precisely the situation the clips exist to survive (§5.4 promises offline audio
+for cached bands). Clips now have their own cache, and `rangeRequests` with it —
+an `<audio>` element issues Range requests, Safari always does, and a cached
+clip answering one with a 200 will not play.
+
+Both were found by writing the gate rather than by reading the code.
+
+### `npm run check:offline`
+
+A new gate in `verify`, asserting against **`dist/sw.js`** — the worker that
+actually ships — rather than the config that generated it (D69). It reads the
+cap per cache name, because taking the largest number in the file would let the
+content cache shrink below the shard count while the deliberately-large audio
+cache hid it.
+
+### The launch checklist is re-measured
+
+It had carried v1.0.0's numbers since March, with a warning saying so. Every
+figure in `docs/LAUNCH-CHECKLIST.md` now comes from the run that wrote it: 752
+unit tests, 49 e2e, 136.7 KB initial JS, **103 ms** icon-tap-to-first-question
+against a 3 s budget, 44 precache entries at 1.32 MB gzipped against 8 MB, 8
+datasets, 65 asset files. The manual section gained the step that matters for
+what was just fixed — open the reader *before* going offline, because content
+fetched at runtime is the half of the promise a precache cannot keep.
+
+### Measured
+
+| | v1.8.0 | v1.9.0 |
+|---|---|---|
+| unit tests | 752 | 752 |
+| e2e tests | 49 | 49 |
+| CI gates | 7 | **8** |
+| runtime cache headroom | **1 shard** | 127 shards |
+
+---
+
 ## v1.8.0 — 2026-08-13
 
 **The accessibility promises now have a gate.** §10 has asked for WCAG AA

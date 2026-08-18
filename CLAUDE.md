@@ -33,7 +33,8 @@ difficulty scorer. That is why **every relative import in this repo carries its
 file extension** (`./frequency.ts`, not `./frequency`).
 
 `npm run verify` is what CI runs — typecheck → lint → unit → licences → **audio
-budget** → build → bundle budget. If it is red, the milestone is not done.
+budget** → build → bundle budget → **offline integrity**. If it is red, the
+milestone is not done.
 
 ## Architecture
 
@@ -192,6 +193,10 @@ needs React state to work, it is in the wrong place.
     ingestion rule); a topic word that is not in the shipped inventory fails the
     build. Both compilers exist so that a hand-written file cannot rot silently
     as the corpus changes.
+34. **The offline promise is checked against `dist/sw.js`** (D69). The runtime
+    cache cap must exceed the shard count or a learner silently loses content
+    they already downloaded, and every content type needs a rule that matches
+    it — audio is not JSON. `npm run check:offline` reads the built worker.
 33. **A topic reorders new items; it never restricts them** (D65). Coverage is
     partial by design and published in the shard, and a word in no topic keeps
     its band as its §2.8 cluster — the behaviour the app had before topics.

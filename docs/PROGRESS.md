@@ -1,5 +1,62 @@
 # PROGRESS.md
 
+## v1.9.0 — the deploy audit (2026-08-18)
+
+v1.9.0 was defined as the honest close: absorb what the device matrix reports,
+integrate the native copy pass, re-measure the launch checklist. Two of those
+three are gated on a person. The third was mine, and doing it properly meant
+auditing what the deploy actually ships — which found two live defects in the
+offline promise.
+
+### The runtime cache was one shard from evicting content
+
+`maxEntries: 64`, set at M2 when the app shipped 47 content files. Glosses,
+chunks, topics and passages took it to **65**. Workbox evicts least-recently-used
+entries past the cap, so a learner who worked in both languages was one fetch
+away from losing a shard they had already downloaded — and the symptom is
+content that mysteriously will not open, offline, later.
+
+Nothing else would have caught it. It is not a type error, no test exercised it,
+and the number was correct when it was written.
+
+### Audio would not have been cached at all
+
+Every runtime rule matched `.json`. The clips the owner is about to generate
+would have matched none of them — fetched on every play, absent offline, which
+is the one situation they exist for (§5.4 promises offline audio for cached
+bands, explicitly). They have their own cache now, with `rangeRequests`, because
+an `<audio>` element issues Range requests, Safari always does, and a cached
+clip answering one with a 200 will not play.
+
+Both were found by **writing the gate**, not by reading the code — which is the
+argument for the gate.
+
+### `check:offline`
+
+Asserts against `dist/sw.js` rather than `vite.config.ts` (D69): the built
+worker is what ships. It reads the cap per cache name, because the largest
+number in the file is the audio cache, and taking that would let the content
+cache silently shrink below the shard count again.
+
+### The checklist
+
+Every number in `docs/LAUNCH-CHECKLIST.md` is from the run that wrote it. The
+one worth noting: **icon tap → first answerable question is 103 ms** against a
+3 s budget, down from 1.4 s at v1.0.0 — the cold-start test now prints the
+figure so headroom is visible before it becomes a failure rather than after.
+
+The manual section gained a step that exists because of what was just fixed:
+open the reader before going offline. Content fetched at runtime is the half of
+the offline promise a precache cannot keep, and it is the half that was broken.
+
+### What v2.0.0 is waiting for
+
+Nothing in code. Audio shipped, the matrix filled, the Indonesian reviewed by a
+native speaker, sync deployed or deleted — four decisions, all of them yours.
+The v1 line is closed.
+
+---
+
 ## v1.8.0 — accessibility, gated (2026-08-13)
 
 §10 has promised WCAG AA contrast, `motion-safe:` on every transition, 56px tap
