@@ -108,7 +108,7 @@ export const KanaInput = ({
 
       {showKeyboard ? (
         <div className="mt-2" data-testid="kana-keyboard">
-          <p className="text-xs text-stone-500 dark:text-slate-500">{copy.kana.hint}</p>
+          <p className="text-xs text-stone-500 dark:text-slate-400">{copy.kana.hint}</p>
           <div className="mt-2 grid grid-cols-5 gap-1">
             {ROWS.flat().map((kana, index) =>
               kana === '' ? (

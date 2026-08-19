@@ -34,7 +34,7 @@ const AudioButton = ({ onPlay, available }: { onPlay: () => void; available: boo
     </button>
   ) : (
     // SPEC §2.6: say that audio is missing rather than pretending it is there.
-    <p className="mt-3 text-sm text-stone-500 dark:text-slate-500">
+    <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">
       {copy.session.audio.unavailable}
     </p>
   );
@@ -299,7 +299,7 @@ export const KanjiTask = ({
 
       {face.components.length > 0 ? (
         <div className="mt-6">
-          <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.kanji.componentsHeading}
           </p>
           <p className="mt-1 text-2xl" data-testid="kanji-components">
@@ -310,7 +310,7 @@ export const KanjiTask = ({
 
       {face.reading ? (
         <div className="mt-4">
-          <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.kanji.readingHeading}
           </p>
           <p className="mt-1 text-xl">{face.reading}</p>
@@ -318,7 +318,7 @@ export const KanjiTask = ({
       ) : null}
 
       <div className="mt-6">
-        <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+        <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
           {copy.session.kanji.mnemonicHeading}
           {face.mnemonicIsMine ? (
             <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-900 dark:bg-teal-950 dark:text-teal-200">
@@ -326,7 +326,7 @@ export const KanjiTask = ({
             </span>
           ) : null}
         </p>
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
           {copy.session.kanji.mnemonicHint}
         </p>
         <textarea
@@ -411,7 +411,7 @@ const SpeakButton = ({
         🎤 {listening ? copy.session.speech.listening : copy.session.speech.speak}
       </Button>
       {status ? (
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500" role="status">
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400" role="status">
           {status}
         </p>
       ) : null}
@@ -524,7 +524,7 @@ export const FreeProductionTask = ({ task, onAnswer }: TaskProps) => {
         {copy.session.free.heading}
       </p>
       <p className="mt-2 text-lg">{copy.session.free.instruction(task.headword)}</p>
-      <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{copy.session.free.graded}</p>
+      <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{copy.session.free.graded}</p>
 
       <textarea
         value={value}

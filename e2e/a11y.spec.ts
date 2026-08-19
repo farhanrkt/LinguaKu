@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun } from './helpers.ts';
+import { answerOne, firstRun, seedKnownVocabulary } from './helpers.ts';
 
 /**
  * The accessibility promises SPEC §10 makes, gated for the first time.
@@ -74,6 +74,115 @@ test('every screen a learner reaches passes WCAG 2.1 AA', async ({ page }) => {
   await page.getByTestId('attribution-open').click();
   await expect(page.getByTestId('attribution-list')).toBeVisible({ timeout: 20_000 });
   await expectNoViolations(page, 'attribution');
+});
+
+/**
+ * SPEC §10's keyboard promise, priced.
+ *
+ * "Full keyboard operation" was kept in the most expensive way available: every
+ * word in the reader was its own `<button>`, so two passages and twenty
+ * sentences put ~320 tab stops between a learner and the back button. Nothing
+ * failed — axe is happy with a focusable button, and the keyboard test above
+ * still passes — which is exactly why this needs a number rather than care.
+ *
+ * The bound is the *arithmetic of the screen*, not of the text: a tab stop per
+ * passage, per sentence, per check control, plus the chrome. The second
+ * assertion is what makes the first one mean something — the words are all
+ * still there and still individually reachable, by arrow key, inside one stop.
+ */
+test('the reader costs one tab stop per block, not one per word', async ({ page }) => {
+  await firstRun(page);
+  await seedKnownVocabulary(page, 600);
+
+  await page.getByTestId('reader-open').click();
+  await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 20_000 });
+
+  const { stops, words } = await page.evaluate(() => ({
+    stops: [...document.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]')]
+      .filter((element) => element.tabIndex >= 0).length,
+    words: document.querySelectorAll('[data-word]').length,
+  }));
+
+  // 2 passages + 2 check controls + 20 sentences + back + the header chrome.
+  expect(stops, `the reader has ${stops} tab stops for ${words} tappable words`).toBeLessThan(40);
+  // And the words did not go away to achieve it.
+  expect(words).toBeGreaterThan(100);
+
+  // The other half of the trade: inside a block, arrows move word by word and
+  // Enter opens the panel. Withdrawing the tab stops without this would have
+  // taken tap-to-gloss away from the keyboard entirely.
+  await page.getByTestId('reader-token').first().focus();
+  const first = await page.evaluate(() => document.activeElement?.textContent ?? '');
+  await page.keyboard.press('ArrowRight');
+  const second = await page.evaluate(() => document.activeElement?.textContent ?? '');
+  expect(second, 'ArrowRight did not move to the next word').not.toBe(first);
+
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('word-panel')).toBeVisible();
+});
+
+/**
+ * The reader with something in it, which is the version a learner meets.
+ *
+ * The scan above reaches the reader before any vocabulary exists, so axe has
+ * only ever seen its empty state — never a passage, never the feed, never the
+ * word panel. Those are the parts with roles on them.
+ */
+test('the reader passes WCAG 2.1 AA with content in it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await firstRun(page);
+  await seedKnownVocabulary(page, 600);
+
+  await page.getByTestId('reader-open').click();
+  await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 20_000 });
+  await expectNoViolations(page, 'reader, populated');
+
+  await page.getByTestId('reader-token').first().click();
+  await expect(page.getByTestId('word-panel')).toBeVisible();
+  await expectNoViolations(page, 'reader, word panel open');
+});
+
+/**
+ * The same screens, dark.
+ *
+ * §10 promises "dark mode, WCAG AA contrast" as one clause, and every scan
+ * above runs in light mode — so half of what §10 promises has never been
+ * measured. Contrast is the rule that differs between the two themes, and it is
+ * the rule most likely to be broken by a shade that looked fine in the other.
+ */
+test('every screen passes WCAG 2.1 AA in dark mode', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.emulateMedia({ colorScheme: 'dark' });
+
+  await page.goto('/');
+  await expectNoViolations(page, 'first run, dark');
+
+  await firstRun(page);
+  await expectNoViolations(page, 'home, dark');
+
+  await seedKnownVocabulary(page, 600);
+  await page.getByTestId('reader-open').click();
+  await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 20_000 });
+  await expectNoViolations(page, 'reader, dark');
+
+  await page.getByTestId('reader-token').first().click();
+  await expect(page.getByTestId('word-panel')).toBeVisible();
+  await expectNoViolations(page, 'word panel, dark');
+  await page.getByTestId('word-close').click();
+  await page.getByRole('button', { name: 'Kembali' }).click();
+
+  await page.getByTestId('progress-open').click();
+  await expect(page.getByTestId('vocab')).toBeVisible({ timeout: 20_000 });
+  await expectNoViolations(page, 'progress, dark');
+
+  await page.getByTestId('glossary-open').click();
+  await expectNoViolations(page, 'glossary, dark');
+  await page.getByRole('button', { name: 'Kembali' }).click();
+  await page.getByRole('button', { name: 'Kembali' }).click();
+
+  await page.getByTestId('settings-open').click();
+  await expect(page.getByTestId('topic-list')).toBeVisible({ timeout: 20_000 });
+  await expectNoViolations(page, 'settings, dark');
 });
 
 test('a session is answerable with no accessibility violations', async ({ page }) => {

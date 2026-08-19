@@ -52,7 +52,7 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
         <span>
           <span className="text-lg font-semibold">{entry.headword}</span>
           {entry.reading ? (
-            <span className="ml-2 text-sm text-stone-500 dark:text-slate-500">{entry.reading}</span>
+            <span className="ml-2 text-sm text-stone-500 dark:text-slate-400">{entry.reading}</span>
           ) : null}
           {entry.gloss ? (
             <span className="ml-2 text-stone-600 dark:text-slate-400">{entry.gloss}</span>
@@ -68,7 +68,7 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
           {entry.example ? (
             <p>
               {entry.example.text}
-              <span className="mt-1 block text-stone-500 dark:text-slate-500">
+              <span className="mt-1 block text-stone-500 dark:text-slate-400">
                 {entry.example.translation}
               </span>
             </p>
@@ -125,7 +125,7 @@ export const GlossaryScreen = ({ profile, onBack }: GlossaryScreenProps) => {
         </p>
       ) : (
         <>
-          <p className="mt-4 text-sm text-stone-500 dark:text-slate-500" data-testid="glossary-count">
+          <p className="mt-4 text-sm text-stone-500 dark:text-slate-400" data-testid="glossary-count">
             {copy.glossary.count(state.total)}
           </p>
           <ul className="mt-2" data-testid="glossary-list">
@@ -134,7 +134,7 @@ export const GlossaryScreen = ({ profile, onBack }: GlossaryScreenProps) => {
             ))}
           </ul>
           {state.total > state.entries.length ? (
-            <p className="mt-3 text-sm text-stone-500 dark:text-slate-500">
+            <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">
               {copy.glossary.more(state.total - state.entries.length)}
             </p>
           ) : null}

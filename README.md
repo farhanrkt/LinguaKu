@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.9.0
+## Status — v1.10.0
 
 **Milestones 0 through 11 complete.** Every §2 requirement is implemented and
 the §8 exercise catalog is finished. See [`CHANGELOG.md`](CHANGELOG.md) for the
@@ -19,10 +19,10 @@ production verification procedure.
 
 | | |
 |---|---|
-| icon tap → first answerable question | **103 ms** (budget 3 s) |
-| initial JS / CSS, gzipped | **136.2 KB** / **6.7 KB** (budgets 200 / 40) |
-| tests | **752** unit · **49** e2e |
-| WCAG 2.1 AA violations | **0**, gated in CI |
+| icon tap → first answerable question | **108 ms** (budget 3 s) |
+| initial JS / CSS, gzipped | **137.4 KB** / **6.7 KB** (budgets 200 / 40) |
+| tests | **766** unit · **52** e2e |
+| WCAG 2.1 AA violations | **0**, gated in CI in **both themes** |
 | recurring cost | **zero** |
 
 English: 23,497 banded sentence pairs, 5,245 lexemes, 1,581 Indonesian glosses,

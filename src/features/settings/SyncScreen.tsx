@@ -62,7 +62,7 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
       <h1 className="text-2xl font-bold">{copy.sync.heading}</h1>
       <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.sync.intro}</p>
-      <p className="mt-2 text-sm text-stone-500 dark:text-slate-500">{copy.sync.noServer}</p>
+      <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{copy.sync.noServer}</p>
 
       <label className="mt-6 flex min-h-14 items-center gap-3">
         <input
@@ -143,14 +143,14 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
         </p>
       ) : null}
 
-      <p className="mt-6 text-sm text-stone-500 dark:text-slate-500">
+      <p className="mt-6 text-sm text-stone-500 dark:text-slate-400">
         {copy.sync.lastSynced(
           settings.lastSyncedAt
             ? new Date(settings.lastSyncedAt).toLocaleString('id-ID')
             : copy.sync.never,
         )}
       </p>
-      <p className="mt-2 text-sm text-stone-500 dark:text-slate-500">{copy.sync.privacy}</p>
+      <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{copy.sync.privacy}</p>
     </Screen>
   );
 };

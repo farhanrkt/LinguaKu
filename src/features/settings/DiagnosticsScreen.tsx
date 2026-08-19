@@ -162,7 +162,7 @@ export const DiagnosticsScreen = ({ onProbed, onBack }: DiagnosticsProps) => {
         type="button"
         onClick={onBack}
         data-testid="diagnostics-back"
-        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-400"
       >
         {copy.diagnostics.back}
       </button>

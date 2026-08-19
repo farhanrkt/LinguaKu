@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, seedKnownVocabulary } from './helpers.ts';
 
 /**
  * SPEC §8: *"tap-to-gloss graded reader with one-tap card creation (frictionless
@@ -9,71 +9,6 @@ import { firstRun } from './helpers.ts';
  * round trip, and that mining a word actually changes what the next session
  * teaches — the whole point of mining being that the learner chose it.
  */
-
-/**
- * Gives the learner a vocabulary, by writing cards straight into IndexedDB.
- *
- * Answering a few items in the UI is not enough and should not be: a sentence
- * needs most of its words known before it is readable at all, which is hundreds
- * of words, and the earlier test asserts the reader says so honestly until then.
- * What is under test here is the reader, not the months of practice in front of
- * it, so the state is seeded rather than earned.
- */
-const seedKnownVocabulary = async (page: Page, count: number): Promise<void> => {
-  await page.evaluate(
-    ({ count, now }) =>
-      new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('linguaku');
-        open.onerror = () => reject(new Error(String(open.error)));
-        open.onsuccess = () => {
-          const database = open.result;
-          const read = database.transaction(['items', 'profiles']);
-          const itemsRequest = read.objectStore('items').getAll();
-          const profilesRequest = read.objectStore('profiles').getAll();
-          read.oncomplete = () => {
-            const profileId = (profilesRequest.result[0] as { id: string }).id;
-            const items = (itemsRequest.result as Array<{ id: string; kind: string; freqRank: number }>)
-              .filter((item) => item.kind === 'lexeme')
-              .sort((a, b) => a.freqRank - b.freqRank)
-              .slice(0, count);
-
-            const write = database.transaction('cards', 'readwrite');
-            const cards = write.objectStore('cards');
-            for (const item of items) {
-              // A well-established card: high stability, reviewed just now, so
-              // retrievability is 1 and `knownItemIds` counts it (SPEC §2.4).
-              cards.put({
-                id: `${profileId}::${item.id}`,
-                profileId,
-                itemId: item.id,
-                ladderLevel: 2,
-                dueAt: now + 30 * 86_400_000,
-                suspended: 0,
-                fsrs: {
-                  dueAt: now + 30 * 86_400_000,
-                  stability: 60,
-                  difficulty: 5,
-                  elapsedDays: 0,
-                  scheduledDays: 30,
-                  learningSteps: 0,
-                  reps: 3,
-                  lapses: 0,
-                  state: 2,
-                  lastReviewAt: now,
-                },
-              });
-            }
-            write.oncomplete = () => resolve();
-            write.onerror = () => reject(new Error(String(write.error)));
-          };
-          read.onerror = () => reject(new Error(String(read.error)));
-        };
-      }),
-    { count, now: Date.now() },
-  );
-  await page.reload();
-  await expect(page.getByTestId('practise')).toBeEnabled({ timeout: 20_000 });
-};
 
 test('the reader is honest when it has nothing to show yet', async ({ page }) => {
   await firstRun(page);

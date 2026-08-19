@@ -12,6 +12,13 @@ Ordered by how much of the product dies if the assumption is wrong.
 
 ### R1 — Web Speech API voices on cheap Indonesian Android devices
 
+**Status (v1.10.0): a second platform, and it corrected the code again.** A
+macOS/Chromium row — explicitly *not* a phone and *not* the empty "Chrome,
+desktop" row — found that the report named the wrong operating system on every
+device that is not Android, and that the boot probe never answers at all while
+the page is hidden. Details in Part 3. The four rows that would actually test
+this risk are still empty, and this one cannot stand in for any of them.
+
 **Status (v1.5.1): the first real row exists, and it corrected the code.**
 Chrome 151 on Android, 2026-08-13: working on-device voices in **both**
 languages, completing at 932 ms and 999 ms — over the 500 ms deadline, so the
@@ -425,6 +432,8 @@ memory model.
 | D67 | **The glossary is a read, and that is the condition §2.2 attaches to it** | §2.2 bans "browse the list" as a study activity and permits this in the same sentence: *"a passive glossary is fine, but it does not create or advance cards."* So `buildGlossary` opens no transaction, calls no writer, and cannot reach `recordReview` — the only function allowed to move FSRS state (invariant 0) — and a test asserts a card is byte-identical after the glossary has been built against a timestamp thirty days later. It lists only items with a card, because a card is the product of an answer: this is what the learner has *met*, not what the app ships. Ordered strongest first, which is a §2.14 choice rather than a technical one — opening it should show what someone has secured, not what they are currently failing. It exists because the progress screen could say "kamu mengenali sekitar 1.200 kata" and never show one of them, and capability you cannot look at is a claim rather than evidence. |
 | D68 | **Accessibility is gated, not asserted — and the keyboard is checked by using it** | §10 promises WCAG AA contrast, `motion-safe:` on every transition, 56px tap targets and *"full keyboard operation on desktop"*, and §13 gated none of it: all four were claims maintained by care since M0. `e2e/a11y.spec.ts` runs axe (`@axe-core/playwright`, MPL-2.0, devDependency only, nothing in the bundle) over every screen a learner reaches, plus a session mid-answer. It found one real defect on the first run — the JSON restore input is visually hidden behind a button, so a screen reader met an **unlabelled file field**, critical severity, on the one screen where a learner hands over their whole history. The keyboard is checked separately and behaviourally, by driving the app with nothing but Tab and Enter from the home screen into a session and answering a card, because "full keyboard operation" is a behaviour that no static rule observes. Reduced motion is checked by asking the browser for the preference and asserting that nothing declares a transition. **axe is a floor, not a verdict**: it cannot tell whether a screen makes sense, and passing it says only that the mechanical failures are absent. |
 | D69 | **The offline promise is gated against the built service worker, not the config** | §5.4 promises the app is *"fully functional offline after first load, including audio for cached bands"*, and two things erode that as content grows without anything noticing. The runtime content cache is capped by `maxEntries`, and workbox evicts least-recently-used entries past it — the cap was **64** from M2, and glosses, chunks, topics and passages took the shard count to **65**, so a learner who touched both languages was one fetch from losing content they had already downloaded, with a failure that only appears on a plane. And every runtime rule matched `.json`, so **the first audio clip would have matched none of them** — re-fetched on every play, unavailable offline, which is the exact situation the clips exist to survive. `scripts/check-offline.mjs` asserts both against `dist/sw.js` rather than against `vite.config.ts`, because the built worker is what ships; it reads the cap *per cache name*, since taking the largest number in the file would let the content cache shrink below the shard count while the deliberately-large audio cache hid it. Audio also gets `rangeRequests`: an `<audio>` element issues Range requests, Safari always does, and a cached clip answering a range request with a 200 will not play. |
+| D70 | **Running text is one tab stop, and the arrows move inside it** | §10 promises *"full keyboard operation on desktop"*, and the reader kept that promise in the most expensive way available: every word in a passage and every token in the feed was its own `<button>`. Two passages and twenty sentences put **~320 tab stops** between a learner and the back button. Nothing failed — axe is content with a focusable button, and the keyboard test walked into a session without touching the reader — which is why this needed a number rather than care. The words are now a composite widget (the WAI-ARIA roving tabindex pattern) in `src/ui/TappableText.tsx`: the block is one stop in the page's tab order, Left/Right and Home/End move between words inside it, and a click makes that word the block's entry point so Tab returns where the learner was. Arrows **clamp rather than wrap**, because prose is a line and not a ring, and arriving back at the first word reads as a bug to someone who cannot see the whole block. The gate is in `e2e/a11y.spec.ts` and asserts both halves — under 40 tab stops, *and* more than 100 words still individually reachable — because withdrawing the stops without keeping the words operable would have taken tap-to-gloss away from the keyboard entirely, which is a worse failure than the one being fixed. |
+| D71 | **Dark mode is scanned, because half of §10's contrast promise was never measured** | §10 asks for *"dark mode, WCAG AA contrast"* in one clause and every axe scan ran in light mode, so the dark half had been a claim for eleven milestones. Adding the scan found `dark:text-slate-400`'s predecessor at **4.23:1** on the page background against a 4.5 floor — used **54 times across 15 files**, on every screen with secondary text. The same run found `text-stone-500` at **4.38:1** inside the reader's tinted panel: that shade clears AA on the page background at 4.60:1 and fails on `bg-stone-100`, so it was correct where it was written and wrong where it was reused. The cost is real and stated: raising the tertiary shade collapses it into the secondary one, so dark mode has one fewer step of hierarchy than light. AA is the promise; the third grey was not. The scan also covers the reader **with content in it** — the existing sweep reached the reader before any vocabulary existed, so axe had only ever seen its empty state, never a passage, never the feed, never the word panel. |
 | D23 | **Lighthouse PWA gate replaced with direct installability assertions** | §13 asks for "Lighthouse PWA score ≥ 90", but Lighthouse removed the PWA category in v12 (Chrome 126) when Chrome revised its installability criteria. `e2e/coldstart.spec.ts` asserts what the score measured — manifest validity, icon resolution, maskable icon, service-worker control, offline start_url — with no new dependency. |
 
 ---
@@ -446,6 +455,41 @@ empty rows are honest, invented ones are not.
 | Firefox, Android | | | | | |
 | Safari, iOS | | | | | |
 | Chrome, desktop | | | | | |
+| **Chromium 148 / Electron host, macOS 26.5.0, 8 GB, 8 cores — *not a phone*** | **ready, 855 ms** — Samantha | **ready, 114 ms** — Eddy (Japanese (Japan)) | en: yes, ja: yes | 3 ms | present |
+
+**What the second row settled, and what it is not.** *(added 2026-08-19)*
+
+It is **not** the "Chrome, desktop" row, and that row is still empty. The
+browser is Chromium 148 inside an Electron host on a developer's Mac — the
+speech engine underneath is macOS's, which is what desktop Chrome on this
+machine would also use, but the host's autoplay and idle policies are its own.
+Filed as its own row, named for what it is, because the alternative was to write
+"Chrome, desktop" and quietly mean something else.
+
+Its value is not the timings. **It found two defects by being a second
+platform**, which is the entire argument for the table:
+
+*The row named the wrong operating system.* `formatDeviceReport` printed
+`Android/OS <version>` unconditionally — the matrix is about cheap Android
+phones, so the label had been written as a constant. This machine reported
+*"Android/OS 26.5.0"*, and an iPhone would have reported Android. The empty
+cells in this table are the honest ones; a row naming the wrong OS is worth less
+than no row at all. The platform is a low-entropy client hint that Chromium has
+always offered for free, and nothing had asked for it.
+
+*The boot probe never answered while the page was hidden.* `requestIdleCallback`
+does not run for a hidden page, and its `timeout` option only counts down while
+the page is visible — so a tab that boots in the background sits on *"Mengecek
+suara di HP ini…"* indefinitely. Measured at 25 s and still pending; it resolved
+correctly the moment the page was looked at. Deferring until the page is visible
+is deliberate and stays (the first `speechSynthesis` call on a device with no
+speech service blocks the main thread for ~15 s), but the code claimed its
+timeout was *"a ceiling, not a target"*, and for a hidden page it was neither.
+It has a real ceiling now.
+
+*What this row cannot tell us.* Nothing about a cheap Android, which is the
+claim under test. Both voices here are macOS system voices on an 8 GB machine.
+The four rows that matter are still empty.
 
 **What the first row settled.**
 

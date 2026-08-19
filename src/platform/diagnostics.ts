@@ -84,6 +84,17 @@ export interface LanguageProbe {
  */
 export interface DeviceHints {
   model: string | null;
+  /**
+   * The OS name, read rather than assumed.
+   *
+   * This row used to be printed as `Android/OS <version>` on every device,
+   * because the matrix's whole subject is cheap Android phones. On a Mac it
+   * produced *"Android/OS 26.5.0"*, and on an iPhone it would have produced a
+   * row claiming Android — which is worse than an empty cell, since the empty
+   * ones are the honest ones. Chromium has always offered this for free as a
+   * low-entropy hint; nothing had asked for it.
+   */
+  platform: string | null;
   platformVersion: string | null;
   /** GB of RAM, rounded down by the browser. The cheapness signal that matters. */
   memoryGb: number | null;
@@ -107,6 +118,8 @@ export interface DeviceReport {
 }
 
 interface UserAgentDataLike {
+  /** Low-entropy and synchronous: present whenever `userAgentData` is. */
+  platform?: string;
   getHighEntropyValues?: (hints: string[]) => Promise<{ model?: string; platformVersion?: string }>;
 }
 
@@ -117,6 +130,7 @@ const collectHints = async (): Promise<DeviceHints> => {
 
   const hints: DeviceHints = {
     model: null,
+    platform: nav?.userAgentData?.platform?.trim() || null,
     platformVersion: null,
     memoryGb: nav?.deviceMemory ?? null,
     cores: nav?.hardwareConcurrency ?? null,
@@ -225,11 +239,18 @@ const cellFor = (report: DeviceReport, lang: TargetLang): string => {
  * pasted into an engineering document.
  */
 /** The device column: what it is, falling back to the UA when hints are absent. */
+/** The OS, named where the browser will say and omitted where it will not. */
+const osCell = ({ platform, platformVersion }: DeviceHints): string | null => {
+  if (platform === null && platformVersion === null) return null;
+  if (platform === null) return `OS ${platformVersion}`;
+  return platformVersion === null ? platform : `${platform} ${platformVersion}`;
+};
+
 const deviceCell = (report: DeviceReport): string => {
-  const { model, platformVersion, memoryGb, cores } = report.device;
+  const { model, memoryGb, cores } = report.device;
   const parts = [
     model,
-    platformVersion === null ? null : `Android/OS ${platformVersion}`,
+    osCell(report.device),
     memoryGb === null ? null : `${memoryGb} GB RAM`,
     cores === null ? null : `${cores} cores`,
   ].filter((part): part is string => part !== null);

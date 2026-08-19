@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
+import { TappableText, WORD_NAV_HINT_ID, type TextPart } from '../../ui/TappableText.tsx';
 import { makeCloze } from '../../core/cloze.ts';
 import { gradeAnswer } from '../../core/grader.ts';
 import { lexemeIdFor } from '../../core/coverage.ts';
@@ -53,6 +54,15 @@ const pickTarget = (text: string, known: ReadonlySet<string>, lang: string): str
   return null;
 };
 
+/** Splits running text into words and the whitespace between them. */
+const partsOf = (text: string): TextPart[] =>
+  text
+    .split(/(\s+)/)
+    .filter((chunk) => chunk.length > 0)
+    .map((chunk) =>
+      /^\s+$/.test(chunk) ? { kind: 'gap', text: chunk } : { kind: 'word', text: chunk },
+    );
+
 export const PassageView = ({ item, profileId, lang, known, onTapWord }: PassageViewProps) => {
   const [checking, setChecking] = useState(false);
   const [answer, setAnswer] = useState('');
@@ -82,27 +92,22 @@ export const PassageView = ({ item, profileId, lang, known, onTapWord }: Passage
 
   return (
     <article className="mt-6 rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800">
-      <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+      <h2 className="text-sm font-semibold text-stone-500 dark:text-slate-400">
         {/* CC BY-SA attribution, per paragraph rather than per corpus. */}
         {copy.reader.passage.from(item.passage.title)}
       </h2>
 
-      <p className="mt-3 text-lg leading-relaxed" data-testid="passage-text">
-        {item.passage.text.split(/(\s+)/).map((chunk, index) =>
-          /^\s+$/.test(chunk) ? (
-            chunk
-          ) : (
-            <button
-              key={index}
-              type="button"
-              onClick={() => onTapWord(chunk.replace(/[^\p{L}\p{N}'-]/gu, ''))}
-              className="rounded underline-offset-4 hover:underline"
-            >
-              {chunk}
-            </button>
-          ),
-        )}
-      </p>
+      {/* One tab stop for the whole passage, arrows inside it — a passage is
+          ~90 words, and ~90 tab stops in front of the rest of the screen is a
+          cost §10's keyboard promise was quietly charging (D70). */}
+      <TappableText
+        parts={partsOf(item.passage.text)}
+        label={copy.reader.passage.textLabel}
+        describedBy={WORD_NAV_HINT_ID}
+        onTap={(word) => onTapWord(word.replace(/[^\p{L}\p{N}'-]/gu, ''))}
+        className="mt-3 text-lg leading-relaxed"
+        testId="passage-text"
+      />
 
       {checking && cloze ? (
         <div className="mt-4 rounded-xl bg-stone-100 p-3 dark:bg-slate-900">

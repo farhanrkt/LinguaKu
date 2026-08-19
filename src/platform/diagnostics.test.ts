@@ -27,7 +27,14 @@ const report = (overrides: Partial<VoiceReport> = {}): VoiceReport => ({
 const deviceReport = (overrides: Partial<DeviceReport> = {}): DeviceReport => ({
   collectedAt: Date.UTC(2026, 7, 12),
   userAgent: 'Mozilla/5.0 (Linux; Android 10; K) Chrome/151.0.0.0',
-  device: { model: 'SM-A125F', platformVersion: '13', memoryGb: 2, cores: 8, screen: '360×800 @2x' },
+  device: {
+    model: 'SM-A125F',
+    platform: 'Android',
+    platformVersion: '13',
+    memoryGb: 2,
+    cores: 8,
+    screen: '360×800 @2x',
+  },
   languages: [
     { lang: 'en', report: report(), adopted: false },
     { lang: 'ja', report: report({ support: 'no-voice', voiceName: null, voiceCount: 0, onendMs: null }), adopted: false },
@@ -86,15 +93,64 @@ describe('formatDeviceReport', () => {
     const row = formatDeviceReport(deviceReport()).split('\n')[0] ?? '';
     expect(row).toContain('SM-A125F');
     expect(row).toContain('2 GB RAM');
+    expect(row).toContain('Android 13');
     // The UA stays, because it carries the browser version the hints do not.
     expect(row).toContain('Chrome/151.0.0.0');
+  });
+
+  it('names the OS the browser reports, never the one the matrix is about', () => {
+    // The row was hardcoded to "Android/OS <version>" because R1 is about cheap
+    // Android phones. A Mac reported "Android/OS 26.5.0"; an iPhone would have
+    // reported Android. The empty cells in this matrix are the honest ones, and
+    // a row naming the wrong OS is worth less than no row at all.
+    const mac = formatDeviceReport(
+      deviceReport({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/148.0.0.0',
+        device: {
+          model: null,
+          platform: 'macOS',
+          platformVersion: '26.5.0',
+          memoryGb: 8,
+          cores: 8,
+          screen: '1440×900 @2x',
+        },
+      }),
+    ).split('\n')[0] ?? '';
+    expect(mac).toContain('macOS 26.5.0');
+    expect(mac).not.toContain('Android');
+  });
+
+  it('still says something when only one half of the OS is known', () => {
+    // Firefox and Safari have no client hints at all; a Chromium that refuses
+    // the high-entropy call still gives the platform name.
+    const partial = formatDeviceReport(
+      deviceReport({
+        device: {
+          model: null,
+          platform: 'iOS',
+          platformVersion: null,
+          memoryGb: null,
+          cores: null,
+          screen: null,
+        },
+      }),
+    ).split('\n')[0] ?? '';
+    expect(partial).toContain('iOS');
+    expect(partial).not.toContain('undefined');
   });
 
   it('falls back to the user agent where client hints are unavailable', () => {
     // Firefox and Safari have no userAgentData. A row with no device name is
     // worth less than one with it, and much more than an invented one.
     const noHints = deviceReport({
-      device: { model: null, platformVersion: null, memoryGb: null, cores: null, screen: null },
+      device: {
+        model: null,
+        platform: null,
+        platformVersion: null,
+        memoryGb: null,
+        cores: null,
+        screen: null,
+      },
     });
     const row = formatDeviceReport(noHints).split('\n')[0] ?? '';
     expect(row).toContain('Chrome/151.0.0.0');

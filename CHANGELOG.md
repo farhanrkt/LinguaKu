@@ -5,6 +5,94 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.10.0 — 2026-08-19
+
+The one thing v1.9.1 named and left open, and the three defects that turned up
+behind it. All three were found by writing a gate or by running the app on a
+second platform — none by reading the code, which is the same finding this
+branch keeps making.
+
+### The reader cost ~320 tab stops, and now costs one per block
+
+Named in v1.9.1 as *"a design decision rather than a patch"* and left. Every
+word in a passage and every token in the feed was its own `<button>`, so a
+learner on a keyboard or a switch device paid a stop for every word they were
+not interested in before reaching anything else on the screen. Nothing was
+failing: axe is content with a focusable button, and the §10 keyboard test
+walked from home into a session without ever touching the reader.
+
+The words are now a roving-tabindex composite (`src/ui/TappableText.tsx`, D70).
+Tab enters and leaves a block; Left/Right and Home/End move between words inside
+it; a click makes that word the block's entry point. Arrows clamp rather than
+wrap, because prose is a line and not a ring.
+
+**The gate asserts both halves** — under 40 tab stops *and* 100+ words still
+individually reachable — because withdrawing the stops without keeping the words
+operable would have taken tap-to-gloss away from the keyboard entirely, which is
+a worse §10 failure than the one being fixed.
+
+### Fixed — dark mode had never been scanned, and 54 usages failed AA
+
+§10 promises *"dark mode, WCAG AA contrast"* in one clause, and every axe scan
+since v1.8.0 ran in light mode. Adding the dark scan found the tertiary text
+shade at **4.23:1** on the page background against a 4.5 floor — used **54
+times across 15 files**, on every screen with secondary text. Raised to the
+shade above it, which clears 7.66:1.
+
+**The cost, stated plainly:** dark mode now has one fewer step of type hierarchy
+than light, because the third grey was not AA and AA is the promise.
+
+The same run found `text-stone-500` at **4.38:1** inside the reader's tinted
+word panel. That shade clears AA on the page background at 4.60:1 — it was
+correct where it was written and wrong where it was reused, which is the class
+of defect only a scan finds.
+
+### Fixed — the device report named the wrong operating system
+
+`formatDeviceReport` printed `Android/OS <version>` unconditionally, because the
+matrix R1 keeps is about cheap Android phones and the label had been written as
+a constant. Running it on a Mac produced *"Android/OS 26.5.0"*; an iPhone would
+have produced a row claiming Android. The empty cells in that table are the
+honest ones, and a row naming the wrong OS is worth less than no row at all. The
+platform is a low-entropy client hint Chromium has always offered for free.
+
+### Fixed — the boot probe never answered while the page was hidden
+
+`requestIdleCallback` does not run for a hidden page, and its `timeout` only
+counts down while the page is visible. A tab that booted in the background sat
+on *"Mengecek suara di HP ini…"* for **25 s and counting**, and resolved
+correctly the moment it was looked at. Deferring until the page is visible stays
+— the first `speechSynthesis` call on a device with no speech service blocks the
+main thread for ~15 s (R1) — but the code claimed its timeout was *"a ceiling,
+not a target"*, and for a hidden page it was neither. It has a real one now.
+
+### Added — a second row in the device matrix, named for what it is
+
+macOS 26.5.0 / Chromium 148, en **ready at 855 ms** (Samantha), ja **ready at
+114 ms** (Eddy). It is filed as its own row and **not** as the empty "Chrome,
+desktop" one, because the host is Electron rather than stock Chrome. It says
+nothing about a cheap Android, which is the claim R1 is actually about — its
+whole value was being a second platform, and it found the two defects above.
+
+### Measured on this build
+
+| | |
+|---|---|
+| unit tests | **766**, 57 files |
+| e2e | **52** |
+| icon tap → first answerable question | **108 ms** (budget 3 s) |
+| initial JS / CSS gzipped | **137.4 KB** / **6.7 KB** (budgets 200 / 40) |
+| WCAG 2.1 AA violations | **0**, light **and** dark |
+| reader tab stops | **< 40**, from ~320 |
+
+### Still gated on a person, not on code
+
+Unchanged from v1.9.0, and this release moves none of it: the voice model's
+licence (R7), four empty rows in the device matrix, a native-speaker pass over
+the Indonesian, and sync deployed or deleted.
+
+---
+
 ## v1.9.1 — 2026-08-18
 
 A review pass over the nine releases this branch added in one sitting, and the

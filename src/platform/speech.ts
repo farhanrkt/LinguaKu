@@ -311,16 +311,61 @@ export const probeOnBoot = async (
 /** Long enough that the first question is painted, where there is no idle API. */
 export const IDLE_FALLBACK_MS = 1_500;
 
-/** Resolves once the main thread has nothing better to do. */
+/**
+ * The hard ceiling on the wait, because `requestIdleCallback`'s own `timeout`
+ * is not one.
+ *
+ * Measured 2026-08-19, Chromium 148: **a hidden page never runs an idle
+ * callback at all**, and the `timeout` option only counts down while the page
+ * is visible. A tab that booted in the background sat on the home screen's
+ * *"Mengecek suara di HP ini…"* for 25 s and counting, and resolved correctly
+ * the moment it was looked at. The old comment here claimed this timeout was
+ * "a ceiling, not a target"; for a hidden page it was neither.
+ */
+export const IDLE_CEILING_MS = 3_000;
+
+const pageIsHidden = (): boolean => globalThis.document?.visibilityState === 'hidden';
+
+/**
+ * Resolves once the main thread has nothing better to do — and no later than
+ * `IDLE_CEILING_MS` after the page is being looked at.
+ *
+ * **Waiting for visibility is deliberate and is not the bug above.** The first
+ * `speechSynthesis` call on a device with no speech service blocks the main
+ * thread for ~15 s (see R1), so this probe may only run when it is cheap. A
+ * hidden page will get its probe on return; what it must not do is wait
+ * unbounded once the learner is actually there.
+ */
 const idle = (deferMs = IDLE_FALLBACK_MS): Promise<void> =>
   new Promise((resolve) => {
-    if (typeof globalThis.requestIdleCallback === 'function') {
-      // The timeout is a ceiling, not a target: on a busy first load the probe
-      // still happens, just late enough not to be in front of the learner.
-      globalThis.requestIdleCallback(() => resolve(), { timeout: 3_000 });
-    } else {
-      setTimeout(resolve, deferMs);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const schedule = () => {
+      if (typeof globalThis.requestIdleCallback !== 'function') {
+        setTimeout(finish, deferMs);
+        return;
+      }
+      globalThis.requestIdleCallback(() => finish(), { timeout: IDLE_CEILING_MS });
+      // The ceiling the line above only pretends to be.
+      setTimeout(finish, IDLE_CEILING_MS);
+    };
+
+    if (pageIsHidden()) {
+      globalThis.document?.addEventListener(
+        'visibilitychange',
+        () => {
+          if (!pageIsHidden()) schedule();
+        },
+        { once: true },
+      );
+      return;
     }
+    schedule();
   });
 
 /** The session's verdict, or null if the probe has not answered yet. */

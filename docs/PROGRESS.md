@@ -1,5 +1,94 @@
 # PROGRESS.md
 
+## v1.10.0 — the tab stops, and what dark mode had been hiding (2026-08-19)
+
+v1.9.1 closed with one item under **Left open**: every word in the reader is a
+focusable button, two passages add ~160 tab stops before the feed, and fixing it
+"means a different interaction model for tap-to-gloss, which is a design
+decision rather than a patch". That was true, and the decision is D70.
+
+### The interaction model
+
+The alternative to a button per word is not "fewer buttons" — a learner has to
+be able to reach *any* word, because the one they do not know is the one they
+will tap. So the words stay, and the *tab order* changes: a passage or a
+sentence is one composite widget, Tab enters and leaves it, and Left/Right and
+Home/End move inside. This is the WAI-ARIA roving tabindex pattern, and it is
+what a text editor, a toolbar and a date picker all do for the same reason.
+
+Two details were decisions rather than defaults. **Arrows clamp** instead of
+wrapping, because prose is a line and not a ring — arriving back at the first
+word of a paragraph reads as a bug to someone who cannot see the whole block.
+And a **click sets the entry point**, so tabbing back into a block returns the
+learner to the word they were last at rather than to the start of the paragraph.
+
+**The gate asserts both halves.** Counting tab stops alone would pass if the
+words stopped being reachable at all, which would be a worse §10 failure than
+the one being fixed — so the test also asserts that 100+ words are still there
+and that ArrowRight moves between them and Enter opens the panel.
+
+### What the two new scans found, which is the part worth reading
+
+Both new gates found real defects on their first run. That is now four releases
+in a row where the gate found something the code review did not.
+
+**Dark mode had never been scanned at all.** §10 promises "dark mode, WCAG AA
+contrast" as a single clause, and every axe run since v1.8.0 ran in light mode —
+so exactly half of that promise had been resting on care since M0. The tertiary
+text shade measured **4.23:1** on the page background, below the 4.5 floor, in
+**54 places across 15 files**. Every screen with secondary text was affected.
+
+The fix costs something and the cost is worth naming: raising that shade
+collapses it into the secondary one, so dark mode now has one fewer step of type
+hierarchy than light mode has. The third grey was not AA, and AA is what §10
+promises; the hierarchy was not promised.
+
+**Scanning the reader empty was scanning the wrong thing.** The existing sweep
+reached the reader before the learner had any vocabulary, so axe had only ever
+seen *"Belum ada bacaan yang pas"* — never a passage, never the feed, never the
+word panel, which are the parts carrying roles. Seeded with vocabulary, it found
+`text-stone-500` at **4.38:1** inside the tinted word panel. That shade clears
+AA at 4.60:1 on the page background: it was correct where it was written and
+wrong where it was reused, which is precisely the defect a person re-reading the
+CSS would not catch.
+
+### Running it on a second platform, which found two more
+
+The device matrix has had one row since v1.5.1, and the app collects rows
+itself. Running that on this machine was meant to fill the empty "Chrome,
+desktop" row. It did not — the browser is Chromium inside an Electron host, so
+the row is filed under its own name and the desktop row is still empty. Writing
+"Chrome, desktop" and meaning something else is the one thing that table cannot
+survive.
+
+**The report named the wrong operating system.** `Android/OS <version>` was
+printed unconditionally — the label was a constant, because the matrix is about
+Android phones. This machine reported *"Android/OS 26.5.0"*. An iPhone would
+have reported Android. The whole purpose of that screen is to produce rows a
+person can trust without re-deriving them, and the platform has been available
+as a free client hint the entire time.
+
+**The boot probe never answered while the page was hidden.** The home screen sat
+on *"Mengecek suara di HP ini…"* for 25 s and counting, then resolved correctly
+the moment the page was looked at. `requestIdleCallback` does not run for a
+hidden page and its `timeout` only counts while visible — so the comment in
+`idle()` claiming "the timeout is a ceiling, not a target" was wrong in the one
+case it existed for. Deferring until visible **stays**: the ~15 s first-call
+stall on a device with no speech service is why the probe waits at all, and a
+hidden page is not the moment to spend it. What changed is that the wait is now
+bounded once the learner is actually there.
+
+### Left open
+
+Nothing new. The four things standing between this and v2.0.0 are the same four
+v1.9.0 named, and every one of them is a decision or a measurement that belongs
+to a person: the voice model's licence (R7), the four empty matrix rows, the
+native-speaker pass over the Indonesian, and sync deployed or deleted. This
+release deliberately moved none of them, because moving them without the person
+is the one failure mode this project has been built to avoid.
+
+---
+
 ## v1.9.1 — the review pass (2026-08-18)
 
 Nine releases went onto this branch in one sitting with no independent review.

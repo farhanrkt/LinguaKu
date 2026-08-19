@@ -66,9 +66,9 @@ export const SettingsScreen = ({
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.settings.topicsIntro}</p>
 
       {topics === null ? (
-        <p className="mt-4 text-sm text-stone-500 dark:text-slate-500">{copy.settings.loading}</p>
+        <p className="mt-4 text-sm text-stone-500 dark:text-slate-400">{copy.settings.loading}</p>
       ) : topics.length === 0 ? (
-        <p className="mt-4 text-sm text-stone-500 dark:text-slate-500">{copy.settings.noTopics}</p>
+        <p className="mt-4 text-sm text-stone-500 dark:text-slate-400">{copy.settings.noTopics}</p>
       ) : (
         <>
           <div className="mt-4 flex flex-col gap-3" data-testid="topic-list">
@@ -84,7 +84,7 @@ export const SettingsScreen = ({
           </div>
           {/* §2.14 again: the learner should know that choosing costs them
               nothing, or the control reads as a commitment. */}
-          <p className="mt-3 text-sm text-stone-500 dark:text-slate-500">
+          <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">
             {chosen.size === 0 ? copy.settings.topicsNone : copy.settings.topicsNote}
           </p>
         </>

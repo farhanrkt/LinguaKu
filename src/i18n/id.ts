@@ -247,6 +247,11 @@ export const copy = {
     loading: 'Menyiapkan bacaan…',
     newWord: 'baru',
     tapHint: 'Ketuk kata untuk melihat artinya.',
+    // SPEC §10: a block of reading is one tab stop and the arrows move inside
+    // it, so this is the only place a keyboard learner is told how.
+    wordNav:
+      'Pakai tombol panah kiri dan kanan untuk pindah antar kata, lalu Enter untuk membuka artinya.',
+    sentenceLabel: 'Kalimat bacaan',
 
     /** SPEC §8 + §2.4: real running text, where the coverage band is reachable. */
     passage: {
@@ -259,6 +264,7 @@ export const copy = {
       onlyEnglish:
         'Bacaan panjang baru ada untuk bahasa Inggris. Untuk bahasa Jepang, kami sajikan kalimat satu per satu dulu.',
       heading: 'Bacaan panjang',
+      textLabel: 'Teks bacaan',
     },
 
     word: {

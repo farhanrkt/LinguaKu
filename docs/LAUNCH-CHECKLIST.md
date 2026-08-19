@@ -17,7 +17,7 @@ Anything marked **manual** cannot be done in CI and needs a human with a phone.
 
 | | Check | Expected |
 |---|---|---|
-| 0.1 | `package.json` version | **`1.9.0`** |
+| 0.1 | `package.json` version | **`1.10.0`** |
 | 0.2 ✅ | Code licence | **MIT**, `LICENSE` committed (D12). Covers `src/`, `scripts/`, `workers/` and the authored content in `data/`. It does **not** reach `assets/content/`. |
 | 0.3 | `README.md` status section | Current for this version. |
 | 0.4 | Working tree clean | `git status --short` is empty. |
@@ -44,13 +44,13 @@ npm ci && npm run verify
 |---|---|---|
 | 1.1 | Typecheck | Clean. Strict, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. |
 | 1.2 | Lint | Clean. `no-explicit-any` is an error, not a warning. |
-| 1.3 | Unit tests | **752 passed, 60 files**, ~7 s. Zero skipped. |
-| 1.4 | Licence gate | **8 datasets declared and attributed; 65 asset files traced.** Fails in *both* directions — an undeclared dataset, and a declared one nothing references. |
+| 1.3 | Unit tests | **766 passed, 57 files**, ~7 s. Zero skipped. |
+| 1.4 | Licence gate | **8 datasets declared and attributed; 64 asset files traced.** Fails in *both* directions — an undeclared dataset, and a declared one nothing references. |
 | 1.5 | Audio gate | *"no pre-cached audio yet"* until R7 is answered. Once clips ship: budget and index checked in both directions. |
 | 1.6 | Build | Succeeds; `dist/` written. |
-| 1.7 | Initial JS | **136.7 KB / 200 KB gzipped (68%)** — invariant 6. |
-| 1.8 | Initial CSS | **6.9 KB / 40 KB gzipped (17%)**. |
-| 1.9 | Offline gate | **65 shards under a 192-entry cache, audio rule present.** See §5.4 below for why this exists. |
+| 1.7 | Initial JS | **137.4 KB / 200 KB gzipped (69%)** — invariant 6. |
+| 1.8 | Initial CSS | **6.7 KB / 40 KB gzipped (17%)**. |
+| 1.9 | Offline gate | **64 shards under a 192-entry cache, audio rule present.** See §5.4 below for why this exists. |
 
 A jump in 1.7 with no new feature usually means a lazy chunk became a static
 import. `scripts/check-bundle.mjs` walks the real build manifest and counts the
@@ -66,8 +66,8 @@ npm run test:e2e
 
 | | Check | Expected |
 |---|---|---|
-| 2.1 | Full suite | **49 passed**, emulated Pixel 5 / android-chrome, ~80 s. |
-| 2.2 | Cold start | `coldstart.spec.ts` — icon tap → first answerable question **under 3 s** on a warm cache. This run: **103 ms**. Invariant 12. |
+| 2.1 | Full suite | **52 passed**, emulated Pixel 5 / android-chrome, ~96 s. |
+| 2.2 | Cold start | `coldstart.spec.ts` — icon tap → first answerable question **under 3 s** on a warm cache. This run: **108 ms**. Invariant 12. |
 | 2.3 | Installability | Manifest validity, icon resolution, maskable icon, service-worker control, offline `start_url` (D23). |
 | 2.4 | Offline session | `session.spec.ts` runs a session with the network cut. |
 | 2.5 | Lossless resume | Killing the app mid-session resumes at the exact next item. |
@@ -76,10 +76,11 @@ npm run test:e2e
 | 2.8 | Attribution both ways | `attribution.spec.ts` — every shipped dataset appears, no uncleared candidate does, and no dataset the build does not use. |
 | 2.9 | Honest empty states | `progress.spec.ts` — every §9 section says it has nothing yet; the radar never shows 0% for an unmeasured axis. |
 | 2.10 | Export round-trip | JSON export restores into a fresh install with no account. |
-| 2.11 | **WCAG 2.1 AA** | `a11y.spec.ts` — axe over eight screens plus a session mid-answer: **0 violations**. |
+| 2.11 | **WCAG 2.1 AA** | `a11y.spec.ts` — axe over eight screens plus a session mid-answer, the reader **with content in it**, and every screen again in **dark mode**: **0 violations** (D71). |
 | 2.12 | **Keyboard only** | Tab and Enter from home into a session and through an answer, no clicks (§10). |
 | 2.13 | **Reduced motion** | Nothing declares a transition under `prefers-reduced-motion` (§10). |
 | 2.14 | Topics are optional | Choosing none costs nothing; choosing one survives a cold start (§2.14). |
+| 2.16 | **Reader tab-stop budget** | `a11y.spec.ts` — under 40 tab stops on a populated reader, with 100+ words still individually reachable by arrow key (D70). |
 | 2.15 | The glossary answers nothing | Browsing creates and advances no cards (§2.2, D67). |
 
 ---
@@ -112,7 +113,7 @@ npm run build && npm run preview
 | | Check | Expected |
 |---|---|---|
 | 4.1 | `dist/` contents | `index.html`, `manifest.webmanifest`, `sw.js`, `workbox-*.js`, `assets/`, `content/`, `icons/`. |
-| 4.2 | Precache size | **44 entries · 5.62 MB raw · 1.32 MB gzipped** — both languages, bands 1–3 lexemes, anchors, glosses and chunks, both contrastive packs, both topic maps. Budget is 8 MB for a beginner's first download (§5.3). |
+| 4.2 | Precache size | **44 entries · 5.52 MB raw · 1.32 MB gzipped** — both languages, bands 1–3 lexemes, anchors, glosses and chunks, both contrastive packs, both topic maps. Budget is 8 MB for a beginner's first download (§5.3). |
 | 4.3 | What is *not* precached | Passages, band 4+ shards and audio are fetched on demand and cached at runtime — a beginner should not pay for them on first load. |
 | 4.4 | No source maps served | Decide explicitly: the build emits `.map` files. Ship them or strip them, but on purpose. |
 | 4.5 | No secrets | `grep -rn "token\|secret\|api[_-]key" dist/assets/*.js` finds nothing that is a value. There is no server and no build-time secret by design. |

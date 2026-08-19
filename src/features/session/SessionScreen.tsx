@@ -431,7 +431,7 @@ export const SessionScreen = ({
             <button
               type="button"
               onClick={() => void handleQuit()}
-              className="min-h-12 w-full text-sm text-stone-500 underline-offset-4 hover:underline dark:text-slate-500"
+              className="min-h-12 w-full text-sm text-stone-500 underline-offset-4 hover:underline dark:text-slate-400"
             >
               {copy.session.quit}
             </button>
@@ -440,7 +440,7 @@ export const SessionScreen = ({
       }
     >
       <p
-        className="text-sm text-stone-500 dark:text-slate-500"
+        className="text-sm text-stone-500 dark:text-slate-400"
         data-testid="session-progress"
       >
         {copy.session.progress(cursor + 1, session.itemIds.length)}

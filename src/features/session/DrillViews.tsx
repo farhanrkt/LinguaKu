@@ -37,7 +37,7 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
       <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
         {copy.session.drill.heading}
       </p>
-      <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{task.category.label}</p>
+      <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{task.category.label}</p>
 
       {/* SPEC §8's "perbaiki kalimat ini". The instruction has to come first:
           a wrong sentence shown without it reads as something to copy. */}
@@ -140,21 +140,21 @@ export const ContrastiveNote = ({
         {explain ?? category.summary}
       </p>
 
-      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-500">
+      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
         {copy.session.drill.l1Heading}
       </p>
       <p className="text-stone-700 dark:text-slate-300">{note.l1}</p>
 
-      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-500">
+      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
         {copy.session.drill.targetHeading}
       </p>
       <p className="text-stone-700 dark:text-slate-300">{note.target}</p>
 
       <div className="mt-3 rounded-xl bg-white p-3 dark:bg-slate-950">
-        <p className="font-semibold text-stone-500 dark:text-slate-500">
+        <p className="font-semibold text-stone-500 dark:text-slate-400">
           {copy.session.drill.pairHeading}
         </p>
-        <p className="mt-1 text-stone-500 line-through dark:text-slate-500">
+        <p className="mt-1 text-stone-500 line-through dark:text-slate-400">
           {note.minimalPair.wrong}
         </p>
         <p className="font-semibold text-teal-800 dark:text-teal-300">{note.minimalPair.right}</p>
@@ -163,7 +163,7 @@ export const ContrastiveNote = ({
 
       {note.tip ? (
         <>
-          <p className="mt-3 font-semibold text-stone-500 dark:text-slate-500">
+          <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.drill.tipHeading}
           </p>
           <p className="text-stone-700 dark:text-slate-300">{note.tip}</p>

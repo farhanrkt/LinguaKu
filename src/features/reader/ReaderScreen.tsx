@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
+import { TappableText, WORD_NAV_HINT_ID, type TextPart } from '../../ui/TappableText.tsx';
 import {
   selectPassages,
   selectReading,
@@ -20,7 +21,7 @@ import { db } from '../../data/db.ts';
 import { vocabularyAbility } from '../../data/repositories/abilities.ts';
 import { mineItem, minedItemIds, unmineItem } from '../../data/repositories/mining.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { Item, Profile } from '../../data/types.ts';
+import type { Item, Profile, TargetLang } from '../../data/types.ts';
 
 /**
  * The graded reader (SPEC §8), which the spec calls "the retention engine" and
@@ -63,6 +64,27 @@ interface Tapped {
   /** Indonesian senses, where this word has any (risk R3, partial by design). */
   senses: readonly string[];
 }
+
+/**
+ * The feed's words, with §2.4's unknown-word highlight preserved per token.
+ *
+ * No separator between them: `tokensOf` returns words without the whitespace,
+ * and the padding on each word is what has always spaced them apart.
+ */
+const tokenParts = (
+  tokens: readonly string[],
+  lang: TargetLang,
+  unknown: readonly string[],
+): TextPart[] =>
+  tokens.map((token) => ({
+    kind: 'word',
+    text: token,
+    className:
+      'rounded px-0.5 text-left motion-safe:transition-colors ' +
+      (unknown.includes(lexemeIdFor(lang, token.toLowerCase()))
+        ? 'bg-amber-100 font-semibold hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900'
+        : 'hover:bg-stone-100 dark:hover:bg-slate-800'),
+  }));
 
 export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
@@ -177,6 +199,11 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
       <h1 className="text-2xl font-bold">{copy.reader.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.reader.intro}</p>
+      {/* Referenced by every tappable block on this screen (D70). Once, because
+          repeating it per paragraph is what makes a hint into noise. */}
+      <p id={WORD_NAV_HINT_ID} className="sr-only">
+        {copy.reader.wordNav}
+      </p>
 
       {passages.length > 0 ? (
         <section data-testid="passages">
@@ -193,7 +220,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
           ))}
         </section>
       ) : lang === 'ja' ? (
-        <p className="mt-4 text-sm text-stone-500 dark:text-slate-500" data-testid="passages-absent">
+        <p className="mt-4 text-sm text-stone-500 dark:text-slate-400" data-testid="passages-absent">
           {copy.reader.passage.onlyEnglish}
         </p>
       ) : null}
@@ -209,28 +236,14 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
               key={item.sentence.id}
               className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
             >
-              <p className="text-xl leading-relaxed">
-                {tokensOf(item.sentence).map((token, index) => {
-                  const itemId = lexemeIdFor(lang, token.toLowerCase());
-                  const isNew = item.unknown.includes(itemId);
-                  return (
-                    <button
-                      key={`${item.sentence.id}-${index}`}
-                      type="button"
-                      onClick={() => void handleTap(token, item.sentence)}
-                      data-testid="reader-token"
-                      className={
-                        'rounded px-0.5 text-left motion-safe:transition-colors ' +
-                        (isNew
-                          ? 'bg-amber-100 font-semibold hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900'
-                          : 'hover:bg-stone-100 dark:hover:bg-slate-800')
-                      }
-                    >
-                      {token}
-                    </button>
-                  );
-                })}
-              </p>
+              <TappableText
+                parts={tokenParts(tokensOf(item.sentence), lang, item.unknown)}
+                label={copy.reader.sentenceLabel}
+                describedBy={WORD_NAV_HINT_ID}
+                onTap={(token) => void handleTap(token, item.sentence)}
+                className="text-xl leading-relaxed"
+                wordTestId="reader-token"
+              />
               <p className="mt-2 text-stone-600 dark:text-slate-400">{item.sentence.tr.text}</p>
             </li>
           ))}
@@ -277,7 +290,7 @@ const WordPanel = ({
     >
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-2xl font-bold">{tapped.token}</p>
-        <span className="text-sm text-stone-500 dark:text-slate-500">
+        <span className="text-sm text-stone-500 dark:text-slate-400">
           {known ? copy.reader.word.known : copy.reader.word.unknown}
         </span>
       </div>
@@ -289,7 +302,7 @@ const WordPanel = ({
       ) : null}
 
       {item ? (
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
           {copy.reader.word.band(item.band)}
         </p>
       ) : null}
@@ -308,7 +321,7 @@ const WordPanel = ({
           {tapped.senses.join('; ')}
         </p>
       ) : (
-        <p className="mt-3 text-sm text-stone-500 dark:text-slate-500" data-testid="word-no-gloss">
+        <p className="mt-3 text-sm text-stone-500 dark:text-slate-400" data-testid="word-no-gloss">
           {copy.reader.word.noGloss}
         </p>
       )}
@@ -317,7 +330,7 @@ const WordPanel = ({
           running text a different exercise from a sentence pair. */}
       {sentence ? (
         <p className="mt-2 rounded-xl bg-stone-100 p-3 dark:bg-slate-900">
-          <span className="block text-sm text-stone-500 dark:text-slate-500">
+          <span className="block text-sm text-stone-600 dark:text-slate-400">
             {copy.reader.word.inSentence}
           </span>
           {sentence.tr.text}

@@ -193,13 +193,24 @@ needs React state to work, it is in the wrong place.
     ingestion rule); a topic word that is not in the shipped inventory fails the
     build. Both compilers exist so that a hand-written file cannot rot silently
     as the corpus changes.
+33. **A topic reorders new items; it never restricts them** (D65). Coverage is
+    partial by design and published in the shard, and a word in no topic keeps
+    its band as its §2.8 cluster — the behaviour the app had before topics.
 34. **The offline promise is checked against `dist/sw.js`** (D69). The runtime
     cache cap must exceed the shard count or a learner silently loses content
     they already downloaded, and every content type needs a rule that matches
     it — audio is not JSON. `npm run check:offline` reads the built worker.
-33. **A topic reorders new items; it never restricts them** (D65). Coverage is
-    partial by design and published in the shard, and a word in no topic keeps
-    its band as its §2.8 cluster — the behaviour the app had before topics.
+35. **Running text costs one tab stop per block, not one per word** (D70).
+    `src/ui/TappableText.tsx` is a roving-tabindex composite: Tab enters and
+    leaves a passage or a sentence, Left/Right and Home/End move inside it.
+    Withdrawing the stops is only half — an e2e gate asserts the words are still
+    individually reachable, because a reader you cannot gloss from the keyboard
+    is a worse §10 failure than the one this fixed.
+36. **Both themes are scanned, not just the light one** (D71). §10 promises
+    "dark mode, WCAG AA contrast" as one clause; `e2e/a11y.spec.ts` runs axe
+    under `colorScheme: 'dark'` as well, and over the reader **with content in
+    it**. A shade that clears AA on the page background can fail inside a
+    tinted panel, and only the scan knows which.
 
 
 ## Conventions
