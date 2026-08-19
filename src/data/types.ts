@@ -132,6 +132,24 @@ export interface Item {
    */
   gloss?: string;
   chunkNote?: string;
+  /**
+   * Chunks only: the example sentences, carried on the item.
+   *
+   * A lexeme's anchors are ids resolved against `anchors.b<band>.json`, which
+   * is the curated subset a band's vocabulary is taught through (D19). A chunk
+   * draws its anchors from the whole corpus, so that lookup missed silently —
+   * the task came back null and the session skipped the item. Carrying the
+   * sentences makes the failure impossible rather than unlikely.
+   */
+  examples?: Array<{
+    id: string;
+    text: string;
+    difficulty: number;
+    maxRank: number;
+    tr: { id: string; text: string };
+    tokens?: string[];
+    readings?: string[];
+  }>;
   /** SPEC §3: contrastive category IDs this item exercises. */
   interferenceTags: string[];
   sourceRef: SourceRef;

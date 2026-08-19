@@ -68,6 +68,7 @@ interface WireChunk {
   freqRank: number;
   band: FrequencyBand;
   anchors: string[];
+  examples?: AnchorSentence[];
 }
 
 /** A kanji, from KANJIDIC2 and KRADFILE (SPEC §2.11). */
@@ -158,6 +159,10 @@ const toChunkItem = (wire: WireChunk, lang: TargetLang): Item => ({
   gloss: wire.gloss,
   ...(wire.note !== undefined ? { chunkNote: wire.note } : {}),
   anchorSentenceIds: wire.anchors,
+  // Carried rather than referenced: a chunk's anchors come from the whole
+  // corpus, and `anchors.b<band>.json` is only the slice a band's vocabulary is
+  // taught through, so the id lookup missed for a fifth of them (D19).
+  ...(wire.examples !== undefined ? { examples: wire.examples } : {}),
   freqRank: wire.freqRank,
   band: wire.band,
   interferenceTags: [],

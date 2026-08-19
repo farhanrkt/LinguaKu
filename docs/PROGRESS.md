@@ -1,5 +1,46 @@
 # PROGRESS.md
 
+## v1.9.1 — the review pass (2026-08-18)
+
+Nine releases went onto this branch in one sitting with no independent review.
+Every bug caught during that sitting was caught by a *gate* — the licence gate
+found a dataset the app never used, the offline gate found a cache one shard
+from evicting content, the chunk compiler found its own matcher rejecting real
+phrases. None was found by reading the code, so the code got read.
+
+Four defects, three of them invisible: nothing crashed, no test failed, and a
+learner would simply have received less than the release notes promised.
+
+**A fifth of the chunks were never shown.** The pipeline picks anchors from the
+whole corpus; the runtime resolved them against `anchors.b<band>.json`, the
+curated subset a band's vocabulary is taught through (D19). 15 of 70 English
+chunks and 5 of 17 Japanese resolved nothing, `buildTask` returned null, and
+`SessionScreen` skipped them — the composer scheduled the item, it took a slot
+in the queue, and the learner never saw it. The fix carries the sentences in the
+shard: ~20 KB to delete a class of lookup failure.
+
+**Japanese answers ending in ん were graded wrong.** `KanaInput` committed the
+conversion and called a zero-argument `onSubmit` in the same tick, so the caller
+submitted its pre-conversion state: `nihon` + Enter arrived as `にほn`, which
+grades *wrong* rather than near-miss. A correct answer marked wrong, on the exact
+rung §2.7 was written to protect.
+
+**The pipeline never pruned.** `chunks.b6.json` survived a re-banding because
+the manifest was only ever appended to — shipping duplicate content at a dead
+band, and making the output depend on what was there before.
+
+**Mining was missing from passages**, the surface the reader now shows first,
+guarded against a field (`fromSentenceId`) that nothing reads.
+
+### Left open
+
+Every word in the reader is a focusable button, so two passages add ~160 tab
+stops before the feed. The pattern predates this branch and passages amplify it;
+fixing it properly means a different interaction model for tap-to-gloss, which
+is a design decision rather than a patch.
+
+---
+
 ## v1.9.0 — the deploy audit (2026-08-18)
 
 v1.9.0 was defined as the honest close: absorb what the device matrix reports,

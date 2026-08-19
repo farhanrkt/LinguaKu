@@ -5,6 +5,67 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.9.1 — 2026-08-18
+
+A review pass over the nine releases this branch added in one sitting, and the
+four defects it found. Three of them were invisible: the app did not crash, no
+test failed, and a learner would simply have got less than the release notes
+promised.
+
+### Fixed — a fifth of the chunks were never shown
+
+A chunk's anchors are chosen from the whole corpus; `buildTask` resolved them
+against `anchors.b<band>.json`, which is the curated subset a band's
+*vocabulary* is taught through (D19). Where a chunk's anchor was not in that
+subset the task came back null and the session skipped the item silently.
+**15 of 70 English chunks and 5 of 17 Japanese** were unreachable — *by the
+way*, *right now*, *make sure*, *be good at*, 「ありがとうございます」,
+「わかりました」. Chunk shards now carry their example sentences inline, so the
+lookup that failed no longer exists.
+
+### Fixed — Japanese production answers ending in ん were marked wrong
+
+`romajiToKana` holds a trailing `n` while typing, so `nani` does not turn into
+ん on the first keystroke, and resolves it on commit. `KanaInput` called
+`onChange(committed)` and then a zero-argument `onSubmit()` in the same tick, so
+the caller submitted its **pre-conversion state**: `nihon` + Enter went in as
+`にほn`, which the grader scores *wrong* — not even a near miss. A learner who
+typed the right answer was told they were wrong and the card took an Again.
+`onSubmit` now receives the committed value.
+
+### Fixed — the pipeline never pruned bands it stopped writing
+
+The first chunk run banded every Japanese formula at 6; the banding was
+corrected and `chunks.b6.json` stayed on disk, in the manifest, in `dist/` and
+in the offline cache budget — 23 duplicate chunks at a band the pipeline no
+longer assigns. It also made the output depend on what happened to be there
+before, which is invariant 10 in spirit. The build now prunes and says so.
+
+### Fixed — mining was missing from passages
+
+`§8` calls one-tap mining the retention engine, and passages are the first thing
+the reader shows. Tapping a word there produced a panel with no "add to my
+practice" button and no explanation. The guard was defensive about
+`MinedItem.fromSentenceId` — a field nothing in `src/` reads. The passage id is
+its provenance now.
+
+### Noted, not fixed
+
+Every word in the reader is its own focusable button, so two passages add ~160
+tab stops before the sentence feed. The pattern predates this branch; passages
+make it materially worse. §10's "full keyboard operation" is satisfied and
+practically unusable on that screen.
+
+### Measured
+
+| | v1.9.0 | v1.9.1 |
+|---|---|---|
+| unit tests | 752 | **755** |
+| content shards | 65 | **64** (one was stale) |
+| chunks reachable in a session | 76 of 96 | **96 of 96** |
+
+---
+
 ## v1.9.0 — 2026-08-18
 
 The deploy audit, and it found two ways the offline promise was already broken.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { romajiToKana, toHiragana, toKatakana, toRomaji } from './kana.ts';
+import { gradeAnswer } from './grader.ts';
 
 /**
  * SPEC §4.3's script ladder in both directions. The cases that matter are the
@@ -68,5 +69,19 @@ describe('romajiToKana (SPEC §10)', () => {
 
   it('passes punctuation and spaces through untouched', () => {
     expect(romajiToKana('neko, inu')).toBe('ねこ, いぬ');
+  });
+});
+
+describe('the commit boundary (§2.7)', () => {
+  it('resolves a trailing n only on commit, and the grader needs that', () => {
+    // The bug this pins: KanaInput called onChange(final) and then a
+    // zero-argument onSubmit in the same tick, so the caller submitted its
+    // pre-conversion state. `nihon` + Enter went in as にほn — and にほn is
+    // graded *wrong* against にほん, not even a near miss. A learner who typed
+    // the right answer was told they were wrong and the card took an Again.
+    expect(romajiToKana('nihon')).toBe('にほn');
+    expect(romajiToKana('nihon', true)).toBe('にほん');
+    expect(gradeAnswer(romajiToKana('nihon'), 'にほん').outcome).toBe('wrong');
+    expect(gradeAnswer(romajiToKana('nihon', true), 'にほん').outcome).toBe('correct');
   });
 });

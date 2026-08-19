@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { surfaceForms } from './chunkForms.ts';
 
@@ -13,6 +13,7 @@ interface Chunk {
   freqRank: number;
   band: number;
   anchors: string[];
+  examples?: Array<{ id: string; text: string; tr: { id: string; text: string } }>;
 }
 
 const chunksFor = (lang: string): Chunk[] => {
@@ -94,6 +95,46 @@ describe('the shipped chunks (SPEC §2.5)', () => {
         (a, b) => a.freqRank - b.freqRank || (a.id < b.id ? -1 : 1),
       );
       expect(chunks.map((chunk) => chunk.id)).toEqual(sorted.map((chunk) => chunk.id));
+    }
+  });
+});
+
+describe('chunks are reachable at runtime', () => {
+  const shipped = [...chunksFor('en'), ...chunksFor('ja')];
+
+  it('carries its own example sentences rather than ids to resolve', () => {
+    // The regression this pins: anchors were referenced by id and resolved
+    // against `anchors.b<band>.json`, which is the curated subset a band's
+    // *vocabulary* is taught through (D19). A chunk draws its anchors from the
+    // whole corpus, so the lookup missed for 15 of 70 English chunks and 5 of
+    // 17 Japanese ones — buildTask returned null and the session silently
+    // skipped them. "by the way" and 「ありがとうございます」 were unlearnable.
+    for (const chunk of shipped) {
+      expect(chunk.examples?.length ?? 0).toBeGreaterThan(0);
+      for (const example of chunk.examples ?? []) {
+        expect(example.text.length).toBeGreaterThan(0);
+        expect(example.tr.text.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('ships no shard for a band the pipeline no longer assigns', () => {
+    // `chunks.b6.json` survived a re-banding because the manifest was only ever
+    // added to. It shipped 23 duplicate Japanese chunks at a dead band.
+    for (const lang of ['en', 'ja']) {
+      const manifest = JSON.parse(
+        readFileSync(join(CONTENT, lang, 'manifest.json'), 'utf8'),
+      ) as { shards: Array<{ kind: string; path: string }> };
+      for (const shard of manifest.shards.filter((entry) => entry.kind === 'chunks')) {
+        expect(existsSync(join(CONTENT, lang, shard.path))).toBe(true);
+      }
+      const onDisk = readdirSync(join(CONTENT, lang)).filter((name) =>
+        name.startsWith('chunks.b'),
+      );
+      const listed = manifest.shards
+        .filter((entry) => entry.kind === 'chunks')
+        .map((entry) => entry.path);
+      expect(onDisk.sort()).toEqual([...listed].sort());
     }
   });
 });

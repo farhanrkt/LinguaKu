@@ -32,7 +32,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +46,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BANDS: readonly FrequencyBand[] = [1, 2, 3, 4, 5, 6];
 
 /** Enough to teach the phrase in context; more is shard weight for nothing. */
-const MAX_ANCHORS = 4;
+const MAX_ANCHORS = 2;
 
 /** A representative rank per band, for items that have no rank of their own. */
 const RANK_FOR_BAND: Record<FrequencyBand, number> = {
@@ -78,6 +78,10 @@ interface Sentence {
   text: string;
   /** Absent on Japanese shards, which are not banded by token rank. */
   difficulty?: number;
+  maxRank?: number;
+  tokens?: string[];
+  readings?: string[];
+  tr: { id: string; text: string };
   /** The band of the shard it shipped in — the band a learner meets it in. */
   band: FrequencyBand;
 }
@@ -158,6 +162,30 @@ interface WireChunk {
   freqRank: number;
   band: FrequencyBand;
   anchors: string[];
+  /**
+   * The example sentences themselves, carried inline.
+   *
+   * A lexeme references its anchors by id because the runtime already holds
+   * `anchors.b<band>.json` for that band — but that shard is a *curated subset*
+   * (D19): the sentences a band's **vocabulary** is taught through. A chunk's
+   * anchor is chosen from the whole corpus and frequently is not in it, and the
+   * failure is silent: `buildTask` finds no anchor, returns null, and the
+   * session skips the item. Measured before this was fixed: 15 of 70 English
+   * chunks and 5 of 17 Japanese ones were unreachable, including "by the way"
+   * and 「ありがとうございます」.
+   *
+   * Ninety-six chunks carrying two sentences each is ~20 KB. Making the shard
+   * self-contained costs that and removes a whole class of lookup failure.
+   */
+  examples: Array<{
+    id: string;
+    text: string;
+    difficulty: number;
+    maxRank: number;
+    tr: { id: string; text: string };
+    tokens?: string[];
+    readings?: string[];
+  }>;
 }
 
 const build = async (lang: 'en' | 'ja'): Promise<number> => {
@@ -220,6 +248,17 @@ const build = async (lang: 'en' | 'ja'): Promise<number> => {
       freqRank: freqRank === UNKNOWN_RANK ? RANK_FOR_BAND[band] : freqRank,
       band,
       anchors: matches.map((sentence) => sentence.id),
+      examples: matches.map((sentence) => ({
+        id: sentence.id,
+        text: sentence.text,
+        // Japanese shards carry neither, and both are only used to order
+        // anchors among themselves — which the pipeline has already done.
+        difficulty: sentence.difficulty ?? 0,
+        maxRank: sentence.maxRank ?? 0,
+        tr: sentence.tr,
+        ...(sentence.tokens ? { tokens: sentence.tokens } : {}),
+        ...(sentence.readings ? { readings: sentence.readings } : {}),
+      })),
     });
     byBand.set(band, bucket);
     total++;
@@ -261,6 +300,25 @@ const build = async (lang: 'en' | 'ja'): Promise<number> => {
     if (at === -1) manifest.shards.push(record);
     else manifest.shards[at] = record;
   }
+
+  // Prune bands this run did not write.
+  //
+  // Without this the manifest only ever grows: the first run banded every
+  // Japanese formula at 6, the banding was then corrected, and `chunks.b6.json`
+  // stayed on disk, in the manifest, in `dist/`, and in the offline cache
+  // budget — 23 duplicate chunks at a band the pipeline no longer assigns. It
+  // also breaks invariant 10 in spirit, because the output then depends on what
+  // happened to be there before.
+  const written = new Set(byBand.keys());
+  for (const stale of manifest.shards.filter(
+    (shard) => shard.kind === 'chunks' && !written.has(shard.band as FrequencyBand),
+  )) {
+    await rm(join(ROOT, 'assets', 'content', lang, String(stale.path)), { force: true });
+    console.log(`  pruned ${String(stale.path)} — this run wrote no chunks for that band`);
+  }
+  manifest.shards = manifest.shards.filter(
+    (shard) => shard.kind !== 'chunks' || written.has(shard.band as FrequencyBand),
+  );
 
   manifest.shards.sort((a, b) => String(a.path).localeCompare(String(b.path)));
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2));

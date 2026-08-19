@@ -57,6 +57,8 @@ interface Tapped {
   item: Item | null;
   /** Null when the word was tapped inside a passage rather than the feed. */
   sentence: AnchorSentence | null;
+  /** What it was read in — a sentence id or a passage id. Mining's provenance. */
+  source: string;
   mined: boolean;
   /** Indonesian senses, where this word has any (risk R3, partial by design). */
   senses: readonly string[];
@@ -117,13 +119,23 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   }, [profile.id, lang]);
 
   const handleTapToken = useCallback(
-    async (token: string) => {
+    async (token: string, passageId: string) => {
       const itemId = lexemeIdFor(lang, token.toLowerCase());
       const item = (await db.items.get(itemId)) ?? null;
-      // A word tapped inside a passage has no sentence pair behind it: the
-      // whole point of running text is that there is no translation beside it.
-      setTapped({ token, itemId, item, sentence: null, mined: mined.has(itemId),
-        senses: item ? await glossFor(lang, item.band, itemId) : [] });
+      // A word tapped inside a passage has no sentence pair behind it — that is
+      // what makes running text a different exercise — but it is still minable.
+      // §8 calls mining the retention engine, and passages are the first thing
+      // the reader shows; withholding it there would remove the feature from
+      // the surface it matters most on. The passage id is the provenance.
+      setTapped({
+        token,
+        itemId,
+        item,
+        sentence: null,
+        source: passageId,
+        mined: mined.has(itemId),
+        senses: item ? await glossFor(lang, item.band, itemId) : [],
+      });
     },
     [lang, mined],
   );
@@ -137,6 +149,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         itemId,
         item,
         sentence,
+        source: sentence.id,
         mined: mined.has(itemId),
         // Glossed where we have one, and honest where we do not — coverage is
         // 30% of English and 4% of Japanese, measured (src/data/glosses.ts).
@@ -147,13 +160,13 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   );
 
   const handleMine = useCallback(async () => {
-    if (!tapped?.item || !tapped.sentence) return;
+    if (!tapped?.item) return;
     const next = new Set(mined);
     if (tapped.mined) {
       await unmineItem(profile.id, tapped.itemId);
       next.delete(tapped.itemId);
     } else {
-      await mineItem(profile.id, tapped.itemId, tapped.sentence.id, Date.now());
+      await mineItem(profile.id, tapped.itemId, tapped.source, Date.now());
       next.add(tapped.itemId);
     }
     setMined(next);
@@ -175,7 +188,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
               profileId={profile.id}
               lang={lang}
               known={known}
-              onTapWord={(token) => void handleTapToken(token)}
+              onTapWord={(token) => void handleTapToken(token, item.passage.id)}
             />
           ))}
         </section>
@@ -312,7 +325,7 @@ const WordPanel = ({
       ) : null}
 
       <div className="mt-4 flex gap-3">
-        {item && sentence ? (
+        {item ? (
           <Button onClick={onMine} data-testid="mine">
             {tapped.mined ? copy.reader.word.unmine : copy.reader.word.mine}
           </Button>

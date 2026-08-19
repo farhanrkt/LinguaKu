@@ -130,9 +130,9 @@ export const DictationTask = ({ onAnswer, onPlayAudio }: TaskProps) => {
     input.current?.focus();
   }, []);
 
-  const submit = (confidence: Confidence) => {
-    if (value.trim().length === 0) return;
-    onAnswer({ raw: value, confidence });
+  const submit = (confidence: Confidence, raw: string = value) => {
+    if (raw.trim().length === 0) return;
+    onAnswer({ raw, confidence });
   };
 
   return (
@@ -202,9 +202,9 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskP
     input.current?.focus();
   }, []);
 
-  const submit = (confidence: Confidence) => {
-    if (value.trim().length === 0) return;
-    onAnswer({ raw: value, confidence });
+  const submit = (confidence: Confidence, raw: string = value) => {
+    if (raw.trim().length === 0) return;
+    onAnswer({ raw, confidence });
   };
 
   return (
@@ -428,9 +428,9 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
     input.current?.focus();
   }, []);
 
-  const submit = (confidence: Confidence) => {
-    if (value.trim().length === 0) return;
-    onAnswer({ raw: value, confidence });
+  const submit = (confidence: Confidence, raw: string = value) => {
+    if (raw.trim().length === 0) return;
+    onAnswer({ raw, confidence });
   };
 
   return (
@@ -459,7 +459,7 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
               onChange={setValue}
               placeholder={copy.session.production.placeholder}
               data-testid="production-input"
-              onSubmit={() => submit('yakin')}
+              onSubmit={(committed) => submit('yakin', committed)}
             />
           </div>
         ) : (

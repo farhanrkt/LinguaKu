@@ -35,7 +35,17 @@ interface KanaInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   'data-testid'?: string;
-  onSubmit?: () => void;
+  /**
+   * Receives the **committed** value, not the one in the caller's state.
+   *
+   * `romajiToKana` holds a trailing `n` while typing so the first keystroke of
+   * `nani` does not become ん, and resolves it only on commit. Calling
+   * `onChange` and then a zero-argument `onSubmit` in the same tick submitted
+   * the caller's pre-conversion state instead: `nihon` + Enter went in as
+   * `にほn`, which the grader scores **wrong** — a correct answer marked wrong,
+   * which is exactly what §2.7 exists to prevent.
+   */
+  onSubmit?: (value: string) => void;
 }
 
 export const KanaInput = ({
@@ -61,8 +71,10 @@ export const KanaInput = ({
         onBlur={() => onChange(romajiToKana(value, true))}
         onKeyDown={(event) => {
           if (event.key !== 'Enter' || !onSubmit) return;
-          onChange(romajiToKana(value, true));
-          onSubmit();
+          event.preventDefault();
+          const committed = romajiToKana(value, true);
+          onChange(committed);
+          onSubmit(committed);
         }}
         placeholder={placeholder}
         data-testid={testId}

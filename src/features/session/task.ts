@@ -192,11 +192,18 @@ export const buildTask = async (
   // Which example sentence teaches this word is an i+1 decision (SPEC §2.4):
   // among the anchors, pick the one whose coverage best fits what this learner
   // already knows, rather than always the globally easiest.
-  const anchors = (
-    await Promise.all(
-      item.anchorSentenceIds.map((id) => getAnchor(item.lang, item.band, id)),
-    )
-  ).filter((anchor): anchor is AnchorSentence => anchor !== null);
+  // A chunk carries its own examples (SPEC §2.5): its anchors are drawn from
+  // the whole corpus, while `getAnchor` reads only the band's curated anchor
+  // shard (D19), so resolving them by id silently failed for a fifth of them —
+  // `buildTask` returned null and the session skipped the item without a trace.
+  const anchors =
+    item.examples !== undefined && item.examples.length > 0
+      ? item.examples
+      : (
+          await Promise.all(
+            item.anchorSentenceIds.map((id) => getAnchor(item.lang, item.band, id)),
+          )
+        ).filter((anchor): anchor is AnchorSentence => anchor !== null);
   if (anchors.length === 0) return null;
 
   const base = {
