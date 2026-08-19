@@ -232,7 +232,36 @@ which is compatible. It carries **904 speakers**, so a speaker must be pinned �
 `--speaker` is now a required part of the clip hash, because an unpinned
 multi-speaker run does not reproduce and invariant 10 depends on it.
 
-**Japanese has no voice at all.** Measured against
+**Japanese has one voice now, and it is the wrong licence.** *(re-measured
+2026-08-19.)* The official index has moved to **174 voices / 55 language codes**,
+and Japanese has appeared — filed under the non-standard code **`ja_JA`**, which
+is why a search for `ja_JP` still finds nothing. It is
+`ja_JA-hi_fi_captain-medium` (NICT Hi-Fi-Captain, 2 speakers, finetuned from
+LibriTTS-R), and its model card gives the dataset licence as **CC BY-NC-SA 4.0**.
+The **NC** disqualifies it against the criterion this register already set: a
+non-commercial restriction is incompatible with an MIT app whose assets are
+meant to be redistributable. It is not a close call and it does not need a
+second opinion — but it does need re-checking whenever the index moves, because
+the index moved once already.
+
+**The three other paths, read at source 2026-08-19.** None is promoted; R7 is
+still owned by the project owner, and *reading and dating* is the step this
+register reserves for a person.
+
+| Candidate | Licence, as written | Verdict |
+|---|---|---|
+| **Hi-Fi-Captain** (official Piper set) | CC BY-**NC**-SA 4.0 | Fails on NC. |
+| **JSUT**-derived | Audio: academic / non-commercial / personal only, and *"Re-distribution is not permitted"*. Text is separately CC BY-SA. | Fails harder than NC — the audio terms forbid the redistribution this project's assets are built on. |
+| **つくよみちゃんコーパス** (Tsukuyomi-chan, CV. 夢前黎), via the `piper-plus` fork | Commercial use permitted, personal or corporate. Publishing TTS software using the voice is **explicitly permitted** with a mandatory verbatim credit line. But redistributing the corpus is prohibited in principle, *"licensing to others as reusable material"* is prohibited, and a **separate character licence** applies on top. | **The only candidate that clears NC** — and it is a conditional permission grant rather than an open licence. Two consequences worth weighing before anyone reads it properly: the "reusable material" prohibition sits awkwardly beside D9's per-file provenance, which exists precisely so a reuser *can* reuse; and the voice is a **character**, so the app would be adopting someone's mascot as its Japanese voice. |
+| **Mozilla Common Voice** ja | **CC0** | The cleanest licence available, and the only one with no conditions at all. There is no ready-made Piper voice: it is crowd-sourced ASR data, so it would mean selecting a single clean speaker with enough material and training a voice. Real work, and the only path that ends with an asset as free as the rest of `assets/`. |
+
+**A toolchain consequence, if Tsukuyomi-chan is the one chosen.** It is served
+through `piper-plus`, a fork that uses **its own G2P and phoneme system** and
+whose models are *not* compatible with upstream `rhasspy/piper-voices`. So
+choosing it is also choosing a different binary for `scripts/ingest/build-audio.ts`
+than the English side uses — two generators, not one.
+
+**Japanese had no voice at all.** Measured against
 `rhasspy/piper-voices/voices.json`: 173 voices, 54 language codes, and **`ja_JP`
 is not one of them**. There is no `ja_JP-jsut-*` model to download from the
 official set. A community model is possible but needs its own licence read, and

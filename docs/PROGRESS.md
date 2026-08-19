@@ -1,5 +1,80 @@
 # PROGRESS.md
 
+## v1.10.1 — two of the four gates, worked as far as they go (2026-08-19)
+
+v1.9.0 named four things standing between this app and v2.0.0, and said all four
+belong to a person. That is still true of three of them. The fourth turned out
+to be a decision the owner could make in one word, and once made, it was mine to
+carry out.
+
+### Sync: deployed
+
+The choice was deploy or delete, and the answer was deploy. What made this worth
+doing rather than deferring is that `workers/sync/` had **never been executed**
+— its own README said *"The Worker itself has never been deployed or run"*, and
+a Worker that has never run is not a feature, it is a hypothesis.
+
+Running it found two errors in the procedure the README documented: `d1 execute`
+needs `--config` when invoked from the repo root, and `d1 create` prints a
+suggested binding named after the database, which is **not** the `DB` binding
+`index.ts` actually reads. Both would have stopped whoever followed those steps
+next.
+
+**The verification that mattered was that it grants nothing.** `SYNC_TOKEN` is
+unset on purpose, and the Worker is written to fail closed on exactly that —
+`!env.SYNC_TOKEN` is the first half of the auth check. Fourteen consecutive
+unauthenticated requests answered 401. The endpoint exists; the secret is the
+owner's to set, and I did not set it, because a bearer token that has been
+through a transcript is not a secret.
+
+**A thing worth knowing for the next deploy:** for the first few minutes,
+`workers.dev` returned intermittent Cloudflare `error code: 1042` pages with a
+404 status, mixed in with correct 401s from the Worker. That is the edge and not
+the code — the Worker's own 404 body is `{"error":"not found"}` — and reading it
+as a bug in the routing would have cost an hour. It settled inside three
+minutes.
+
+**Invariant 21 was re-run rather than reasoned about.** The e2e test that drives
+a full session and asserts zero requests leave the origin still passes. That was
+the expected result — nothing in `src/` imports the client — but "the invariant
+says so" is exactly the kind of confidence this project keeps finding to be
+misplaced.
+
+### R7: the index moved, and it still does not help
+
+R7 recorded on 2026-08-13 that Japanese had no voice in the official Piper set:
+173 voices, 54 language codes, no `ja_JP`. Re-measuring found **174 voices and
+55 codes** — and a Japanese one, filed under **`ja_JA`**. The register's own
+method had gone stale in five days, and the reason a search kept coming back
+empty was a non-standard region code rather than an absent voice.
+
+The voice is NICT's Hi-Fi-Captain, **CC BY-NC-SA 4.0**, and the NC disqualifies
+it under the rule R7 already wrote down. So the answer did not change; only the
+reason did, and the reason is worth having written down, because the next person
+to grep for `ja_JP` will also find nothing.
+
+The three remaining paths are in the register as a table. The short version is
+that there is **no Japanese voice that is both ready-made and unconditionally
+free**: the one that clears the non-commercial bar is a conditional grant
+attached to someone's mascot character and needs a forked generator, and the one
+with a genuinely clean licence (Common Voice, CC0) has no model behind it yet.
+Nothing was promoted. R7 says reading and dating is the owner's step, and that
+is still the right place for it.
+
+### The copy packet
+
+The third gate needed neither hardware nor a licence — only a native speaker and
+a legible list. All 349 strings, grouped by the screen they appear on, with the
+three tone rules from `id.ts`'s own docblock as the review criteria.
+
+### What is left
+
+Three gates, all of them a person's: the voice licence, four empty rows in the
+device matrix, and someone reading 349 lines of Indonesian. None of them is code,
+and none of them can be honestly closed by the thing that writes the code.
+
+---
+
 ## v1.10.0 — the tab stops, and what dark mode had been hiding (2026-08-19)
 
 v1.9.1 closed with one item under **Left open**: every word in the reader is a

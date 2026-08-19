@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.10.0
+## Status — v1.10.1
 
 **Milestones 0 through 11 complete.** Every §2 requirement is implemented and
 the §8 exercise catalog is finished. See [`CHANGELOG.md`](CHANGELOG.md) for the
@@ -91,7 +91,7 @@ bar of zero. There is no CEFR or JLPT claim, because no licence-cleared
 alignment exists and deriving one from frequency would be fake precision.
 Optional sync is off by default and nothing in `src/features` or `src/data` even
 imports it — an e2e test drives a full session and asserts that zero requests
-leave the origin. There is **no AI layer and no seam for one**: §14 question 5
+leave the origin, and that stayed true after an instance was actually deployed. There is **no AI layer and no seam for one**: §14 question 5
 is answered *declined*, so the app is structurally incapable of sending a
 learner's work to a model rather than merely configured not to.
 

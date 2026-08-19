@@ -17,7 +17,7 @@ Anything marked **manual** cannot be done in CI and needs a human with a phone.
 
 | | Check | Expected |
 |---|---|---|
-| 0.1 | `package.json` version | **`1.10.0`** |
+| 0.1 | `package.json` version | **`1.10.1`** |
 | 0.2 ✅ | Code licence | **MIT**, `LICENSE` committed (D12). Covers `src/`, `scripts/`, `workers/` and the authored content in `data/`. It does **not** reach `assets/content/`. |
 | 0.3 | `README.md` status section | Current for this version. |
 | 0.4 | Working tree clean | `git status --short` is empty. |

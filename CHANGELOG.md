@@ -5,6 +5,72 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.10.1 — 2026-08-19
+
+Two of v2.0.0's four gates worked, as far as they can be worked without the
+owner's hardware. One of them closed.
+
+### Sync is deployed — the gate that said "deployed or deleted"
+
+`workers/sync/` had never been run. Its own README said so: *"The Worker itself
+has never been deployed or run."* It has now.
+
+| | |
+|---|---|
+| Worker | `linguaku-sync` |
+| D1 | `linguaku`, region APAC, served from Singapore |
+
+**It is live and it grants nothing.** `SYNC_TOKEN` is deliberately unset, so
+every `POST /sync` answers 401 — verified over 14 consecutive requests — and
+everything else answers 404. The endpoint exists; its owner sets the secret.
+
+Two steps in the README were wrong and are corrected: `d1 execute` needs
+`--config` from outside that directory, and `d1 create` suggests a binding name
+that does **not** match the `DB` binding `index.ts` reads.
+
+**Invariant 21 was re-checked, not assumed.** The e2e test that drives a full
+session asserting zero requests leave the origin still passes. A deployed
+endpoint changes nothing about an app that does not import the client.
+
+**Still untested:** the authenticated round trip, which needs the token.
+
+### R7 — the Japanese voice, read at source
+
+The register recorded on 2026-08-13 that `ja_JP` was absent from the official
+Piper set. **The index has moved**: 174 voices, 55 language codes, and Japanese
+now exists — under the non-standard code **`ja_JA`**, which is why searching for
+`ja_JP` still finds nothing.
+
+It does not help. `ja_JA-hi_fi_captain-medium` is **CC BY-NC-SA 4.0**, and the
+NC fails the criterion R7 already set.
+
+Three other paths were read at source and none is promoted — reading and dating
+is the owner's step:
+
+- **JSUT** — audio is academic/non-commercial/personal, and *"Re-distribution is
+  not permitted"*. Worse than NC.
+- **つくよみちゃんコーパス** via the `piper-plus` fork — the only candidate that
+  clears NC. Commercial use permitted and TTS publication explicitly allowed
+  with a verbatim credit, but redistribution of the corpus is prohibited,
+  *"licensing to others as reusable material"* is prohibited, a **separate
+  character licence** applies, and the fork's incompatible G2P means a second
+  generator beside the English one.
+- **Mozilla Common Voice ja** — **CC0**, the only path with no conditions at
+  all, and the only one with no ready-made voice: it would mean training one.
+
+### The copy packet
+
+All **349** learner-facing strings, grouped by screen, published as a review
+document for the native-speaker pass — the third gate, and the only one that
+needed no hardware and no licence.
+
+### Still gated on a person
+
+Three of four: the voice model's licence (R7, now with the options laid out),
+the four empty device-matrix rows, and the native-speaker copy pass.
+
+---
+
 ## v1.10.0 — 2026-08-19
 
 The one thing v1.9.1 named and left open, and the three defects that turned up
