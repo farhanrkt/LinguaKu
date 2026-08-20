@@ -17,7 +17,7 @@ Anything marked **manual** cannot be done in CI and needs a human with a phone.
 
 | | Check | Expected |
 |---|---|---|
-| 0.1 | `package.json` version | **`1.10.1`** |
+| 0.1 | `package.json` version | **`1.11.0`** |
 | 0.2 ✅ | Code licence | **MIT**, `LICENSE` committed (D12). Covers `src/`, `scripts/`, `workers/` and the authored content in `data/`. It does **not** reach `assets/content/`. |
 | 0.3 | `README.md` status section | Current for this version. |
 | 0.4 | Working tree clean | `git status --short` is empty. |
@@ -48,7 +48,7 @@ npm ci && npm run verify
 | 1.4 | Licence gate | **8 datasets declared and attributed; 64 asset files traced.** Fails in *both* directions — an undeclared dataset, and a declared one nothing references. |
 | 1.5 | Audio gate | *"no pre-cached audio yet"* until R7 is answered. Once clips ship: budget and index checked in both directions. |
 | 1.6 | Build | Succeeds; `dist/` written. |
-| 1.7 | Initial JS | **137.4 KB / 200 KB gzipped (69%)** — invariant 6. |
+| 1.7 | Initial JS | **137.8 KB / 200 KB gzipped (69%)** — invariant 6. |
 | 1.8 | Initial CSS | **6.7 KB / 40 KB gzipped (17%)**. |
 | 1.9 | Offline gate | **64 shards under a 192-entry cache, audio rule present.** See §5.4 below for why this exists. |
 
@@ -66,7 +66,7 @@ npm run test:e2e
 
 | | Check | Expected |
 |---|---|---|
-| 2.1 | Full suite | **52 passed**, emulated Pixel 5 / android-chrome, ~96 s. |
+| 2.1 | Full suite | **56 passed**, emulated Pixel 5 / android-chrome, ~96 s. |
 | 2.2 | Cold start | `coldstart.spec.ts` — icon tap → first answerable question **under 3 s** on a warm cache. This run: **108 ms**. Invariant 12. |
 | 2.3 | Installability | Manifest validity, icon resolution, maskable icon, service-worker control, offline `start_url` (D23). |
 | 2.4 | Offline session | `session.spec.ts` runs a session with the network cut. |
@@ -80,6 +80,7 @@ npm run test:e2e
 | 2.12 | **Keyboard only** | Tab and Enter from home into a session and through an answer, no clicks (§10). |
 | 2.13 | **Reduced motion** | Nothing declares a transition under `prefers-reduced-motion` (§10). |
 | 2.14 | Topics are optional | Choosing none costs nothing; choosing one survives a cold start (§2.14). |
+| 2.17 | **One click is one answer** | `session.spec.ts` — spamming confirm writes one `ReviewLog` row, and an answered card refuses a second answer (D72). Both gates verified by reverting the fix. |
 | 2.16 | **Reader tab-stop budget** | `a11y.spec.ts` — under 40 tab stops on a populated reader, with 100+ words still individually reachable by arrow key (D70). |
 | 2.15 | The glossary answers nothing | Browsing creates and advances no cards (§2.2, D67). |
 

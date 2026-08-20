@@ -34,8 +34,19 @@ export const answerOne = async (page: Page): Promise<void> => {
   const drillSubmit = page.getByRole('button', { name: 'Jawab' });
 
   if (await confirm.isVisible().catch(() => false)) {
+    // L0 is errorless exposure: confirming *is* the response, there is nothing
+    // to reveal, and it advances on that one tap. It used to grade the headword
+    // against itself, announce "Benar!", and wait for a second tap.
     await confirm.click();
-  } else if (await input.isVisible().catch(() => false)) {
+    await expect(async () => {
+      if (await page.getByTestId('session-summary').isVisible().catch(() => false)) return;
+      const now = await progress.textContent({ timeout: 1_000 }).catch(() => null);
+      expect(now !== null && now !== before).toBe(true);
+    }).toPass({ timeout: 15_000, intervals: [50, 100, 200] });
+    return;
+  }
+
+  if (await input.isVisible().catch(() => false)) {
     await input.fill('jawaban');
     // A drill submits with "Jawab"; a cloze or dictation submits with the
     // confidence tap (SPEC §2.12), which is also the submit button.
@@ -146,6 +157,77 @@ export const seedKnownVocabulary = async (page: Page, count: number): Promise<vo
         };
       }),
     { count, now: Date.now() },
+  );
+  await page.reload();
+  await expect(page.getByTestId('practise')).toBeEnabled({ timeout: 20_000 });
+};
+
+
+/**
+ * Puts a handful of cards at a given rung, due now.
+ *
+ * A fresh profile is all L0 exposure, so anything that needs a *graded* card —
+ * one with a verdict, a wrong answer, a second chance to click — cannot be
+ * reached by playing the session honestly. The rung selects the task (D18), so
+ * this is the shortest honest way to put one on screen.
+ */
+export const seedDueCardsAtLevel = async (
+  page: Page,
+  level: number,
+  count: number,
+): Promise<void> => {
+  await page.evaluate(
+    ({ level, count, now }) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('linguaku');
+        open.onerror = () => reject(new Error(String(open.error)));
+        open.onsuccess = () => {
+          const database = open.result;
+          const read = database.transaction(['items', 'profiles']);
+          const itemsRequest = read.objectStore('items').getAll();
+          const profilesRequest = read.objectStore('profiles').getAll();
+          read.onerror = () => reject(new Error(String(read.error)));
+          read.oncomplete = () => {
+            const profileId = (profilesRequest.result[0] as { id: string }).id;
+            const items = (
+              itemsRequest.result as Array<{ id: string; kind: string; freqRank: number }>
+            )
+              .filter((item) => item.kind === 'lexeme')
+              .sort((a, b) => a.freqRank - b.freqRank)
+              .slice(0, count);
+
+            const write = database.transaction(['cards', 'sessions'], 'readwrite');
+            const cards = write.objectStore('cards');
+            for (const item of items) {
+              cards.put({
+                id: `${profileId}::${item.id}`,
+                profileId,
+                itemId: item.id,
+                ladderLevel: level,
+                dueAt: now - 1_000,
+                suspended: 0,
+                fsrs: {
+                  dueAt: now - 1_000,
+                  stability: 30,
+                  difficulty: 5,
+                  elapsedDays: 1,
+                  scheduledDays: 1,
+                  learningSteps: 0,
+                  reps: 5,
+                  lapses: 0,
+                  state: 2,
+                  lastReviewAt: now - 86_400_000,
+                },
+              });
+            }
+            // Drop any composed session so the next one sees these as due.
+            write.objectStore('sessions').clear();
+            write.oncomplete = () => resolve();
+            write.onerror = () => reject(new Error(String(write.error)));
+          };
+        };
+      }),
+    { level, count, now: Date.now() },
   );
   await page.reload();
   await expect(page.getByTestId('practise')).toBeEnabled({ timeout: 20_000 });

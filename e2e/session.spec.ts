@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun, waitForOfflineReady } from './helpers.ts';
+import { answerOne, firstRun, seedDueCardsAtLevel, waitForOfflineReady } from './helpers.ts';
 
 /**
  * M2 acceptance (SPEC §12):
@@ -165,3 +165,136 @@ test('topics are offered, and choosing none costs nothing', async ({ page }) => 
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
 });
+
+
+/**
+ * One click is one answer, and the reason it needs a test is invariant 1.
+ *
+ * `recordReview` is the only writer of FSRS state and it appends to
+ * `ReviewLog`, which is append-only at the Dexie hook — updates, overwrites and
+ * deletes all throw, and a full reset drops the database. So a duplicate review
+ * row cannot be cleaned up afterwards: it stays in the substrate §9 computes the
+ * honest retention rate from, forever. Every handler in the session is `async`
+ * and none of them was latched, so a learner tapping "Oke, paham" twice — which
+ * is what people do on a slow phone when nothing happens immediately — wrote two
+ * rows and advanced FSRS twice for one item.
+ */
+test('spamming the confirm button writes one review, not several', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+
+  const confirm = page.getByTestId('exposure-confirm');
+  await expect(confirm).toBeVisible({ timeout: 20_000 });
+
+  // Eight clicks with no waiting between them, dispatched straight at the
+  // element: this is the race, not a polite user journey.
+  await page.evaluate(() => {
+    const button = document.querySelector<HTMLButtonElement>('[data-testid="exposure-confirm"]');
+    for (let index = 0; index < 8; index++) button?.click();
+  });
+
+  await expect(page.getByTestId('session-progress')).toBeVisible();
+  // Let anything that was going to be written finish being written.
+  await page.waitForTimeout(1_500);
+
+  expect(await countRows(page, 'reviewLogs'), 'one confirmation produced more than one review row')
+    .toBe(1);
+});
+
+/**
+ * SPEC §2.3 L0 is errorless exposure — the learner is not being tested, so
+ * there is nothing to grade and nothing to reveal. It used to submit the
+ * headword as its own answer, grade it "correct", and print "Benar!" over a
+ * card that had asked nothing, costing a second tap to dismiss.
+ */
+test('an exposure card advances on one tap, with no verdict', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+
+  const confirm = page.getByTestId('exposure-confirm');
+  await expect(confirm).toBeVisible({ timeout: 20_000 });
+  const before = await page.getByTestId('session-progress').textContent();
+
+  await confirm.click();
+
+  // The session moved, and never claimed the learner got anything right.
+  await expect(page.getByTestId('session-progress')).not.toHaveText(before ?? '', {
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('feedback')).toBeHidden();
+});
+
+/**
+ * D59: a gloss is reference, never an answer key — and coverage is 30% of
+ * English words and 4% of Japanese, so *absent* is the ordinary case. Both
+ * branches have to say something. The session used to render neither: the gloss
+ * was fetched only for L0, and where there was none the space was simply blank.
+ */
+test('every card says what the word means, or says it has no entry', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+
+  const shown = page.getByTestId('task-gloss').or(page.getByTestId('task-no-gloss'));
+  await expect(shown.first()).toBeVisible({ timeout: 20_000 });
+});
+
+/**
+ * The other half of the same bug, by a slower route.
+ *
+ * The feedback renders in the footer while the card stays on screen above it,
+ * so every control that produced the answer is still there and still live once
+ * the verdict appears. The in-flight latch does not help — these two clicks are
+ * not racing, they are seconds apart — and the second one wrote another
+ * permanent `ReviewLog` row for a card the learner had already answered.
+ */
+test('answering again while the verdict is up does not write a second review', async ({ page }) => {
+  await firstRun(page);
+  // L1 is recognition: options, and every one of them stays on screen and
+  // clickable while the feedback shows underneath.
+  await seedDueCardsAtLevel(page, 1, 8);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+
+  const options = page.locator('button[aria-pressed]');
+  for (let step = 0; step < 12; step++) {
+    if (await options.first().isVisible().catch(() => false)) break;
+    const confirm = page.getByTestId('exposure-confirm');
+    if (!(await confirm.isVisible().catch(() => false))) break;
+    await confirm.click();
+    await page.waitForTimeout(400);
+  }
+  await expect(options.first()).toBeVisible({ timeout: 20_000 });
+
+  const before = await countRows(page, 'reviewLogs');
+  await options.first().click();
+  await expect(page.getByTestId('feedback')).toBeVisible();
+
+  // The verdict is up. Every option is still there — click them all again.
+  const count = await options.count();
+  for (let index = 0; index < count; index++) {
+    await options.nth(index).click({ force: true }).catch(() => undefined);
+  }
+  await page.waitForTimeout(1_000);
+
+  expect(await countRows(page, 'reviewLogs'), 'an answered card accepted another answer').toBe(
+    before + 1,
+  );
+});
+
+const countRows = (page: Page, table: string): Promise<number> =>
+  page.evaluate(
+    (table) =>
+      new Promise<number>((resolve, reject) => {
+        const open = indexedDB.open('linguaku');
+        open.onerror = () => reject(new Error(String(open.error)));
+        open.onsuccess = () => {
+          const request = open.result.transaction(table).objectStore(table).count();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(new Error(String(request.error)));
+        };
+      }),
+    table,
+  );

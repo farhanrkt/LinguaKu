@@ -71,6 +71,9 @@ interface Reveal {
   result: GradeResult;
   decision: LadderDecision;
   answer: string;
+  /** The word this card was about, and what it means (SPEC §2.3, D59). */
+  headword: string;
+  gloss: readonly string[];
   /** SPEC §2.9: categories this wrong answer matched, with their authored notes. */
   interference: Category[];
 }
@@ -182,6 +185,37 @@ export const SessionScreen = ({
     onFirstQuestion,
   ]);
 
+  /**
+   * One click is one answer.
+   *
+   * Every handler below is `async` and every one of them writes. Nothing
+   * stopped a second click landing while the first was still in its `await`,
+   * and the cost is not a cosmetic double-render: `recordReview` is the only
+   * writer of FSRS state (invariant 0) and it appends to `ReviewLog`, which is
+   * **append-only by Dexie hook and cannot be corrected afterwards**
+   * (invariant 1). Two clicks on "Oke, paham" therefore meant two review rows
+   * and two FSRS advances for one item, permanently, in the log §9 computes the
+   * honest retention rate from. A drill did the same to `DrillAttempt`.
+   *
+   * The latch is a **ref**, not state: `setState` is asynchronous and two
+   * clicks in one tick would both read the old value. The state beside it only
+   * drives the disabled attributes, which is the visible half.
+   */
+  const writing = useRef(false);
+  const [busy, setBusy] = useState(false);
+
+  const once = async (work: () => Promise<void>): Promise<void> => {
+    if (writing.current) return;
+    writing.current = true;
+    setBusy(true);
+    try {
+      await work();
+    } finally {
+      writing.current = false;
+      setBusy(false);
+    }
+  };
+
   const playAudio = useCallback(() => {
     if (!entry) return;
     if (entry.kind === 'item') {
@@ -194,9 +228,41 @@ export const SessionScreen = ({
     }
   }, [entry, clips, lang]);
 
+  /**
+   * Moves to the next item. Deliberately *un*guarded, because it is called from
+   * inside `handleAnswer` — which already holds the latch — as well as from the
+   * feedback button, which takes it via `once`.
+   */
+  const advance = useCallback(async () => {
+    const next = cursor + 1;
+    setReveal(null);
+    setDrillReveal(null);
+    // Clear the card as well as the feedback. Without this the *previous* item
+    // stays on screen and answerable for the moment it takes to build the next
+    // one — the learner can answer a card that has already been graded, and a
+    // second `recordReview` lands on it. The build reads from memory, so the
+    // "preparing" state is a frame or two.
+    setEntry(null);
+    // Persist *before* moving on — this await is the resume guarantee.
+    await advanceCursor(session.id, next);
+    if (next >= session.itemIds.length) {
+      await completeSession(session.id, Date.now());
+      setFinished(true);
+      return;
+    }
+    setCursor(next);
+  }, [cursor, session.id, session.itemIds.length]);
+
+  const handleNext = useCallback(() => void once(advance), [advance]);
+
   const handleAnswer = useCallback(
     async (payload: AnswerPayload) => {
-      if (entry?.kind !== 'item') return;
+      // The feedback lives in the footer while the card stays on screen above
+      // it, so every control that produced this answer is still there and still
+      // clickable once the verdict appears. The latch above only stops two
+      // clicks racing; this stops a second click *after* the first has landed,
+      // which is the same duplicate row by a slower route.
+      if (entry?.kind !== 'item' || reveal !== null) return;
       const task = entry.task;
 
       // L6 is free production: there is no right answer to match, and the only
@@ -251,22 +317,34 @@ export const SessionScreen = ({
         learned: current.learned + (wasNew ? 1 : 0),
         promoted: current.promoted + (decision.change === 'promoted' ? 1 : 0),
       }));
+      // L0 asked nothing, so there is nothing to reveal. It used to submit the
+      // headword as its own answer, grade it "correct", and congratulate the
+      // learner for reading — two taps and a compliment nobody earned. The
+      // review is still recorded above (invariant 0: the confirmation *is* the
+      // response); any promotion it caused is reported in the session summary.
+      if (task.kind === 'exposure') {
+        await advance();
+        return;
+      }
+
       setReveal({
         result,
         decision,
         answer: task.answer,
+        headword: task.headword,
+        gloss: task.gloss ?? [],
         interference: matched.flatMap((id) => {
           const category = pack.byCategory.get(id);
           return category ? [category] : [];
         }),
       });
     },
-    [entry, profile.id, pack, lang, hasAudioFor],
+    [entry, profile.id, pack, lang, hasAudioFor, advance, reveal],
   );
 
   const handleDrillAnswer = useCallback(
     async (raw: string) => {
-      if (entry?.kind !== 'drill') return;
+      if (entry?.kind !== 'drill' || drillReveal !== null) return;
       const { drill, category } = entry.task;
       const correct = gradeAnswer(raw, drill.answer).outcome !== 'wrong';
 
@@ -285,28 +363,9 @@ export const SessionScreen = ({
       setTally((current) => ({ ...current, drills: current.drills + 1 }));
       setDrillReveal({ correct, task: entry.task });
     },
-    [entry, profile.id, lang],
+    [entry, profile.id, lang, drillReveal],
   );
 
-  const handleNext = useCallback(async () => {
-    const next = cursor + 1;
-    setReveal(null);
-    setDrillReveal(null);
-    // Clear the card as well as the feedback. Without this the *previous* item
-    // stays on screen and answerable for the moment it takes to build the next
-    // one — the learner can answer a card that has already been graded, and a
-    // second `recordReview` lands on it. The build reads from memory, so the
-    // "preparing" state is a frame or two.
-    setEntry(null);
-    // Persist *before* moving on — this await is the resume guarantee.
-    await advanceCursor(session.id, next);
-    if (next >= session.itemIds.length) {
-      await completeSession(session.id, Date.now());
-      setFinished(true);
-      return;
-    }
-    setCursor(next);
-  }, [cursor, session.id, session.itemIds.length]);
 
   /**
    * SPEC §2.14, autonomy: *"can always skip an item (belum perlu)"*.
@@ -320,8 +379,8 @@ export const SessionScreen = ({
     if (entry?.kind === 'item') {
       await deferItem(profile.id, entry.task.itemId, Date.now());
     }
-    await handleNext();
-  }, [entry, profile.id, handleNext]);
+    await advance();
+  }, [entry, profile.id, advance]);
 
   const handleQuit = useCallback(async () => {
     await advanceCursor(session.id, cursor);
@@ -347,20 +406,23 @@ export const SessionScreen = ({
       <DrillPrompt
         key={entry.task.drill.id}
         task={entry.task}
-        onAnswer={(raw) => void handleDrillAnswer(raw)}
+        onAnswer={(raw) => void once(() => handleDrillAnswer(raw))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
       />
     ) : entry.task.kind === 'exposure' ? (
       <ExposureTask
         task={entry.task}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
     ) : entry.task.kind === 'recognition' ? (
       <RecognitionTask
         task={entry.task}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
@@ -368,7 +430,8 @@ export const SessionScreen = ({
       <KanjiTask
         key={entry.task.itemId}
         task={entry.task}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable={false}
         onSaveMnemonic={async (text) => {
@@ -380,7 +443,8 @@ export const SessionScreen = ({
         key={entry.task.itemId}
         task={entry.task}
         lang={lang}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable={false}
       />
@@ -388,7 +452,8 @@ export const SessionScreen = ({
       <FreeProductionTask
         key={entry.task.itemId}
         task={entry.task}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable={false}
       />
@@ -396,7 +461,8 @@ export const SessionScreen = ({
       <DictationTask
         key={entry.task.itemId}
         task={entry.task}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable
       />
@@ -404,7 +470,8 @@ export const SessionScreen = ({
       <ClozeTask
         key={entry.task.itemId}
         task={entry.task}
-        onAnswer={(payload) => void handleAnswer(payload)}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy || reveal !== null}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
@@ -414,15 +481,15 @@ export const SessionScreen = ({
     <Screen
       footer={
         reveal ? (
-          <Feedback reveal={reveal} onNext={() => void handleNext()} />
+          <Feedback reveal={reveal} onNext={handleNext} />
         ) : drillReveal ? (
-          <DrillFeedback reveal={drillReveal} onNext={() => void handleNext()} />
+          <DrillFeedback reveal={drillReveal} onNext={handleNext} />
         ) : (
           <>
             {/* §2.14: declining is always available, and costs nothing. */}
             <button
               type="button"
-              onClick={() => void handleSkip()}
+              onClick={() => void once(handleSkip)}
               data-testid="session-skip"
               className="min-h-12 w-full rounded-2xl text-sm font-semibold text-stone-600 underline-offset-4 hover:underline dark:text-slate-400"
             >
@@ -488,6 +555,32 @@ const Feedback = ({ reveal, onNext }: { reveal: Reveal; onNext: () => void }) =>
           <p className="mt-1 text-sm">{copy.session.feedback.promoted}</p>
         ) : decision.change === 'demoted' ? (
           <p className="mt-1 text-sm">{copy.session.feedback.demoted}</p>
+        ) : null}
+      </div>
+
+      {/*
+        What the word means, after the answer rather than before it.
+        Every rung can show this safely once the card is graded — the gloss
+        cannot give away an answer that has already been given — and it is the
+        one place the meaning is useful on *every* card rather than just L0.
+        Where there is no entry, that is said rather than left blank (D59).
+      */}
+      <div className="mt-3 rounded-2xl border-2 border-stone-200 p-3 dark:border-slate-800">
+        <p className="text-xs tracking-wide text-stone-500 uppercase dark:text-slate-400">
+          {copy.session.meaning.label}
+        </p>
+        <p className="mt-1">
+          <span className="font-semibold">{reveal.headword}</span>
+          {reveal.gloss.length > 0 ? (
+            <span className="ml-2 text-stone-600 dark:text-slate-400" data-testid="feedback-gloss">
+              {reveal.gloss.join('; ')}
+            </span>
+          ) : null}
+        </p>
+        {reveal.gloss.length === 0 ? (
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400" data-testid="feedback-no-gloss">
+            {copy.session.meaning.none}
+          </p>
         ) : null}
       </div>
 

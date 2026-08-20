@@ -212,6 +212,16 @@ needs React state to work, it is in the wrong place.
     it**. A shade that clears AA on the page background can fail inside a
     tinted panel, and only the scan knows which.
 
+37. **One click is one answer** (D72). Every session write is latched twice: a
+    synchronous ref against two clicks racing, and a refusal to answer a card
+    whose verdict is already showing. `ReviewLog` is append-only, so a duplicate
+    row is permanent and lands in the retention rate §9 reports. Both halves
+    have e2e gates.
+38. **A card shows what the word means, or says it has no entry** (D73). The
+    gloss is resolved for every rung, not just L0, and coverage is 30% / 4% —
+    so the absent branch is the common one and it is never rendered as blank
+    space. It is still reference, never an answer key (invariant 29).
+
 
 ## Conventions
 

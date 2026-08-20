@@ -81,6 +81,20 @@ export const copy = {
       instruction: 'Baca dan dengar. Belum perlu dihafal.',
       confirm: 'Oke, paham',
     },
+
+    /**
+     * The meaning of the word itself, as opposed to the sentence it sits in.
+     *
+     * Glosses cover 30% of English words and 4% of Japanese (measured, D59), so
+     * the absent case is the common one and it gets said out loud rather than
+     * rendering nothing — the reader has done this since v1.7.0 and the session
+     * was the surface that stayed silent.
+     */
+    meaning: {
+      label: 'Arti katanya',
+      none: 'Kata ini belum ada di kamus kami. Terjemahan kalimatnya yang jadi petunjuk.',
+      sentenceLabel: 'Kalimat lengkapnya',
+    },
     recognition: {
       heading: 'Yang mana artinya?',
     },
@@ -141,6 +155,10 @@ export const copy = {
       instruction: 'Tanpa pilihan, tanpa contoh. Apa bahasa Inggrisnya?',
       instructionJa: 'Tanpa pilihan, tanpa contoh. Apa bahasa Jepangnya?',
       placeholder: 'Ketik kata yang dimaksud',
+      // This rung grades one word, and it used to show a whole sentence as its
+      // prompt — so a learner could read the prompt correctly and still not know
+      // what was being asked of them.
+      oneWord: 'Satu kata saja, bukan seluruh kalimatnya.',
     },
 
     free: {

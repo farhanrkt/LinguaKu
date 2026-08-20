@@ -50,7 +50,7 @@ export interface Task {
   /** Recognition only: the correct translation plus distractors, shuffled. */
   options?: string[];
   /**
-   * Indonesian senses for L0's gloss (SPEC §2.3). Absent where the dictionary
+   * Indonesian senses for the word itself (SPEC §2.3). Absent where the dictionary
    * has nothing — coverage is partial and measured, never invented.
    */
   gloss?: readonly string[];
@@ -206,10 +206,26 @@ export const buildTask = async (
         ).filter((anchor): anchor is AnchorSentence => anchor !== null);
   if (anchors.length === 0) return null;
 
+  /**
+   * The word's own meaning, resolved once for **every** rung.
+   *
+   * This used to be fetched only on the `exposure` branch, so L1–L6 carried no
+   * gloss at all even where one existed — and L5, whose whole job is
+   * "meaning → produce the word" (§2.3), had nothing to show but the sentence
+   * translation. `glossFor` caches per band, so asking on every task costs one
+   * shard read per band rather than one per card (§5.4).
+   *
+   * A chunk's authored gloss wins: its parts do not compose, so a per-word
+   * lookup cannot stand in for it (§2.5).
+   */
+  const gloss =
+    item.gloss !== undefined ? [item.gloss] : await glossFor(item.lang, item.band, itemId);
+
   const base = {
     itemId,
     cardId: cardIdFor(profileId, itemId),
     headword: item.headword,
+    ...(gloss.length > 0 ? { gloss } : {}),
   };
 
   // L4 first, because it is the only rung with a precondition. A dictation card
@@ -293,19 +309,7 @@ export const buildTask = async (
       kind: 'exposure',
       answer: item.headword,
       asksConfidence: false,
-      // A chunk arrives with its meaning authored (SPEC §2.5): its parts do not
-      // compose, so a per-word gloss cannot stand in for it.
-      ...(item.gloss !== undefined ? { gloss: [item.gloss] } : {}),
       ...(item.chunkNote !== undefined ? { chunkNote: item.chunkNote } : {}),
-      // SPEC §2.3 L0 is "sentence + audio + gloss". The gloss half was missing
-      // until one was licence-cleared (R3), and it is still partial: a word
-      // without one shows the sentence and its translation, exactly as before.
-      // A chunk's own gloss above wins — it was authored for this phrase.
-      ...(item.gloss === undefined
-        ? await glossFor(item.lang, item.band, itemId).then((senses) =>
-            senses.length > 0 ? { gloss: senses } : {},
-          )
-        : {}),
     };
   }
 

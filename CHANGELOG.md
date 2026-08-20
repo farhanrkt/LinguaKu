@@ -5,6 +5,80 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.11.0 — 2026-08-19
+
+Two problems reported from actually using the app. Both turned out to be worse
+than they looked from the outside, and one of them was corrupting data.
+
+### Fixed — one click was writing one review *per click*
+
+Every write in the session was an `async` handler with no guard, and there are
+two ways to click twice.
+
+**Racing.** Eight taps on "Oke, paham" before the first `await` returned wrote
+**eight** `ReviewLog` rows and advanced FSRS eight times, for one item. That is
+measured, not estimated — it is what the new gate reports when the fix is
+reverted.
+
+**Sequentially.** The feedback renders in the footer while the card stays on
+screen above it, so every control that produced the answer is still live once
+the verdict appears. Clicking it again seconds later wrote another row.
+
+Neither is cosmetic. `recordReview` is the only writer of FSRS state and
+`ReviewLog` is **append-only at the Dexie hook** — updates, overwrites and
+deletes all throw — so a duplicate row **cannot be removed afterwards**. It sits
+permanently in the log §9 computes the honest retention rate from.
+
+The race is latched with a **ref**, because `setState` is asynchronous and two
+clicks in one tick would both read the stale value. The sequential case is
+latched by refusing to answer a card whose verdict is showing. Both are mirrored
+into `disabled` so the controls say what they are doing, and both have e2e gates
+that were checked by reverting the fix and watching them fail.
+
+### Fixed — the word's meaning was missing on five rungs out of seven
+
+`glossFor` was only called on the L0 branch, so **L1–L6 carried no gloss at
+all**. The worst case was L5, which §2.3 defines as *"ID → target, produced"*:
+its prompt was the whole *sentence* translation while the graded answer was a
+single headword. A learner was shown
+
+> Dia mendapat nilai A.
+
+and asked "what's the English?" — with the expected answer being **"a"**.
+Nothing said which word was wanted, or that one word was wanted.
+
+Now the gloss is resolved once for every task and used in three places: L0 as
+before; **L5 as the prompt**, with the sentence demoted to labelled context and
+an explicit *"satu kata saja"*; and the **feedback panel on every card**, which
+is safe everywhere because a gloss cannot give away an answer already given.
+
+### Fixed — the absent case rendered as blank space
+
+Gloss coverage is 30% of English words and 4% of Japanese (measured, D59), so
+"no entry" is the **ordinary** case, not an edge one. The session rendered
+nothing at all for it, which is indistinguishable from a bug — and it is what
+"the translation sometimes doesn't show" actually was. It now says so, in the
+same words the reader has used since v1.7.0.
+
+### Changed — an exposure card is one tap, and claims nothing
+
+L0 is errorless by §2.3, but it submitted the headword as its own answer, graded
+it "correct", printed **"Benar!"** over a card that asked nothing, and waited for
+a second tap. Confirming still records the review — the confirmation *is* the
+response — and now advances directly. Promotions are reported in the summary,
+where §2.14 wants capability reported anyway.
+
+### Measured on this build
+
+| | |
+|---|---|
+| unit tests | **766**, 57 files |
+| e2e | **56** (4 new) |
+| initial JS / CSS gzipped | **137.8 KB** / **6.7 KB** |
+| WCAG 2.1 AA violations | **0**, light and dark |
+
+---
+
 ## v1.10.1 — 2026-08-19
 
 Two of v2.0.0's four gates worked, as far as they can be worked without the

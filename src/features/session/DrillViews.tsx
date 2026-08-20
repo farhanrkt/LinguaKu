@@ -18,9 +18,11 @@ interface DrillProps {
   task: DrillTask;
   onAnswer: (raw: string) => void;
   onPlayAudio: () => void;
+  /** A drill answer is already being written — one tap is one `DrillAttempt`. */
+  busy?: boolean;
 }
 
-export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
+export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
   // Cloze and correction are both typed; only the instruction differs, because
@@ -92,7 +94,7 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
             className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
           />
           <div className="mt-4">
-            <Button type="submit" disabled={value.trim().length === 0}>
+            <Button type="submit" disabled={value.trim().length === 0 || busy === true}>
               {copy.session.drill.submit}
             </Button>
           </div>
@@ -104,6 +106,7 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
               key={option}
               label={option}
               selected={false}
+              disabled={busy === true}
               onToggle={() => onAnswer(option)}
             />
           ))}

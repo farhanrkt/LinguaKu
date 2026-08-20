@@ -1,5 +1,85 @@
 # PROGRESS.md
 
+## v1.11.0 — two reports from using it, and what was under them (2026-08-19)
+
+Both of this release's items came from the owner using the app rather than from
+a gate, which is worth noting on its own: eleven releases of CI and the two
+defects that a person found in one sitting were a **permanent data corruption**
+and a rung whose prompt could not be answered.
+
+### The double-write
+
+The report was that buttons could be spammed. The mechanism is that every write
+in the session is an `async` handler and none of them was latched, and there are
+two distinct ways to click twice — which matters, because the obvious fix only
+addresses one.
+
+*Racing* is two clicks inside one `await`. Eight taps on "Oke, paham" wrote
+**eight** review rows. *Sequentially* is a second click after the verdict is
+already up, which is possible because the feedback renders in the **footer**
+while the card stays mounted above it — every control that produced the answer
+is still there. An in-flight latch does nothing about the second case; the two
+clicks are seconds apart.
+
+**Why this is not a cosmetic bug.** `ReviewLog` is append-only, enforced at the
+Dexie hook, and that is deliberate: invariant 1 exists so the log can be trusted
+as the substrate for FSRS optimisation and for §9's retention rate. The same
+property means a duplicated row **cannot be corrected**. Every spare tap a
+learner made on a slow phone is permanently in the data the app uses to tell
+them how well they are doing.
+
+The race is held with a **ref** rather than state, because `setState` is
+asynchronous and two clicks in one tick would both read the old value — a state
+flag would have looked like a fix and not been one.
+
+**Both gates were falsified before being trusted.** Reverting each fix and
+re-running gives 8 rows instead of 1, and 5 instead of 3. A gate that has never
+failed has not been tested.
+
+### The missing meaning
+
+The report was that the translation of the word sometimes does not show. Three
+separate things were true.
+
+**It was fetched for one rung out of seven.** `glossFor` sat inside the
+`exposure` branch, so every other rung carried no gloss at all — even where the
+app had one on disk.
+
+**L5 was unanswerable as written.** §2.3 defines it as "ID → target, produced":
+the prompt should be the *meaning* and the learner produces the word. It was
+showing the *sentence* translation while grading a single headword. A learner
+reading *"Dia mendapat nilai A."* and asked for the English had to produce
+**"a"**, with nothing marking which word was wanted. This is the kind of defect
+that survives eleven milestones of CI because nothing about it is a type error,
+a failing assertion, or a crash — the screen renders perfectly and the exercise
+is impossible.
+
+**The empty case rendered as nothing.** Coverage is 30% and 4% (D59), so the
+absent branch is the *common* one, and a blank space where a meaning should be
+is indistinguishable from a bug. The reader has said this out loud since
+v1.7.0; the session was the surface that stayed silent. That silence is what the
+report was actually describing.
+
+The gloss now resolves once per task for every kind — `glossFor` caches per
+band, so it costs one shard read per band rather than one per card — and appears
+at L0, as L5's prompt, and in the feedback on **every** card, which is the one
+place it is both useful everywhere and incapable of leaking an answer.
+
+### The compliment nobody earned
+
+L0 submitted the headword as its own answer so that it would grade "correct",
+which meant a card that asked nothing printed "Benar!" and then waited for a
+second tap. It advances on the one tap now. The review is still recorded —
+invariant 0 is satisfied because the confirmation *is* the response — and
+promotions are reported in the summary, which is where §2.14 wants them.
+
+### Left open
+
+Nothing from this work. The three v2.0.0 gates are unchanged and all belong to a
+person.
+
+---
+
 ## v1.10.1 — two of the four gates, worked as far as they go (2026-08-19)
 
 v1.9.0 named four things standing between this app and v2.0.0, and said all four
