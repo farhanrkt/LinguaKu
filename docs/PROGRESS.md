@@ -1,5 +1,44 @@
 # PROGRESS.md
 
+## v1.11.1 — retiring the answered card (2026-08-19)
+
+v1.11.0 stopped the duplicate reviews with two latches and explicitly left the
+layout as it was, flagging it as the larger change. This is that change.
+
+**The layout was the actual cause.** The verdict rendered in the footer while
+the live card stayed mounted above it, so every control that produced the answer
+was still on screen and still wired up. The latch refused the second answer;
+nothing stopped it being *offered*. Replacing the card removes the offer, which
+is the difference between a rule and a structure — and this codebase's whole
+argument is that the structural version is the one that survives.
+
+**What the retired card keeps, and why.** The sentence, with the answer filled
+into the blank and chipped; the translation; and the learner's own answer where
+it differed from the correct one. Dropping the content and showing only the
+verdict would have been simpler and worse: *"Jawabannya 'A'"* is close to
+meaningless without *"He got an ___"* beside it, and a learner who answered
+wrongly needs to see what they wrote next to what was wanted.
+
+**Not dimmed, deliberately.** The reflex for "this is finished" is reduced
+opacity, and opacity on text is precisely the failure the dark-mode gate found
+54 instances of one release ago — a shade that clears AA at full strength does
+not at 60%. It retires by losing its controls and by saying *"Soal tadi"*, at
+full contrast, which is legible to someone who cannot perceive the styling at
+all.
+
+**A gap fell out of it.** With the retired card shorter than the live one, the
+`flex-1` main column pushed the sticky footer down and left a dead band between
+a card and the verdict about it — and the verdict was inside its own
+`max-h-[60vh]` scroller, nested in a page that also scrolled. Both went: the
+answered state is one column in the page, and the footer carries only *"Lanjut"*.
+That is what §10 asks for anyway — the thumb zone is for the thing you press,
+not for a scrollable panel of prose.
+
+Verified by hand in both themes at mobile width, with a short verdict (correct,
+promoted) and a long one (wrong, demoted, with a contrastive note attached).
+
+---
+
 ## v1.11.0 — two reports from using it, and what was under them (2026-08-19)
 
 Both of this release's items came from the owner using the app rather than from

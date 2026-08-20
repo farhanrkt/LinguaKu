@@ -83,6 +83,18 @@ export const copy = {
     },
 
     /**
+     * The card, after it has been answered.
+     *
+     * It stays on screen because the feedback refers to it — the correct answer
+     * only means something in the sentence it belongs to — but it stops being a
+     * question. No controls, and it says which it is.
+     */
+    answered: {
+      label: 'Soal tadi',
+      yours: (raw: string) => `Jawabanmu: “${raw}”`,
+    },
+
+    /**
      * The meaning of the word itself, as opposed to the sentence it sits in.
      *
      * Glosses cover 30% of English words and 4% of Japanese (measured, D59), so

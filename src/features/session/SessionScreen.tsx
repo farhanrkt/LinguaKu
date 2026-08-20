@@ -74,12 +74,17 @@ interface Reveal {
   /** The word this card was about, and what it means (SPEC §2.3, D59). */
   headword: string;
   gloss: readonly string[];
+  /** The card itself, so it can stay on screen without staying answerable. */
+  task: Task;
+  /** What the learner actually gave, for the "you said" line. */
+  raw: string;
   /** SPEC §2.9: categories this wrong answer matched, with their authored notes. */
   interference: Category[];
 }
 
 interface DrillReveal {
   correct: boolean;
+  raw: string;
   task: DrillTask;
 }
 
@@ -257,11 +262,11 @@ export const SessionScreen = ({
 
   const handleAnswer = useCallback(
     async (payload: AnswerPayload) => {
-      // The feedback lives in the footer while the card stays on screen above
-      // it, so every control that produced this answer is still there and still
-      // clickable once the verdict appears. The latch above only stops two
-      // clicks racing; this stops a second click *after* the first has landed,
-      // which is the same duplicate row by a slower route.
+      // The backstop for a second answer arriving after the first has landed.
+      // The card is unmounted the moment a verdict exists (D75), so nothing on
+      // screen can reach here — but this is the only writer of permanent,
+      // uncorrectable state (invariants 0 and 1), and one comparison is a
+      // cheaper guarantee than a layout that must never change back.
       if (entry?.kind !== 'item' || reveal !== null) return;
       const task = entry.task;
 
@@ -333,6 +338,8 @@ export const SessionScreen = ({
         answer: task.answer,
         headword: task.headword,
         gloss: task.gloss ?? [],
+        task,
+        raw: payload.raw,
         interference: matched.flatMap((id) => {
           const category = pack.byCategory.get(id);
           return category ? [category] : [];
@@ -361,7 +368,7 @@ export const SessionScreen = ({
       });
 
       setTally((current) => ({ ...current, drills: current.drills + 1 }));
-      setDrillReveal({ correct, task: entry.task });
+      setDrillReveal({ correct, raw, task: entry.task });
     },
     [entry, profile.id, lang, drillReveal],
   );
@@ -407,14 +414,14 @@ export const SessionScreen = ({
         key={entry.task.drill.id}
         task={entry.task}
         onAnswer={(raw) => void once(() => handleDrillAnswer(raw))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
       />
     ) : entry.task.kind === 'exposure' ? (
       <ExposureTask
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
@@ -422,7 +429,7 @@ export const SessionScreen = ({
       <RecognitionTask
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
@@ -431,7 +438,7 @@ export const SessionScreen = ({
         key={entry.task.itemId}
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={false}
         onSaveMnemonic={async (text) => {
@@ -444,7 +451,7 @@ export const SessionScreen = ({
         task={entry.task}
         lang={lang}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={false}
       />
@@ -453,7 +460,7 @@ export const SessionScreen = ({
         key={entry.task.itemId}
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={false}
       />
@@ -462,7 +469,7 @@ export const SessionScreen = ({
         key={entry.task.itemId}
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable
       />
@@ -471,7 +478,7 @@ export const SessionScreen = ({
         key={entry.task.itemId}
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
-        busy={busy || reveal !== null}
+        busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
@@ -480,10 +487,16 @@ export const SessionScreen = ({
   return (
     <Screen
       footer={
-        reveal ? (
-          <Feedback reveal={reveal} onNext={handleNext} />
-        ) : drillReveal ? (
-          <DrillFeedback reveal={drillReveal} onNext={handleNext} />
+        // Answered: the whole verdict reads as one column in the page, and the
+        // footer carries only the thing the learner is going to press (§10's
+        // thumb zone). It used to hold the entire feedback inside its own
+        // `max-h-[60vh]` scroller — a scroll region nested in a scrolling page,
+        // with `flex-1` on the main column pushing it to the bottom and leaving
+        // a dead band between the card and its own verdict.
+        reveal || drillReveal ? (
+          <Button onClick={handleNext} data-testid="next">
+            {copy.session.feedback.next}
+          </Button>
         ) : (
           <>
             {/* §2.14: declining is always available, and costs nothing. */}
@@ -519,17 +532,113 @@ export const SessionScreen = ({
         />
       </div>
 
-      <div className="mt-6">{view}</div>
+      {/* Answered cards retire: the content stays because the feedback refers
+          to it, the controls go because a card that has been answered is not a
+          question any more (D75). */}
+      <div className="mt-6 flex flex-col gap-3">
+        {reveal ? (
+          <>
+            <AnsweredCard task={reveal.task} raw={reveal.raw} />
+            <Feedback reveal={reveal} />
+          </>
+        ) : drillReveal ? (
+          <>
+            <AnsweredDrill reveal={drillReveal} />
+            <DrillFeedback reveal={drillReveal} />
+          </>
+        ) : (
+          view
+        )}
+      </div>
     </Screen>
   );
 };
+
+/**
+ * The card, after it has been answered — present but no longer a question.
+ *
+ * The feedback refers to this card: "the answer was X" only means something
+ * against the sentence X belongs in, and a cloze's correct answer is close to
+ * useless without the blank it goes in. So it stays. What it loses is every
+ * control that could produce a second answer, which is what made the
+ * duplicate-review hole reachable at all (D72) — the guard in `handleAnswer`
+ * stays as well, but this is the half that makes it structural rather than
+ * refused.
+ *
+ * **It is not dimmed.** The obvious way to say "finished" is opacity, and
+ * opacity on text is exactly what the dark-mode contrast gate (D71) exists to
+ * catch — a shade that clears AA at full strength does not at 60%. It retires by
+ * losing its controls and saying so, at full contrast.
+ */
+const AnsweredCard = ({ task, raw }: { task: Task; raw: string }) => {
+  const same = raw.trim().toLowerCase() === task.answer.trim().toLowerCase();
+  const filled = (
+    <span className="mx-1 inline-block rounded-lg bg-teal-50 px-2 py-0.5 font-bold text-teal-900 dark:bg-teal-950 dark:text-teal-200">
+      {task.answer}
+    </span>
+  );
+
+  return (
+    <div
+      className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+      data-testid="answered-card"
+    >
+      <p className="text-xs tracking-wide text-stone-500 uppercase dark:text-slate-400">
+        {copy.session.answered.label}
+      </p>
+
+      <p className="mt-2 text-xl leading-snug font-semibold">
+        {task.cloze ? (
+          <>
+            {task.cloze.before}
+            {filled}
+            {task.cloze.after}
+          </>
+        ) : (
+          task.sentence.text
+        )}
+      </p>
+
+      {task.translation.length > 0 ? (
+        <p className="mt-1 text-stone-600 dark:text-slate-400">{task.translation}</p>
+      ) : null}
+
+      {/* Only where it adds something: repeating a correct answer back at the
+          learner as "you said" is noise. */}
+      {!same && raw.trim().length > 0 ? (
+        <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="answered-yours">
+          {copy.session.answered.yours(raw)}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+/** The same, for a drill: the prompt stays, the options do not. */
+const AnsweredDrill = ({ reveal }: { reveal: DrillReveal }) => (
+  <div
+    className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+    data-testid="answered-card"
+  >
+    <p className="text-xs tracking-wide text-stone-500 uppercase dark:text-slate-400">
+      {copy.session.answered.label}
+    </p>
+    <p className="mt-2 text-xl leading-snug font-semibold">{reveal.task.drill.prompt}</p>
+    {reveal.raw.trim().toLowerCase() !== reveal.task.drill.answer.trim().toLowerCase() &&
+    reveal.raw.trim().length > 0 ? (
+      <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="answered-yours">
+        {copy.session.answered.yours(reveal.raw)}
+      </p>
+    ) : null}
+  </div>
+);
 
 /**
  * SPEC §2.7: a near-miss is shown as a near-miss. SPEC §2.9: where the error
  * matches an Indonesian-L1 pattern, the contrastive note comes with it — in
  * Indonesian, with the L1 pattern named first.
  */
-const Feedback = ({ reveal, onNext }: { reveal: Reveal; onNext: () => void }) => {
+const Feedback = ({ reveal }: { reveal: Reveal }) => {
   const { result, decision, answer } = reveal;
   const tone =
     result.outcome === 'correct'
@@ -546,7 +655,7 @@ const Feedback = ({ reveal, onNext }: { reveal: Reveal; onNext: () => void }) =>
         : copy.session.feedback.wrong(answer);
 
   return (
-    <div className="max-h-[60vh] overflow-y-auto">
+    <div>
       <div className={`rounded-2xl p-4 ${tone}`} role="status" data-testid="feedback">
         <p className="font-semibold">{message}</p>
         {decision.leech ? (
@@ -591,18 +700,12 @@ const Feedback = ({ reveal, onNext }: { reveal: Reveal; onNext: () => void }) =>
           <ContrastiveNote category={category} />
         </div>
       ))}
-
-      <div className="mt-3">
-        <Button onClick={onNext} data-testid="next">
-          {copy.session.feedback.next}
-        </Button>
-      </div>
     </div>
   );
 };
 
-const DrillFeedback = ({ reveal, onNext }: { reveal: DrillReveal; onNext: () => void }) => (
-  <div className="max-h-[60vh] overflow-y-auto">
+const DrillFeedback = ({ reveal }: { reveal: DrillReveal }) => (
+  <div>
     <div
       className={`rounded-2xl p-4 ${
         reveal.correct
@@ -621,12 +724,6 @@ const DrillFeedback = ({ reveal, onNext }: { reveal: DrillReveal; onNext: () => 
 
     <div className="mt-3">
       <ContrastiveNote category={reveal.task.category} explain={reveal.task.drill.explain} />
-    </div>
-
-    <div className="mt-3">
-      <Button onClick={onNext} data-testid="next">
-        {copy.session.feedback.next}
-      </Button>
     </div>
   </div>
 );

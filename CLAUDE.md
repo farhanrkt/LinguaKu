@@ -222,6 +222,11 @@ needs React state to work, it is in the wrong place.
     so the absent branch is the common one and it is never rendered as blank
     space. It is still reference, never an answer key (invariant 29).
 
+39. **An answered card retires** (D75). Its content stays — a verdict refers to
+    the sentence it came from — but every control goes, which makes a second
+    answer impossible rather than merely refused. Never dimmed: opacity on text
+    is what D71's contrast gate exists to catch.
+
 
 ## Conventions
 

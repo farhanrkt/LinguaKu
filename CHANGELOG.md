@@ -5,6 +5,42 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.11.1 — 2026-08-19
+
+### Changed — an answered card retires
+
+v1.11.0 closed the duplicate-review hole with two latches and left the layout
+alone, which was the smaller half of the fix. The card is now replaced on answer
+by a static **"Soal tadi"** panel: the sentence with the answer filled into the
+blank, its translation, and the learner's own answer where it differed.
+
+Keeping the content is the point — *"the answer was A"* means very little
+without the sentence A belongs in, and a cloze's answer means nothing without
+the gap it goes in. What goes is every control that could produce a second
+answer, which makes v1.11.0's sequential double-click **impossible** rather than
+refused. The guard in `handleAnswer` stays as a backstop: nothing on screen can
+reach it now, but it writes permanently uncorrectable state, and one comparison
+is cheaper than a layout that must never change back.
+
+**It is deliberately not dimmed.** The obvious way to say "finished" is opacity,
+and opacity on text is exactly what v1.10.0's dark-mode contrast gate exists to
+catch — a shade that clears AA at full strength does not at 60%.
+
+### Fixed — a dead band between a card and its own verdict
+
+The feedback rendered inside a `max-h-[60vh]` scroller in the footer, nested
+inside a scrolling page, while `flex-1` on the main column pushed it to the
+bottom. With the retired card being shorter than the live one, that left an
+empty band between the card and the verdict about it, and the verdict itself
+scrolled independently.
+
+The whole answered state now reads as one column and the footer carries only
+**"Lanjut"** — which is what §10 wanted in the thumb zone in the first place.
+
+Checked in both themes, at mobile width, with a short verdict and a long one.
+
+---
+
 ## v1.11.0 — 2026-08-19
 
 Two problems reported from actually using the app. Both turned out to be worse

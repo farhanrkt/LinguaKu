@@ -17,7 +17,7 @@ Anything marked **manual** cannot be done in CI and needs a human with a phone.
 
 | | Check | Expected |
 |---|---|---|
-| 0.1 | `package.json` version | **`1.11.0`** |
+| 0.1 | `package.json` version | **`1.11.1`** |
 | 0.2 ✅ | Code licence | **MIT**, `LICENSE` committed (D12). Covers `src/`, `scripts/`, `workers/` and the authored content in `data/`. It does **not** reach `assets/content/`. |
 | 0.3 | `README.md` status section | Current for this version. |
 | 0.4 | Working tree clean | `git status --short` is empty. |
@@ -48,7 +48,7 @@ npm ci && npm run verify
 | 1.4 | Licence gate | **8 datasets declared and attributed; 64 asset files traced.** Fails in *both* directions — an undeclared dataset, and a declared one nothing references. |
 | 1.5 | Audio gate | *"no pre-cached audio yet"* until R7 is answered. Once clips ship: budget and index checked in both directions. |
 | 1.6 | Build | Succeeds; `dist/` written. |
-| 1.7 | Initial JS | **137.8 KB / 200 KB gzipped (69%)** — invariant 6. |
+| 1.7 | Initial JS | **138.0 KB / 200 KB gzipped (69%)** — invariant 6. |
 | 1.8 | Initial CSS | **6.7 KB / 40 KB gzipped (17%)**. |
 | 1.9 | Offline gate | **64 shards under a 192-entry cache, audio rule present.** See §5.4 below for why this exists. |
 

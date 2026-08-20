@@ -272,11 +272,13 @@ test('answering again while the verdict is up does not write a second review', a
   await options.first().click();
   await expect(page.getByTestId('feedback')).toBeVisible();
 
-  // The verdict is up. Every option is still there — click them all again.
-  const count = await options.count();
-  for (let index = 0; index < count; index++) {
-    await options.nth(index).click({ force: true }).catch(() => undefined);
-  }
+  // The card retires: its content stays, because the verdict refers to it, and
+  // every control that could produce a second answer is gone (D75).
+  await expect(page.getByTestId('answered-card')).toBeVisible();
+  await expect(options).toHaveCount(0);
+
+  // And clicking where they were changes nothing.
+  await page.mouse.click(200, 300);
   await page.waitForTimeout(1_000);
 
   expect(await countRows(page, 'reviewLogs'), 'an answered card accepted another answer').toBe(
