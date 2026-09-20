@@ -88,11 +88,23 @@ export interface WireKanji {
   breakdown: string[];
 }
 
+export type ShardKind =
+  | 'sentences'
+  | 'lexemes'
+  | 'anchors'
+  | 'kanji'
+  | 'chunks'
+  | 'glosses'
+  | 'passages';
+
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'chunks' | 'glosses' | 'passages';
+  kind: ShardKind;
   band: FrequencyBand;
   path: string;
   count: number;
+  bytes: number;
+  /** What actually travels. The pipeline has emitted this since M1. */
+  gzipBytes: number;
   sha256: string;
 }
 
@@ -319,6 +331,42 @@ export const loadSentences = async (
     sentenceCache.set(key, []);
     return [];
   }
+};
+
+export interface DownloadCost {
+  /** Gzipped bytes — what the learner's plan is actually charged for. */
+  gzipBytes: number;
+  /** The shard URLs, so a caller can ask the cache which are already paid for. */
+  urls: string[];
+}
+
+/**
+ * What a set of shards would cost to fetch (SPEC §5.4).
+ *
+ * Read from the manifest the pipeline already publishes rather than measured or
+ * estimated: `gzipBytes` is the number that travels, and it is the number the
+ * learner is shown. A shard the manifest does not list contributes nothing
+ * rather than a guess — the same rule the rest of the app follows about figures
+ * it cannot measure (invariant 18).
+ *
+ * Deliberately says nothing about what is already cached. That needs the Cache
+ * API, which lives in `src/platform`, and `src/data` does not depend on it.
+ */
+export const downloadCost = async (
+  lang: TargetLang,
+  wanted: ReadonlyArray<{ kind: ShardKind; band: FrequencyBand }>,
+): Promise<DownloadCost> => {
+  const manifest = await fetchManifest(lang).catch(() => null);
+  if (!manifest) return { gzipBytes: 0, urls: [] };
+
+  const cost: DownloadCost = { gzipBytes: 0, urls: [] };
+  for (const { kind, band } of wanted) {
+    const shard = manifest.shards.find((entry) => entry.kind === kind && entry.band === band);
+    if (!shard) continue;
+    cost.gzipBytes += shard.gzipBytes;
+    cost.urls.push(`${CONTENT_BASE}/${lang}/${shard.path}`);
+  }
+  return cost;
 };
 
 /** Same-band sentences, for SPEC §2.3's multiple-choice distractors. */

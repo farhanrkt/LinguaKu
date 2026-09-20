@@ -5,6 +5,52 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.13.0 — 2026-09-20
+
+### Added — the reader says what it costs before spending your data
+
+SPEC §5.4 names the reference device as *"Indonesian mid-range Android on
+**mobile data**"*, and the architecture has respected that since M2: the first
+download is budgeted at 8 MB and everything else is deferred until it is needed.
+
+The half that was missing is that nothing told the learner when a tap was about
+to spend their quota. Opening the reader fetches its band's sentence and passage
+shards — **415 KB gzipped** for an English learner at band 2, **479 KB** for a
+Japanese one — unannounced, on a prepaid plan.
+
+It now says so, with the real figure from the manifest's own `gzipBytes`, and
+waits for a yes. Three things keep that honest rather than merely cautious:
+
+- **A shard already in the cache is never charged for.** The gate checks the
+  Cache API first — warning about a cost that no longer exists is a false alarm,
+  not care.
+- **Practice is never gated.** Only the reader is. The session's content is
+  precached, so a learner who declines still studies exactly as before.
+- **Unknown connectivity does not hold back.** Two of the three target browsers
+  have no Network Information API; treating silence as "probably metered" would
+  withhold the reader from most desktop learners and every iPhone on Wi-Fi, on
+  no evidence at all.
+
+Three choices in settings: follow the phone's own Save-Data setting (the
+default), always ask, or never ask.
+
+### Changed — the reader's navigation recedes while a decision is on screen
+
+Two full-width primaries — "download" and "back" — made the learner pick between
+two things that looked equally like the answer. "Kembali" is quiet while the
+gate is up and primary again once it is gone. The arrow-key hint for the
+tap-to-gloss words is no longer announced when there are no words on screen.
+
+### Measured on this build
+
+| | |
+|---|---|
+| unit tests | **798**, 58 files |
+| e2e | **61** |
+| initial JS / CSS gzipped | **140.8 KB** / **6.7 KB** (budgets 200 / 40) |
+
+---
+
 ## v1.12.1 — 2026-09-20
 
 ### Fixed — an English session could contain Japanese cards

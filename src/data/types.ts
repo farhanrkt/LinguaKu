@@ -24,6 +24,13 @@ export const flag = (value: boolean): Flag => (value ? 1 : 0);
 /** Epoch milliseconds. */
 export type Timestamp = number;
 
+/**
+ * SPEC §5.4: whether optional downloads wait to be asked for. Stored on the
+ * profile, so it lives here rather than beside the Network Information wrapper
+ * that reads it — `src/data` does not depend on `src/platform`.
+ */
+export type DataPreference = 'auto' | 'save' | 'full';
+
 export type UiLang = 'id';
 export type TargetLang = 'en' | 'ja';
 
@@ -62,6 +69,12 @@ export interface Profile {
    * without adding more is how a learner digs out of a backlog.
    */
   dailyNewWords?: number;
+  /**
+   * SPEC §5.4: what to do about downloads on a metered connection. Absent means
+   * `auto` — follow the browser's own Save-Data signal — which is what every
+   * profile written before v1.13.0 gets, and the right default either way.
+   */
+  dataSaver?: DataPreference;
   /**
    * SPEC §2.14 (autonomy): *"learner picks topic clusters"*, and SPEC §2.10:
    * frequency order *"modulated by learner-selected topic goals"*.

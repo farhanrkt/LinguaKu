@@ -1,5 +1,77 @@
 # PROGRESS.md
 
+## v1.13.0 — the half of §5.4 that was never built (2026-09-20)
+
+Asked to develop the app further with no brief, so the work was choosing what
+to build. Three candidates were checked against the code before anything was
+written, and two of them turned out to be done already.
+
+**Leeches** (§7.2) are fully handled: a lapse threshold, demotion, re-teaching
+with a *fresh* sentence rather than the one that failed, a feedback line and a
+glossary badge. **Metacognitive calibration** (§2.12) is collected as the
+confidence tap and reported on the progress screen. Neither needed anything.
+
+**Metered connections did not exist in the codebase at all** — one comment in
+`index.css` referencing §5.4 and nothing else. That is the gap.
+
+### Why it matters more than it sounds
+
+§5.4's reference device is *"Indonesian mid-range Android on mobile data"*, and
+the architecture has taken that seriously since M2: §5.3 budgets a beginner's
+first download at 8 MB, and D20 explicitly defers the large shards so that *"a
+learner who never opens the reader never pays for them"*.
+
+So the deferral was right. What was never built is the other half of the
+sentence — telling the learner when they *are* about to pay.
+
+Measured from the manifest the pipeline already publishes: the first tap of
+**Baca** fetches its band's sentence and passage shards, **415 KB gzipped** for
+an English learner at band 2 and **479 KB** for a Japanese one. On a prepaid
+Indonesian plan that is money, spent silently, on a screen the learner may have
+opened out of curiosity.
+
+### The three decisions that make it honest rather than just cautious
+
+A warning that fires too often is worse than none, so most of the work was in
+deciding when *not* to ask.
+
+**A shard already in the cache is never charged for.** The gate asks
+`caches.match` before it asks the learner. Someone who downloaded this band last
+week already owns it, and warning them about a cost that no longer exists would
+be a false alarm dressed up as care.
+
+**Practice is never gated.** Only the reader is. The session's content is
+precached, so a learner who says no still studies exactly as before — and the
+gate's own copy says that, because a learner who thinks declining will break
+their practice will not decline.
+
+**Unknown connectivity does not hold back, and this is the load-bearing one.**
+Only Chromium implements the Network Information API; Firefox and Safari report
+nothing. Treating silence as "probably metered" would withhold the reader from
+most desktop learners and every iPhone on Wi-Fi, on no evidence whatsoever.
+Withholding what someone expected, on a guess, is a worse failure than the
+download — and anyone who disagrees can set *"always ask"*.
+
+The figure shown is `gzipBytes`, not `bytes`. Quoting the raw size would
+overstate the cost by roughly four times, which is its own kind of dishonesty.
+
+### Two things the visual pass caught
+
+Neither would have failed a test. The gate's "download" button and the footer's
+"Kembali" were both full-width teal primaries, so the screen offered the learner
+two things that looked equally like the answer; navigation is quiet while a
+decision is on screen and primary again once it is gone. And the screen-reader
+hint explaining the arrow keys for tap-to-gloss was still announced while the
+gate was up, on a screen with no words to move between.
+
+### Left open
+
+The session summary could point at the reader when the day's allowance is spent
+— an honest "there is more if you want it" that does not become a streak. It was
+scoped out rather than rushed in beside a feature it has nothing to do with.
+
+---
+
 ## v1.12.1 — the bug v1.12.0 left open (2026-09-20)
 
 v1.12.0 closed by naming this and deliberately not fixing it, because it was

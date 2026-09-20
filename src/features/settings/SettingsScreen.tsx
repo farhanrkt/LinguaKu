@@ -24,7 +24,7 @@ import type { Profile, TargetLang } from '../../data/types.ts';
 
 interface SettingsScreenProps {
   profile: Profile;
-  onChange: (changes: Partial<Pick<Profile, 'topics' | 'dailyNewWords'>>) => void;
+  onChange: (changes: Partial<Pick<Profile, 'topics' | 'dailyNewWords' | 'dataSaver'>>) => void;
   onHabit: () => void;
   onSync: () => void;
   onDiagnostics: () => void;
@@ -48,6 +48,9 @@ const stepper =
  * here is a request rather than a guarantee.
  */
 const PACE_MAX = 40;
+
+/** Ordered least-intrusive first, which is also the default's position. */
+const DATA_CHOICES = ['auto', 'save', 'full'] as const;
 
 export const SettingsScreen = ({
   profile,
@@ -181,6 +184,23 @@ export const SettingsScreen = ({
           {copy.settings.pace.reset} — {copy.settings.pace.defaultNote(paceDefault)}
         </button>
       )}
+
+      {/* SPEC §5.4: the reference learner is on mobile data, so what the app
+          downloads is their decision to make rather than ours to assume. */}
+      <h2 className="mt-10 text-lg font-bold">{copy.settings.data.heading}</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.settings.data.intro}</p>
+
+      <div className="mt-4 flex flex-col gap-3" data-testid="data-saver">
+        {DATA_CHOICES.map((choice) => (
+          <OptionCard
+            key={choice}
+            label={copy.settings.data[choice]}
+            hint={copy.settings.data[`${choice}Hint`]}
+            selected={(profile.dataSaver ?? 'auto') === choice}
+            onToggle={() => onChange({ dataSaver: choice })}
+          />
+        ))}
+      </div>
 
       <h2 className="mt-10 text-lg font-bold">{copy.settings.moreHeading}</h2>
 

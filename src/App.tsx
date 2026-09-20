@@ -195,7 +195,10 @@ export const App = () => {
   const handleChange = useCallback(
     async (
       changes: Partial<
-        Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'topics' | 'dailyNewWords'>
+        Pick<
+          Profile,
+          'targets' | 'dailyMinutes' | 'scriptMode' | 'topics' | 'dailyNewWords' | 'dataSaver'
+        >
       >,
     ) => {
       setScreen((current) =>

@@ -93,3 +93,46 @@ const countCards = (page: Page): Promise<number> =>
         };
       }),
   );
+
+/**
+ * SPEC §5.4: the reference learner is on *"Indonesian mid-range Android on
+ * mobile data"*, and this screen is the one tap in the app that spends a
+ * noticeable amount of their plan — its band's sentence shards are ~415 KB
+ * gzipped for English. The architecture has deferred that cost since M2; what
+ * was missing was telling the learner before charging them for it.
+ */
+test('the reader says what it costs before spending the learner’s data', async ({ page }) => {
+  await firstRun(page);
+  await seedKnownVocabulary(page, 600);
+
+  await page.getByTestId('settings-open').click();
+  await page.getByTestId('data-saver').getByRole('button', { name: /Selalu tanya dulu/ }).click();
+  await page.getByRole('button', { name: 'Selesai' }).click();
+
+  await page.getByTestId('reader-open').click();
+
+  const gate = page.getByTestId('reader-data-gate');
+  await expect(gate).toBeVisible({ timeout: 20_000 });
+  // A real figure from the manifest, not a vague warning.
+  await expect(gate).toContainText(/\d+ KB/);
+  // And nothing has been rendered behind it.
+  await expect(page.getByTestId('reader-feed')).toBeHidden();
+
+  await page.getByTestId('reader-data-download').click();
+  await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 20_000 });
+  await expect(gate).toBeHidden();
+});
+
+/**
+ * The other half: a learner who has not asked to be asked is not asked. On
+ * `auto` with no Network Information API — Firefox, Safari, and the emulated
+ * Chrome these tests run in unless it reports otherwise — the reader opens.
+ */
+test('the reader opens without asking when nothing suggests a metered link', async ({ page }) => {
+  await firstRun(page);
+  await seedKnownVocabulary(page, 600);
+
+  await page.getByTestId('reader-open').click();
+  await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('reader-data-gate')).toBeHidden();
+});

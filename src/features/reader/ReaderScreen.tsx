@@ -16,8 +16,13 @@ import { bandForAbility } from '../../core/placement.ts';
 import { glossFor } from '../../data/glosses.ts';
 import { loadPassages, type Passage } from '../../data/passages.ts';
 import { PassageView } from './PassageView.tsx';
-import { loadSentences, type AnchorSentence } from '../../data/content.ts';
+import { downloadCost, loadSentences, type AnchorSentence } from '../../data/content.ts';
 import { db } from '../../data/db.ts';
+import {
+  connectionHint,
+  holdBackDownloads,
+  isAlreadyCached,
+} from '../../platform/connection.ts';
 import { vocabularyAbility } from '../../data/repositories/abilities.ts';
 import { mineItem, minedItemIds, unmineItem } from '../../data/repositories/mining.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
@@ -95,6 +100,18 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   /** SPEC §8's graded reader proper — running text, English only for now. */
   const [passages, setPassages] = useState<PassageItem<Passage>[]>([]);
 
+  /**
+   * SPEC §5.4. This screen is the one tap in the app that spends a noticeable
+   * amount of the learner's data plan: its band's sentence shards are ~415 KB
+   * gzipped for English and ~479 KB for Japanese. The architecture has deferred
+   * that cost since M2 (D20) — what was missing is telling the learner about it.
+   *
+   * `null` means "not decided yet", which is not the same as "no cost": the
+   * screen shows neither the gate nor an empty reader until the answer is known.
+   */
+  const [gate, setGate] = useState<{ kb: number } | null>(null);
+  const [payAnyway, setPayAnyway] = useState(false);
+
   useEffect(() => {
     void (async () => {
       const cards = await db.cards.where('profileId').equals(profile.id).toArray();
@@ -106,6 +123,26 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
       // with the frontier supplying what is new.
       const bands: FrequencyBand[] =
         frontier > 1 ? [(frontier - 1) as FrequencyBand, frontier] : [frontier];
+
+      if (!payAnyway && holdBackDownloads(profile.dataSaver ?? 'auto', connectionHint())) {
+        const cost = await downloadCost(
+          lang,
+          bands.flatMap((band) => [
+            { kind: 'sentences' as const, band },
+            { kind: 'passages' as const, band },
+          ]),
+        );
+        // Only ask where there is something to pay for. A learner who fetched
+        // this band last week already owns it, and warning them about a cost
+        // that no longer exists would be a false alarm, not caution.
+        const unpaid = await Promise.all(cost.urls.map((url) => isAlreadyCached(url)));
+        if (unpaid.some((cached) => !cached) && cost.gzipBytes > 0) {
+          setGate({ kb: Math.round(cost.gzipBytes / 1024) });
+          return;
+        }
+      }
+      setGate(null);
+
       const pool = (
         await Promise.all(bands.map((band) => loadSentences(lang, band)))
       ).flat();
@@ -138,7 +175,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         }),
       );
     })();
-  }, [profile.id, lang]);
+  }, [profile.id, lang, profile.dataSaver, payAnyway]);
 
   const handleTapToken = useCallback(
     async (token: string, passageId: string) => {
@@ -196,16 +233,49 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   }, [tapped, mined, profile.id]);
 
   return (
-    <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
+    <Screen
+      footer={
+        // While the gate is up, "download" is the decision and "back" is the
+        // way out of it — two full-width primaries would make the learner pick
+        // between two things that look equally like the answer.
+        <Button variant={gate === null ? 'primary' : 'quiet'} onClick={onBack}>
+          {copy.progress.back}
+        </Button>
+      }
+    >
       <h1 className="text-2xl font-bold">{copy.reader.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.reader.intro}</p>
       {/* Referenced by every tappable block on this screen (D70). Once, because
-          repeating it per paragraph is what makes a hint into noise. */}
-      <p id={WORD_NAV_HINT_ID} className="sr-only">
-        {copy.reader.wordNav}
-      </p>
+          repeating it per paragraph is what makes a hint into noise — and not
+          at all while the download gate is up, because there are no words yet
+          and a screen reader would be told how to move between nothing. */}
+      {gate !== null ? null : (
+        <p id={WORD_NAV_HINT_ID} className="sr-only">
+          {copy.reader.wordNav}
+        </p>
+      )}
 
-      {passages.length > 0 ? (
+      {gate !== null ? (
+        <section
+          className="mt-6 rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+          data-testid="reader-data-gate"
+        >
+          <h2 className="font-bold">{copy.reader.data.heading}</h2>
+          <p className="mt-1 text-stone-600 dark:text-slate-400">
+            {copy.reader.data.body(gate.kb)}
+          </p>
+          <div className="mt-4">
+            <Button onClick={() => setPayAnyway(true)} data-testid="reader-data-download">
+              {copy.reader.data.download}
+            </Button>
+          </div>
+          <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
+            {copy.reader.data.note}
+          </p>
+        </section>
+      ) : null}
+
+      {gate !== null ? null : passages.length > 0 ? (
         <section data-testid="passages">
           <h2 className="mt-8 text-lg font-bold">{copy.reader.passage.heading}</h2>
           {passages.map((item) => (
@@ -225,7 +295,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         </p>
       ) : null}
 
-      {items === null ? (
+      {gate !== null ? null : items === null ? (
         <p className="mt-8 text-stone-600 dark:text-slate-400">{copy.reader.loading}</p>
       ) : items.length === 0 ? (
         <p className="mt-8 text-stone-600 dark:text-slate-400">{copy.reader.empty}</p>

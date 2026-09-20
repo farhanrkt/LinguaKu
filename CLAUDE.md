@@ -242,6 +242,12 @@ needs React state to work, it is in the wrong place.
     filter runs *inside* the query so the 200-row page cannot be filled by the
     other language's backlog. `todaySnapshot` counts through the same predicate.
 
+43. **An optional download is announced before it is spent** (D80). §5.4's
+    learner is on mobile data; the reader states its real cost from the
+    manifest's `gzipBytes` and waits. Never for content already cached, never
+    for the practice session, and `unknown` connectivity does not hold back —
+    withholding on a guess is worse than the download.
+
 
 ## Conventions
 

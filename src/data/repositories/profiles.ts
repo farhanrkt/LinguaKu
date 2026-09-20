@@ -80,6 +80,7 @@ export const updateProfile = async (
       | 'requestRetention'
       | 'topics'
       | 'dailyNewWords'
+      | 'dataSaver'
     >
   >,
 ): Promise<void> => {

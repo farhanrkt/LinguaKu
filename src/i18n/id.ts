@@ -314,6 +314,19 @@ export const copy = {
       'Pakai tombol panah kiri dan kanan untuk pindah antar kata, lalu Enter untuk membuka artinya.',
     sentenceLabel: 'Kalimat bacaan',
 
+    /**
+     * SPEC §5.4: the reference learner is on mobile data, and opening the
+     * reader is the one tap in this app that spends a noticeable amount of it.
+     * Said in kilobytes, before the tap, with a way to say no.
+     */
+    data: {
+      heading: 'Bacaan perlu diunduh dulu',
+      body: (kb: number) =>
+        `Sekitar ${kb} KB, sekali saja — setelah itu bisa dibaca offline tanpa kuota lagi.`,
+      download: 'Unduh sekarang',
+      note: 'Kamu memakai mode hemat kuota. Latihan tetap jalan seperti biasa.',
+    },
+
     /** SPEC §8 + §2.4: real running text, where the coverage band is reachable. */
     passage: {
       from: (title: string) => `Dari artikel “${title}” (Wikipedia Bahasa Inggris Sederhana)`,
@@ -378,6 +391,18 @@ export const copy = {
 
   /** SPEC §10: one place for everything that is not practice. */
   settings: {
+    /** SPEC §5.4's quota control. */
+    data: {
+      heading: 'Kuota',
+      intro:
+        'Latihan harian sudah ada di HP-mu. Yang perlu diunduh cuma bacaan panjang — sekali saja per tingkat.',
+      auto: 'Ikut pengaturan HP',
+      autoHint: 'Kalau HP-mu menyalakan penghemat data, kami ikut.',
+      save: 'Selalu tanya dulu',
+      saveHint: 'Tidak ada yang diunduh sebelum kamu setuju.',
+      full: 'Unduh saja',
+      fullHint: 'Jangan tanya, langsung ambil.',
+    },
     /** SPEC §7.2's pace control, and §2.14's autonomy over it. */
     pace: {
       heading: 'Kata baru per hari',
