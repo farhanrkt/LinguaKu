@@ -1,12 +1,14 @@
 import Dexie from 'dexie';
 import { db } from '../db.ts';
-import { dueCards } from './reviews.ts';
+import { dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { composeSession, type Candidate } from '../../core/sessionComposer.ts';
 import {
   dailyCapacityFor,
+  dailyNewWords,
   forecastLoad,
   newItemAllowance,
+  type DailyNewResult,
   type ThrottleResult,
 } from '../../core/forecast.ts';
 import { bandForAbility } from '../../core/placement.ts';
@@ -254,10 +256,55 @@ const dueCandidates = async (
   });
 };
 
+/** What today actually holds, for the home screen to state before committing. */
+export interface TodaySnapshot {
+  /** Reviews waiting right now. */
+  due: number;
+  /** Today's introduction budget (SPEC §7.2). */
+  daily: DailyNewResult;
+}
+
+/**
+ * A read-only look at today's load, for the home screen.
+ *
+ * Deliberately counted the same way `dueCandidates` counts — profile-wide
+ * rather than scoped to the active language — so the number on the home screen
+ * cannot disagree with what the session it launches actually contains. That
+ * scoping is a known wrinkle in the composer rather than a choice here; the two
+ * move together when it changes.
+ *
+ * Writes nothing. §2.2's ban on browsing as a study activity is about advancing
+ * cards, and this advances none — it is the same class of read as the glossary
+ * (D67).
+ */
+export const todaySnapshot = async (
+  profile: Profile,
+  now: Timestamp,
+): Promise<TodaySnapshot> => {
+  const [due, introduced] = await Promise.all([
+    db.cards
+      .where('[profileId+suspended+dueAt]')
+      .between([profile.id, 0, Dexie.minKey], [profile.id, 0, now], true, true)
+      .count(),
+    introducedToday(profile.id, now),
+  ]);
+
+  return {
+    due,
+    daily: dailyNewWords({
+      cap: profile.dailyNewWords,
+      budgetMinutes: profile.dailyMinutes,
+      introducedToday: introduced,
+    }),
+  };
+};
+
 export interface SessionPlan {
   session: Session;
   /** What the throttle decided, so the UI can explain a quiet day honestly. */
   throttle: ThrottleResult;
+  /** Today's introduction budget, spent and remaining (SPEC §7.2). */
+  daily: DailyNewResult;
   frontier: FrequencyBand;
   /** How many contrastive drills the session carries (SPEC §7.2's ~5%). */
   drills: number;
@@ -292,10 +339,24 @@ export const planSession = async (
     baseNewItems: BASE_NEW_ITEMS,
   });
 
+  // SPEC §7.2's other half. The throttle above reacts to a backlog that already
+  // exists; this stops one forming. They are not redundant — the throttle is
+  // computed per *session* from a forecast that only moves days later, so five
+  // sessions in one evening passed it five times and introduced five doses of
+  // new material, which is the exact failure §7.2 calls the top cause of
+  // abandonment. The cap is the learner's own (§2.14), defaulting to what their
+  // session length can carry.
+  const daily = dailyNewWords({
+    cap: profile.dailyNewWords,
+    budgetMinutes: profile.dailyMinutes,
+    introducedToday: await introducedToday(profile.id, now),
+  });
+  const newAllowance = Math.min(throttle.allowed, daily.remaining);
+
   const deferred = await deferredItemIds(profile.id, now);
   const [due, fresh, drills] = await Promise.all([
     dueCandidates(profile, now, deferred),
-    newCandidates(profile, throttle.allowed, frontier, deferred),
+    newCandidates(profile, newAllowance, frontier, deferred),
     drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false),
   ]);
 
@@ -320,7 +381,7 @@ export const planSession = async (
     resumeCursor: 0,
   };
   await db.sessions.add(session);
-  return { session, throttle, frontier, drills: composed.allocation.drill };
+  return { session, throttle, daily, frontier, drills: composed.allocation.drill };
 };
 
 export const startSession = async (

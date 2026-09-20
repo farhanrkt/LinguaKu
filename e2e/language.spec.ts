@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { answerOne, firstRun } from './helpers.ts';
+import { answerOne, firstRun, leaveSession } from './helpers.ts';
 
 /**
  * Switching the target language switches everything that hangs off it.
@@ -30,7 +30,7 @@ test('an unfinished session does not follow the learner into the other language'
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
   await answerOne(page);
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
 
   // The English session is now open and resumable.
   await expect(page.getByTestId('practise')).toHaveText(/Lanjutkan latihan/);

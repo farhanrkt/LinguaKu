@@ -227,6 +227,16 @@ needs React state to work, it is in the wrong place.
     answer impossible rather than merely refused. Never dimmed: opacity on text
     is what D71's contrast gate exists to catch.
 
+40. **New words are capped per day, not just per session** (D76). The debt
+    throttle reacts to a backlog; `dailyNewWords` stops one forming, counted
+    from `ReviewLog.introduction` since local midnight. The default is derived
+    from `dailyCapacityFor` so the two halves of §7.2 cannot drift. Zero is a
+    valid setting, and early sessions being short is the correct consequence.
+41. **A swipe is a shortcut, never a second code path** (D77). Every swipe is
+    also a button, it is `aria-hidden`, it only goes on cards whose primary
+    action is already a tap, and it commits through the same latch as a tap
+    (invariant 37) — one swipe is one review.
+
 
 ## Conventions
 

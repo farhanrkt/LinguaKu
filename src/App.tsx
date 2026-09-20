@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FirstRun } from './features/onboarding/FirstRun.tsx';
 import { Home } from './features/home/Home.tsx';
 import { SessionScreen } from './features/session/SessionScreen.tsx';
@@ -14,7 +14,12 @@ import { HabitScreen } from './features/habit/HabitScreen.tsx';
 import { copy } from './i18n/id.ts';
 import { hasBeenPlaced, refreshListeningAbility } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
-import { findResumable, startSession } from './data/repositories/sessions.ts';
+import {
+  findResumable,
+  startSession,
+  todaySnapshot,
+  type TodaySnapshot,
+} from './data/repositories/sessions.ts';
 import { getHabit, lastPractisedAt } from './data/repositories/habits.ts';
 import { cueIsDue, scheduleReminder } from './platform/notifications.ts';
 import { ensureBands, STARTER_BANDS } from './data/content.ts';
@@ -51,6 +56,8 @@ export const App = () => {
   const [voice, setVoice] = useState<VoiceReport | null>(null);
   const [resumable, setResumable] = useState<Session | null>(null);
   const [placementOffered, setPlacementOffered] = useState(true);
+  /** Today's load for the home screen — null until it has actually been read. */
+  const [today, setToday] = useState<TodaySnapshot | null>(null);
   /** SPEC §2.13: the in-app cue, for every device that cannot schedule one. */
   const [cueDue, setCueDue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -145,6 +152,10 @@ export const App = () => {
   // soon as there is a profile so the first session does not wait on it.
   useEffect(() => {
     if (screen.name !== 'home') return;
+    // Today's load, re-read every time the home screen comes up rather than
+    // decremented as the learner works: the session just changed both figures,
+    // and guessing by how much is how a counter drifts away from the deck.
+    void todaySnapshot(screen.profile, Date.now()).then(setToday);
     const lang = screen.profile.targets[0];
     if (!lang) return;
     void ensureBands(lang, STARTER_BANDS).catch(() => {
@@ -164,16 +175,40 @@ export const App = () => {
     setDurability(await requestPersistentStorage());
   }, []);
 
+  /**
+   * Profile writes, in the order they were asked for.
+   *
+   * Each change used to start its own `getCurrentProfile` → `updateProfile`
+   * chain, so two changes in flight raced and the DB kept whichever *finished*
+   * last rather than whichever the learner asked for last. Stepping a control
+   * five times quickly persisted the fourth value. Every setting on this screen
+   * shares the one profile row, so they all share this queue.
+   */
+  const profileWrites = useRef<Promise<unknown>>(Promise.resolve());
+
+  const queueProfileWrite = useCallback(<T,>(work: () => Promise<T>): Promise<T> => {
+    const next = profileWrites.current.then(work, work);
+    profileWrites.current = next.catch(() => undefined);
+    return next;
+  }, []);
+
   const handleChange = useCallback(
-    async (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'topics'>>) => {
+    async (
+      changes: Partial<
+        Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode' | 'topics' | 'dailyNewWords'>
+      >,
+    ) => {
       setScreen((current) =>
         current.name === 'home' || current.name === 'settings'
           ? { ...current, profile: { ...current.profile, ...changes } }
           : current,
       );
+      // The read is not queued — the profile id never changes, so concurrent
+      // reads are safe and serializing them only put a round trip in front of
+      // every write. Only the writes need an order.
       const profile = await getCurrentProfile();
       if (!profile) return;
-      await updateProfile(profile.id, changes);
+      await queueProfileWrite(() => updateProfile(profile.id, changes));
 
       // Switching the language switches everything that hangs off it. Left
       // stale, the home screen offers to resume the *other* language's session
@@ -191,7 +226,7 @@ export const App = () => {
       setResumable(resume);
       setPlacementOffered(placed);
     },
-    [],
+    [queueProfileWrite],
   );
 
   const handlePractise = useCallback(async () => {
@@ -323,6 +358,7 @@ export const App = () => {
           resumable={resumable}
           busy={busy}
           placementOffered={placementOffered}
+          today={today}
           onReady={() => probeAudio(screen.profile.targets[0] ?? 'en')}
           onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
           onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}

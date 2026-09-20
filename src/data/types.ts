@@ -54,6 +54,15 @@ export interface Profile {
    */
   requestRetention?: number;
   /**
+   * New words a day (SPEC §7.2, §2.14 autonomy). Absent means the default for
+   * `dailyMinutes` — an older profile needs no backfill, because absent already
+   * means "whatever suits my session length".
+   *
+   * Zero is a legitimate setting, not an error: reviewing what you already have
+   * without adding more is how a learner digs out of a backlog.
+   */
+  dailyNewWords?: number;
+  /**
    * SPEC §2.14 (autonomy): *"learner picks topic clusters"*, and SPEC §2.10:
    * frequency order *"modulated by learner-selected topic goals"*.
    *
@@ -252,6 +261,20 @@ export interface ReviewLog {
   correct: Flag;
   /** Contrastive categories the wrong answer matched (SPEC §3.3). */
   interferenceHit?: string[];
+  /**
+   * This answer was the item's **first**, i.e. the moment the word entered the
+   * learner's deck (SPEC §7.2's daily introduction cap).
+   *
+   * Written rather than derived: "how many new words today" would otherwise mean
+   * finding each of today's items' earliest log row, which is a scan of an
+   * append-only table that only grows. `recordReview` already knows — it has
+   * just queried this card's history to compute promotion — so it costs nothing
+   * there and everything to recompute later.
+   *
+   * Absent on every row written before v1.12.0, which reads correctly as "not
+   * an introduction": the counter only ever asks about today.
+   */
+  introduction?: Flag;
   reviewedAt: Timestamp;
   scheduledDays: number;
   elapsedDays: number;

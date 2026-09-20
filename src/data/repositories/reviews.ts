@@ -16,6 +16,7 @@ import type {
   Timestamp,
 } from '../types.ts';
 import { flag } from '../types.ts';
+import { startOfLocalDay } from '../../core/forecast.ts';
 
 /**
  * The single writer of FSRS state.
@@ -140,6 +141,9 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
     ...(input.interferenceHit && input.interferenceHit.length > 0
       ? { interferenceHit: input.interferenceHit }
       : {}),
+    // The item's first answer is the moment it joined the deck, and `previous`
+    // has already told us (SPEC §7.2's daily cap counts these).
+    ...(previous.length === 0 ? { introduction: flag(true) } : {}),
     reviewedAt: input.now,
     scheduledDays: scheduled.scheduledDays,
     elapsedDays: scheduled.elapsedDays,
@@ -160,6 +164,25 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
   });
 
   return { card: updated, decision, answeredAt };
+};
+
+/**
+ * New words introduced since local midnight (SPEC §7.2).
+ *
+ * Reads the `[profileId+reviewedAt]` index rather than scanning: only today's
+ * rows are fetched, and `introduction` is already on each of them. "Today" is
+ * the device's own midnight, because a learner in Jakarta practising at 23:59
+ * has not started tomorrow.
+ */
+export const introducedToday = async (
+  profileId: string,
+  now: Timestamp,
+): Promise<number> => {
+  const logs = await db.reviewLogs
+    .where('[profileId+reviewedAt]')
+    .between([profileId, startOfLocalDay(now)], [profileId, now], true, true)
+    .toArray();
+  return logs.filter((log) => log.introduction === 1).length;
 };
 
 /** Cards due for review, most at risk first is the composer's job — not this. */

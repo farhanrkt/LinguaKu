@@ -1,5 +1,101 @@
 # PROGRESS.md
 
+## v1.12.0 — flashcards, and the pacing underneath them (2026-09-20)
+
+The ask was flashcards you tap or swipe through to learn new words every day,
+structured the way an SRS normally handles new material. The gesture was the
+visible half. The half that changes what a learner experiences was underneath.
+
+### What was actually missing
+
+The app has had FSRS, a seven-rung ladder and a review-debt throttle since M5.
+So "add spaced repetition" was already done. The gap was narrower and worse:
+
+§7.2 calls review debt *"the #1 cause of abandonment in SRS apps"* and requires
+the throttle to be automatic. `newItemAllowance` has implemented that since M5
+and it works. But it is a **brake**, not a speed limit. It is computed per
+*session*, from a seven-day forecast, and a forecast cannot move until cards
+exist and their due dates have spread — days after the evening that caused the
+problem. A learner running five sessions in one evening passed it five times.
+
+Measuring it was the moment the size of this became clear: **a fresh 4-minute
+learner's very first session queued 30 new words**, against a review capacity of
+20 a day. Thirty first exposures, each of which comes back several times over
+the following fortnight. The backlog is bought on day one and delivered on day
+four, and §7.2 says exactly what happens then.
+
+### The cap, and the cost of it
+
+`dailyNewWords` caps introductions per local day. Counting them needed nothing
+new: `recordReview` already queries a card's history to compute promotion, so it
+knows when an answer is an item's first and records that on the log row. No
+migration, no scan, and rows written before this release read correctly as "not
+an introduction" because the counter only ever asks about today.
+
+The default is `dailyCapacityFor(minutes) / 4` rather than a fresh constant —
+one source of truth, so the two halves of §7.2 cannot drift apart. That gives
+**5 / 10 / 19** new words a day for the three session lengths.
+
+**The cost is real and it is stated rather than buried.** A learner with no
+cards has nothing to review, so their first sessions are now exactly one day's
+allowance — five items, not thirty. The old behaviour *looked* more generous and
+was the thing that would have made them quit in a fortnight. The home screen
+names the number before they start, and anyone who wants more can say so.
+
+Two existing tests failed on this, and both were asserting session length as an
+incidental proxy — *"more than 5 items"* — for things that were actually about
+something else (that a queue gets filled; that declining a word costs nothing).
+They now measure what they were about. Worth flagging plainly: I changed the
+expectations of tests that were passing, and the reason is that the number they
+encoded was only true because the app was over-introducing.
+
+### The gesture
+
+`SwipeCard`. Right takes the word, left declines it, and the answered card
+swipes on. Three rules keep it from becoming a second way for things to go
+wrong: every swipe is also a button and the gesture is invisible to assistive
+technology; it only attaches to cards whose primary action was already a tap,
+because on a typed rung a horizontal drag fights the learner for text selection;
+and it commits through the same latch a tap does, so one swipe is one review.
+
+The drag decides its axis after 10px and then holds it — without that the page
+cannot be scrolled from anywhere on a card, which is the failure that makes
+swipe UIs feel broken. It resists a pull towards a side with nothing on it, and
+under `prefers-reduced-motion` it does not transform at all while still
+committing.
+
+### Three defects found by building it
+
+None of these were the feature. All three were found by using it.
+
+**Settings could persist out of order.** Every change started its own
+read-then-write chain, so two in flight raced and the row kept whichever
+*finished* last rather than whichever was asked for last. Stepping a control
+five times quickly saved the fourth value. Found because a Playwright test
+reloaded the page faster than a human would — which is a real learner killing
+the app right after a tap.
+
+**A stepper lost taps**, because each one waited for a write and a re-render
+before the next could count from the right base. My first fix moved the
+arithmetic into a state updater, which traded the race for a worse bug: the
+updater called `onChange`, and React is free to run an updater more than once.
+The value now lives in a ref, which is synchronous.
+
+**A swiped card scrolled the page sideways** — 464px of document in a 375px
+viewport. `Screen` clips horizontally now, with `clip` rather than `hidden`,
+because `hidden` creates a scroll container and would have silently broken the
+sticky footer directly above it.
+
+### Left open
+
+`dueCandidates` pulls due cards for the whole profile rather than the language
+being studied, so a learner who has studied both can get Japanese cards inside
+an English session. `todaySnapshot` deliberately counts the same way so the home
+screen cannot disagree with the session it launches; both should be scoped
+together when it is fixed.
+
+---
+
 ## v1.11.1 — retiring the answered card (2026-08-19)
 
 v1.11.0 stopped the duplicate reviews with two latches and explicitly left the

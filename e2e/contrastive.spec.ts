@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun } from './helpers.ts';
+import { answerOne, firstRun, leaveSession } from './helpers.ts';
 
 /**
  * M4 acceptance (SPEC §12): wrong answers on tagged items produce an Indonesian
@@ -82,7 +82,7 @@ test('answering drills is what puts numbers on the heatmap', async ({ page }) =>
   await page.getByTestId('next').click();
 
   // Leave mid-session; the drill answer is already recorded.
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
   await page.getByTestId('progress-open').click();
 
   await expect(page.getByTestId('heatmap')).toBeVisible({ timeout: 15_000 });

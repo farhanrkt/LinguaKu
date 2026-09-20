@@ -34,6 +34,25 @@ export const copy = {
     needTarget: 'Pilih dulu bahasa yang mau kamu mulai.',
   },
   home: {
+    /**
+     * What today actually holds, said before the learner commits to it.
+     *
+     * Counts, never targets (§2.15) and never praise (§2.14): "12 ulangan" is
+     * a fact about the deck, and a finished day is reported the same flat way a
+     * busy one is. Nothing here can be fallen behind on.
+     */
+    today: {
+      // The noun only: the view sets the figure beside it in tabular numerals,
+      // so the number and its label are never spliced back out of a sentence.
+      dueLabel: 'ulangan',
+      newLabel: 'kata baru',
+      clear: 'Ulangan hari ini sudah beres. Kata baru lagi besok.',
+      // Not the same sentence: a learner who switched new words off is not
+      // waiting for tomorrow, and telling them otherwise would be a small lie
+      // about their own setting.
+      clearPaused: 'Tidak ada ulangan yang jatuh tempo, dan kata baru sedang kamu matikan.',
+      capReached: 'Kata baru hari ini sudah cukup. Ulangan tetap jalan.',
+    },
     greeting: 'Halo!',
     learningLabel: 'Kamu sedang belajar',
     minutesLabel: 'Target harian',
@@ -80,6 +99,18 @@ export const copy = {
       heading: 'Kenalan dulu',
       instruction: 'Baca dan dengar. Belum perlu dihafal.',
       confirm: 'Oke, paham',
+    },
+
+    /**
+     * The thumb shortcut. Every one of these is also a button, so this copy
+     * never carries an instruction a learner *must* follow — it tells them a
+     * faster way exists and names what each direction does.
+     */
+    swipe: {
+      confirm: 'Paham',
+      defer: 'Belum perlu',
+      next: 'Lanjut',
+      hint: 'Geser kartunya, atau pakai tombol di bawah.',
     },
 
     /**
@@ -347,6 +378,18 @@ export const copy = {
 
   /** SPEC §10: one place for everything that is not practice. */
   settings: {
+    /** SPEC §7.2's pace control, and §2.14's autonomy over it. */
+    pace: {
+      heading: 'Kata baru per hari',
+      intro:
+        'Kata baru hari ini menjadi ulangan minggu depan. Pelan-pelan justru lebih cepat — dan kamu boleh atur sendiri.',
+      unit: (count: number) => `${count} kata baru per hari`,
+      none: 'Tidak ada kata baru dulu. Ulangan yang sudah ada tetap jalan — ini cara paling ampuh mengejar tumpukan ulangan.',
+      fewer: 'Kurangi',
+      more: 'Tambah',
+      reset: 'Kembali ke bawaan',
+      defaultNote: (count: number) => `Bawaan untuk sesi sepanjang ini: ${count}.`,
+    },
     open: 'Pengaturan',
     heading: 'Pengaturan',
     done: 'Selesai',

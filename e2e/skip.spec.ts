@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, leaveSession } from './helpers.ts';
 
 /**
  * SPEC §2.14, autonomy: *"can always skip an item (belum perlu)"*.
@@ -50,7 +50,7 @@ test('a declined word does not come back in the next session', async ({ page }) 
 
   await page.getByTestId('session-skip').click();
   await expect(page.getByTestId('session-progress')).toHaveText(/2 dari \d+/);
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
 
   // A fresh session, built after the deferral was written.
   await expect(page.getByTestId('practise')).toBeVisible();

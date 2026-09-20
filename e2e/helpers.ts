@@ -232,3 +232,22 @@ export const seedDueCardsAtLevel = async (
   await page.reload();
   await expect(page.getByTestId('practise')).toBeEnabled({ timeout: 20_000 });
 };
+
+/**
+ * Leaves a session, whichever way it ended.
+ *
+ * A session runs until its queue is empty *or* until the learner stops, and
+ * those exits are different controls: the summary's "Kembali" and the
+ * mid-session "Selesai dulu". Tests used to reach for the second one and got
+ * away with it only because a fresh session was longer than they were —
+ * SPEC §7.2's daily cap makes a first session exactly one day's allowance, so
+ * they now finish it.
+ */
+export const leaveSession = async (page: Page): Promise<void> => {
+  const summary = page.getByTestId('session-summary');
+  if (await summary.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Kembali' }).click();
+    return;
+  }
+  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+};

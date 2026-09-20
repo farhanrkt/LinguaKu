@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun } from './helpers.ts';
+import { answerOne, firstRun, leaveSession } from './helpers.ts';
 
 /**
  * M5 acceptance (SPEC §12): *"every §9 item renders from real local data;
@@ -66,7 +66,7 @@ test('answering questions puts real numbers on the screen', async ({ page }) => 
     if (await page.getByTestId('session-summary').isVisible().catch(() => false)) break;
     await answerOne(page);
   }
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
   await openProgress(page);
 
   // The forecast now has cards in it — drawn from this learner's own schedule.
@@ -81,7 +81,7 @@ test('exports a JSON backup with no account, and restores it', async ({ page }) 
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
   for (let i = 0; i < 4; i++) await answerOne(page);
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
   await openProgress(page);
 
   const download = page.waitForEvent('download');
@@ -136,7 +136,7 @@ test('the recap reports capability, never a score', async ({ page }) => {
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
   for (let i = 0; i < 3; i++) await answerOne(page);
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
 
   await page.getByTestId('progress-open').click();
   const recap = page.getByTestId('recap');
@@ -167,7 +167,7 @@ test('the glossary shows what was answered, and answers nothing', async ({ page 
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
   for (let index = 0; index < 3; index++) await answerOne(page);
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
 
   await page.getByTestId('progress-open').click();
   await page.getByTestId('glossary-open').click();

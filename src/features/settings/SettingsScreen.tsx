@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
+import { defaultDailyNewWords } from '../../core/forecast.ts';
 import { Screen } from '../../ui/Screen.tsx';
 import { loadTopics, type Topic } from '../../data/topics.ts';
 import type { Profile, TargetLang } from '../../data/types.ts';
@@ -23,7 +24,7 @@ import type { Profile, TargetLang } from '../../data/types.ts';
 
 interface SettingsScreenProps {
   profile: Profile;
-  onChange: (changes: Partial<Pick<Profile, 'topics'>>) => void;
+  onChange: (changes: Partial<Pick<Profile, 'topics' | 'dailyNewWords'>>) => void;
   onHabit: () => void;
   onSync: () => void;
   onDiagnostics: () => void;
@@ -33,6 +34,20 @@ interface SettingsScreenProps {
 
 const link =
   'mt-2 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-left font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300';
+
+/** §10's 56px tap target, as a square. */
+const stepper =
+  'grid size-14 shrink-0 place-items-center rounded-2xl border-2 border-stone-300 text-2xl font-semibold text-teal-800 ' +
+  'motion-safe:transition-colors hover:border-teal-700 disabled:opacity-40 ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ' +
+  'dark:border-slate-700 dark:text-teal-300 dark:focus-visible:outline-teal-300';
+
+/**
+ * A ceiling on the stepper, not on the learner's ambition — the debt throttle
+ * (SPEC §7.2) still governs what actually gets introduced, so a high number
+ * here is a request rather than a guarantee.
+ */
+const PACE_MAX = 40;
 
 export const SettingsScreen = ({
   profile,
@@ -46,6 +61,31 @@ export const SettingsScreen = ({
   const lang: TargetLang = profile.targets[0] ?? 'en';
   const [topics, setTopics] = useState<readonly Topic[] | null>(null);
   const chosen = new Set(profile.topics ?? []);
+
+  // Absent means "whatever suits my session length", so the control shows that
+  // number rather than an empty box the learner has to guess at.
+  const paceDefault = defaultDailyNewWords(profile.dailyMinutes);
+
+  /**
+   * Held in a ref *and* mirrored into state: the ref is what the next tap adds
+   * to, because it updates synchronously, and the state is what renders.
+   *
+   * Reading the number straight off `profile` meant every tap had to wait for a
+   * write and a re-render before the next one could be counted from the right
+   * base — five taps on "−" landed as four. Moving it into a state updater
+   * traded that for a worse bug: `onChange` is a side effect, and React is free
+   * to run an updater more than once or not when you expect. A learner jabbing
+   * a stepper on a slow phone is the ordinary case, not an edge one.
+   */
+  const chosenPace = profile.dailyNewWords ?? paceDefault;
+  const pending = useRef(chosenPace);
+  const [pace, setLocalPace] = useState(chosenPace);
+
+  const applyPace = (next: number) => {
+    pending.current = Math.max(0, Math.min(PACE_MAX, next));
+    setLocalPace(pending.current);
+    onChange({ dailyNewWords: pending.current });
+  };
 
   useEffect(() => {
     void loadTopics(lang).then((pack) => setTopics(pack.topics));
@@ -88,6 +128,58 @@ export const SettingsScreen = ({
             {chosen.size === 0 ? copy.settings.topicsNone : copy.settings.topicsNote}
           </p>
         </>
+      )}
+
+      {/*
+        SPEC §7.2's pace control. A stepper rather than the option cards above,
+        because this is one number on a continuum and not a set of named
+        choices — and the honest default is derived from the learner's own
+        session length, so it is offered back rather than hidden.
+      */}
+      <h2 className="mt-10 text-lg font-bold">{copy.settings.pace.heading}</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.settings.pace.intro}</p>
+
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => applyPace(pending.current - 1)}
+          disabled={pace <= 0}
+          aria-label={copy.settings.pace.fewer}
+          data-testid="pace-fewer"
+          className={stepper}
+        >
+          −
+        </button>
+        <p
+          className="flex-1 text-center text-lg font-semibold tabular-nums"
+          aria-live="polite"
+          data-testid="pace-value"
+        >
+          {pace}
+        </p>
+        <button
+          type="button"
+          onClick={() => applyPace(pending.current + 1)}
+          disabled={pace >= PACE_MAX}
+          aria-label={copy.settings.pace.more}
+          data-testid="pace-more"
+          className={stepper}
+        >
+          +
+        </button>
+      </div>
+      <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="pace-note">
+        {pace === 0 ? copy.settings.pace.none : copy.settings.pace.unit(pace)}
+      </p>
+      {pace === paceDefault ? null : (
+        <button
+          type="button"
+          onClick={() => applyPace(paceDefault)}
+          data-testid="pace-reset"
+          className="mt-2 min-h-12 text-sm text-teal-800 underline underline-offset-4 dark:text-teal-300"
+        >
+          {copy.settings.pace.reset} — {copy.settings.pace.defaultNote(paceDefault)}
+        </button>
       )}
 
       <h2 className="mt-10 text-lg font-bold">{copy.settings.moreHeading}</h2>

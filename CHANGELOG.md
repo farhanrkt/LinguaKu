@@ -5,6 +5,81 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.12.0 — 2026-09-20
+
+Flashcards, in both halves of what that word means: the gesture you expect, and
+the pacing machinery underneath that decides which card you see.
+
+### The card can be pushed away with a thumb
+
+`SwipeCard` (D77). Swipe right on a new word to take it, left to say *belum
+perlu*; swipe the answered card to continue. The drag tracks the thumb 1:1 and
+tilts, the action's own label reads out from behind the card, and letting go
+short of the commit point springs it back.
+
+**Every swipe is also a button.** The gesture is `aria-hidden`, the keyboard
+route is untouched, and it only goes on cards whose primary action was already
+a tap — on a cloze or production rung the learner is selecting text, and a
+horizontal drag would fight them for it. It commits through the same latch a tap
+does (v1.11.0's invariant 37), so one swipe is one review, with a test that says
+so.
+
+### New words are capped per day, not just per session
+
+The bigger half, and the one that changes what a learner actually experiences.
+
+§7.2 has called review debt *"the #1 cause of abandonment in SRS apps"* since M0,
+and the debt throttle has existed since M5. But a brake is not a speed limit:
+the throttle is computed **per session** from a 7-day forecast, and a forecast
+only moves days after the evening that caused the problem. Five sessions in one
+evening passed it five times.
+
+**Measured on a fresh profile: a 4-minute learner's first session queued 30 new
+words, against a review capacity of 20 a day.** A backlog bought on day one and
+paid for on day four.
+
+There is now a daily cap, counted from the review log since local midnight. The
+default is derived from `dailyCapacityFor` rather than a second magic number —
+**5 / 10 / 19** new words a day for the three session lengths — and the learner
+can set their own, including zero, which is how anyone digs out of a backlog.
+
+**The cost, stated rather than buried:** early sessions are now short. A learner
+with no cards has nothing to review, so their queue is exactly one day's
+allowance. That is the correct behaviour, and the home screen says so before
+they start.
+
+### The home screen says what today holds
+
+*"0 ulangan · 5 kata baru"* — the one thing an SRS home screen owes its user and
+the one thing this one never said. Counts, never targets, and a finished day is
+reported in the same flat voice as a busy one. A learner who has switched new
+words off is told *that*, rather than that new words resume tomorrow.
+
+### Fixed — three things found while building it
+
+- **Settings could persist out of order.** Every change started its own
+  read-then-write chain, so two changes in flight raced and the row kept
+  whichever *finished* last rather than whichever was asked for last. Stepping a
+  control five times quickly saved the fourth value. Writes are now ordered.
+- **A stepper lost taps.** Reading the number off the profile meant each tap
+  waited for a write and a re-render before the next could count from the right
+  base. A learner jabbing a control on a slow phone is the ordinary case.
+- **A swiped card scrolled the page sideways** — 464px of document in a 375px
+  viewport. `Screen` clips horizontally now, with `clip` rather than `hidden`,
+  because `hidden` creates a scroll container and would have silently broken the
+  sticky footer.
+
+### Measured on this build
+
+| | |
+|---|---|
+| unit tests | **779**, 57 files |
+| e2e | **59** |
+| initial JS / CSS gzipped | **139.9 KB** / **6.7 KB** (budgets 200 / 40) |
+| WCAG 2.1 AA violations | **0**, light and dark |
+
+---
+
 ## v1.11.1 — 2026-08-19
 
 ### Changed — an answered card retires

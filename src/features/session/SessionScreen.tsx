@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
+import { SwipeCard } from '../../ui/SwipeCard.tsx';
 import { gradeAnswer, gradeForOutcome, type GradeResult } from '../../core/grader.ts';
 import { detectInterference } from '../../core/interference.ts';
 import {
@@ -422,6 +423,7 @@ export const SessionScreen = ({
         task={entry.task}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
+        onDefer={() => void once(handleSkip)}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
       />
@@ -538,12 +540,16 @@ export const SessionScreen = ({
       <div className="mt-6 flex flex-col gap-3">
         {reveal ? (
           <>
-            <AnsweredCard task={reveal.task} raw={reveal.raw} />
+            <SwipeCard right={{ label: copy.session.swipe.next, onCommit: handleNext }}>
+              <AnsweredCard task={reveal.task} raw={reveal.raw} />
+            </SwipeCard>
             <Feedback reveal={reveal} />
           </>
         ) : drillReveal ? (
           <>
-            <AnsweredDrill reveal={drillReveal} />
+            <SwipeCard right={{ label: copy.session.swipe.next, onCommit: handleNext }}>
+              <AnsweredDrill reveal={drillReveal} />
+            </SwipeCard>
             <DrillFeedback reveal={drillReveal} />
           </>
         ) : (

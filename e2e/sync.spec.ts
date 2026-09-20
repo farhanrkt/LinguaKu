@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { firstRun, openFromSettings } from './helpers.ts';
+import { firstRun, leaveSession, openFromSettings } from './helpers.ts';
 
 /**
  * M7's acceptance criterion, in the browser: *"the app remains fully functional
@@ -23,7 +23,7 @@ test('nothing ever talks to a sync endpoint unless the learner turns it on', asy
   await firstRun(page);
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
   await page.getByTestId('progress-open').click();
   await expect(page.getByTestId('vocab')).toBeVisible({ timeout: 15_000 });
 
@@ -49,7 +49,7 @@ test('a failed sync leaves the learner’s data alone', async ({ page }) => {
   await firstRun(page);
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await leaveSession(page);
 
   await openFromSettings(page, 'sync-open');
   await page.getByTestId('sync-enable').check();

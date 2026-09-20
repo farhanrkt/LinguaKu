@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { KanaInput } from '../../ui/KanaInput.tsx';
 import { Button } from '../../ui/Button.tsx';
+import { SwipeCard } from '../../ui/SwipeCard.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import {
   isSpeechInputAvailable,
@@ -82,8 +83,27 @@ const WordMeaning = ({ task }: { task: Task }) => {
 };
 
 /** L0 — errorless first exposure. Nothing is being tested yet. */
-export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }: TaskProps) => (
+export const ExposureTask = ({
+  task,
+  onAnswer,
+  onPlayAudio,
+  audioAvailable,
+  busy,
+  onDefer,
+}: TaskProps & { onDefer?: () => void }) => (
   <div>
+    <SwipeCard
+      className="rounded-2xl border-2 border-stone-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+      {...(busy === true
+        ? {}
+        : {
+            right: {
+              label: copy.session.swipe.confirm,
+              onCommit: () => onAnswer({ raw: task.headword, confidence: null }),
+            },
+            ...(onDefer ? { left: { label: copy.session.swipe.defer, onCommit: onDefer } } : {}),
+          })}
+    >
     <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
       {copy.session.exposure.heading}
     </p>
@@ -108,8 +128,9 @@ export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy
     ) : null}
 
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
+    </SwipeCard>
 
-    <div className="mt-8">
+    <div className="mt-6">
       <Button
         onClick={() => onAnswer({ raw: task.headword, confidence: null })}
         disabled={busy === true}
@@ -118,6 +139,10 @@ export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy
         {copy.session.exposure.confirm}
       </Button>
     </div>
+    {/* The gesture is a shortcut, so it is mentioned rather than required. */}
+    <p className="mt-2 text-center text-xs text-stone-500 dark:text-slate-400">
+      {copy.session.swipe.hint}
+    </p>
   </div>
 );
 
