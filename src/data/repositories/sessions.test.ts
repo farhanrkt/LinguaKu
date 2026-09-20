@@ -7,6 +7,7 @@ import {
   planSession,
   sessionProgress,
   startSession,
+  todaySnapshot,
 } from './sessions.ts';
 import { recordReview } from './reviews.ts';
 import { deferItem } from './deferrals.ts';
@@ -343,5 +344,91 @@ describe('the daily new-word cap', () => {
     for (const itemId of plan.session.itemIds) {
       expect(await db.cards.get(`${profile.id}::${itemId}`)).toBeDefined();
     }
+  });
+});
+
+/**
+ * A session belongs to one language, and now its *reviews* do too.
+ *
+ * `Session.lang` has recorded which language a queue was composed for since
+ * v1.0.1, added because resuming a session under a different target handed the
+ * learner the other language's content. The queue itself was never actually
+ * built that way: new items and drills were scoped, and due cards were not —
+ * so a learner who had studied both could meet Japanese kanji inside an
+ * English session, with the UI claiming otherwise.
+ */
+describe('a review queue holds one language', () => {
+  /** Gives the profile a due card in the language its id names. */
+  const seedDueCard = async (itemId: string, lang: 'en' | 'ja', at: number) => {
+    // `at` is the card's own due time, so a test can control which cards the
+    // index yields first — which is the whole point of the crowding test below.
+    await db.items.put({
+      id: itemId,
+      lang,
+      kind: 'lexeme',
+      headword: itemId.split(':')[2] ?? 'x',
+      anchorSentenceIds: [],
+      freqRank: 1,
+      band: 1,
+      interferenceTags: [],
+      sourceRef: { dataset: 'tatoeba', externalId: itemId },
+    });
+    await db.cards.put({
+      id: `${profile.id}::${itemId}`,
+      profileId: profile.id,
+      itemId,
+      ladderLevel: 1,
+      dueAt: at - 1_000,
+      suspended: 0,
+      fsrs: {
+        dueAt: at - 1_000,
+        stability: 10,
+        difficulty: 5,
+        elapsedDays: 1,
+        scheduledDays: 1,
+        learningSteps: 0,
+        reps: 3,
+        lapses: 0,
+        state: 2,
+        lastReviewAt: at - 86_400_000,
+      },
+    });
+  };
+
+  it('never queues the other language’s due cards', async () => {
+    await seed(20);
+    for (let i = 0; i < 6; i++) await seedDueCard(`ja:lex:ja${i}`, 'ja', NOW);
+    for (let i = 0; i < 3; i++) await seedDueCard(`en:lex:en${i}`, 'en', NOW);
+
+    const session = await startSession(profile, NOW);
+    expect(session.itemIds.length).toBeGreaterThan(0);
+    expect(session.itemIds.filter((id) => id.startsWith('ja:'))).toEqual([]);
+  });
+
+  it('does not let the other language’s backlog crowd out the queue', async () => {
+    // The filter runs inside the query, before the limit. Filtering an
+    // already-capped page would let a big Japanese backlog fill every row and
+    // leave the English session looking empty.
+    await seed(20);
+    // Overdue by a week, so all 250 sort ahead of the English card on the
+    // `[profileId+suspended+dueAt]` index and fill the 200-row page. Without
+    // that the English card lands in the page by accident — its id sorts before
+    // "ja:" — and this test would pass against the very bug it exists for.
+    for (let i = 0; i < 250; i++) {
+      await seedDueCard(`ja:lex:big${i}`, 'ja', NOW - 7 * 86_400_000);
+    }
+    await seedDueCard('en:lex:survivor', 'en', NOW);
+
+    const session = await startSession(profile, NOW);
+    expect(session.itemIds).toContain('en:lex:survivor');
+  });
+
+  it('counts the home screen’s reviews the same way the queue is built', async () => {
+    await seed(20);
+    for (let i = 0; i < 5; i++) await seedDueCard(`ja:lex:other${i}`, 'ja', NOW);
+    await seedDueCard('en:lex:mine', 'en', NOW);
+
+    // Otherwise the screen promises reviews the session will not contain.
+    expect((await todaySnapshot(profile, NOW)).due).toBe(1);
   });
 });

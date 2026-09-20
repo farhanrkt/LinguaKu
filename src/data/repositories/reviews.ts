@@ -13,10 +13,12 @@ import type {
   Grade,
   LadderLevel,
   ReviewLog,
+  TargetLang,
   Timestamp,
 } from '../types.ts';
 import { flag } from '../types.ts';
 import { startOfLocalDay } from '../../core/forecast.ts';
+import { langOfItemId } from '../../core/coverage.ts';
 
 /**
  * The single writer of FSRS state.
@@ -185,14 +187,49 @@ export const introducedToday = async (
   return logs.filter((log) => log.introduction === 1).length;
 };
 
-/** Cards due for review, most at risk first is the composer's job — not this. */
+export interface DueCardsOptions {
+  /**
+   * Only cards belonging to this language. A card carries no language of its
+   * own — it is keyed by `profileId::itemId` — so the language is read off the
+   * item id's namespace (`langOfItemId`).
+   */
+  lang?: TargetLang;
+  limit?: number;
+}
+
+/**
+ * Cards due for review, most at risk first is the composer's job — not this.
+ *
+ * The language filter runs **inside** the query, before the limit, and that
+ * ordering is the whole point: filtering an already-capped page would let a
+ * learner's Japanese backlog crowd every English card out of the first 200 rows
+ * and leave their English session looking empty.
+ */
 export const dueCards = async (
   profileId: string,
   now: Timestamp,
-  limit = 200,
-): Promise<Card[]> =>
-  db.cards
+  options: DueCardsOptions = {},
+): Promise<Card[]> => {
+  const { lang, limit = 200 } = options;
+  const due = db.cards
     .where('[profileId+suspended+dueAt]')
-    .between([profileId, 0, Dexie.minKey], [profileId, 0, now], true, true)
+    .between([profileId, 0, Dexie.minKey], [profileId, 0, now], true, true);
+
+  return (lang === undefined ? due : due.filter((card) => langOfItemId(card.itemId) === lang))
     .limit(limit)
     .toArray();
+};
+
+/** How many are due, counted the same way the queue is built. */
+export const dueCardCount = async (
+  profileId: string,
+  now: Timestamp,
+  lang?: TargetLang,
+): Promise<number> => {
+  const due = db.cards
+    .where('[profileId+suspended+dueAt]')
+    .between([profileId, 0, Dexie.minKey], [profileId, 0, now], true, true);
+  return lang === undefined
+    ? due.count()
+    : due.filter((card) => langOfItemId(card.itemId) === lang).count();
+};

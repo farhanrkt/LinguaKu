@@ -1,5 +1,46 @@
 # PROGRESS.md
 
+## v1.12.1 — the bug v1.12.0 left open (2026-09-20)
+
+v1.12.0 closed by naming this and deliberately not fixing it, because it was
+adjacent to the work rather than part of it. Fixed now.
+
+**What was wrong.** Three builders feed a session queue. `newCandidates` scoped
+by the `[lang+kind]` index; `drillCandidates` scoped throughout; `dueCandidates`
+did not scope at all. So every *review* in an English session was drawn from the
+whole profile, and a learner who had studied both languages could be handed
+Japanese kanji under a heading that said they were studying English.
+
+The interesting part is that the invariant was already written down. `Session`
+gained a `lang` field at v1.0.1 for exactly this reason — resuming a session
+under a different target served the wrong language — and sessions written before
+that field are still never resumed because of it. The field recorded the
+intention; nothing enforced it one layer down.
+
+**Reading a card's language.** Cards are keyed `profileId::itemId` and carry no
+language. Rather than a second round trip per card to fetch its item,
+`langOfItemId` reads the namespace every item id already carries — the inverse
+of `lexemeIdFor`, which has been constructing those ids since M1.
+
+**Where the filter goes is the actual fix.** `dueCards` pages at 200 rows. Doing
+the filter after that page is fetched would be worse than useless for the
+learner this bug is about: a large Japanese backlog would occupy all 200 rows
+and their English session would come back looking empty. The predicate therefore
+runs inside the query, before the limit.
+
+**A test that passed against the bug.** The first version of the crowding test
+seeded 250 Japanese cards and one English card, all with the same due time, and
+passed whether or not the fix was present — `p1::en:lex:survivor` sorts before
+`p1::ja:...`, so the English card landed inside the first 200 rows for free. It
+now backdates the Japanese cards by a week so they genuinely fill the page.
+Worth recording because the test looked correct and asserted the right thing;
+only running it against the unfixed code showed it was measuring nothing.
+
+All three tests in the new suite were checked that way, and two of the three
+needed nothing — but the one that did would have shipped as false assurance.
+
+---
+
 ## v1.12.0 — flashcards, and the pacing underneath them (2026-09-20)
 
 The ask was flashcards you tap or swipe through to learn new words every day,

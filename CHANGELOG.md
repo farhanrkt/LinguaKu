@@ -5,6 +5,38 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.12.1 — 2026-09-20
+
+### Fixed — an English session could contain Japanese cards
+
+`Session.lang` has recorded which language a queue was composed for since
+v1.0.1, added precisely because resuming a session under a different target
+handed the learner the other language's content. The queue itself was never
+actually built that way.
+
+New items were scoped by the `[lang+kind]` index and drills were scoped
+throughout — but due cards came from the **whole profile**, so a learner who had
+studied both languages could meet Japanese kanji inside an English session while
+the screen said *"Kamu sedang belajar Inggris"*.
+
+A card carries no language of its own — it is keyed `profileId::itemId` — so the
+language is read off the namespace every item id already has (`en:lex:word`,
+`ja:kanji:水`), with `langOfItemId`, the inverse of `lexemeIdFor`.
+
+**The filter runs before the limit, and that ordering is the fix rather than a
+detail.** `dueCards` pages at 200 rows; filtering an already-capped page would
+let a Japanese backlog fill every row and leave the English session looking
+empty. There is a test for exactly that, and it had to be rewritten once — the
+first version passed against the bug by accident, because `en:` sorts before
+`ja:` and the English card landed in the page for free.
+
+`todaySnapshot` counts through the same predicate, so the home screen cannot
+promise reviews the session will not contain.
+
+786 unit · 59 e2e.
+
+---
+
 ## v1.12.0 — 2026-09-20
 
 Flashcards, in both halves of what that word means: the gesture you expect, and

@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.12.0
+## Status — v1.12.1
 
 **Milestones 0 through 11 complete.** Every §2 requirement is implemented and
 the §8 exercise catalog is finished. See [`CHANGELOG.md`](CHANGELOG.md) for the
@@ -20,8 +20,8 @@ production verification procedure.
 | | |
 |---|---|
 | icon tap → first answerable question | **108 ms** (budget 3 s) |
-| initial JS / CSS, gzipped | **139.9 KB** / **6.7 KB** (budgets 200 / 40) |
-| tests | **779** unit · **59** e2e |
+| initial JS / CSS, gzipped | **140.0 KB** / **6.7 KB** (budgets 200 / 40) |
+| tests | **786** unit · **59** e2e |
 | WCAG 2.1 AA violations | **0**, gated in CI in **both themes** |
 | recurring cost | **zero** |
 

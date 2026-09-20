@@ -237,6 +237,11 @@ needs React state to work, it is in the wrong place.
     action is already a tap, and it commits through the same latch as a tap
     (invariant 37) — one swipe is one review.
 
+42. **A review queue holds one language** (D79). `dueCandidates` scopes by
+    `langOfItemId`, matching `newCandidates` and `drillCandidates`, and the
+    filter runs *inside* the query so the 200-row page cannot be filled by the
+    other language's backlog. `todaySnapshot` counts through the same predicate.
+
 
 ## Conventions
 

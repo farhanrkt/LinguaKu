@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 import { db } from '../db.ts';
-import { dueCards, introducedToday } from './reviews.ts';
+import { dueCardCount, dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { composeSession, type Candidate } from '../../core/sessionComposer.ts';
 import {
@@ -230,9 +230,16 @@ const dueCandidates = async (
   now: Timestamp,
   deferred: Set<string>,
 ): Promise<Candidate[]> => {
-  const cards = await dueCards(profile.id, now);
+  // Scoped to the language being studied. `Session.lang` has recorded which
+  // language a queue was composed for since v1.0.1 — because resuming a session
+  // under a different target handed the learner the other language's content —
+  // but the queue itself was never actually built that way: due cards came from
+  // the whole profile, so a learner who had studied both could meet Japanese
+  // kanji inside an English session. New items and drills were already scoped.
+  const lang = profile.targets[0] ?? 'en';
+  const cards = await dueCards(profile.id, now, { lang });
   const items = await db.items.bulkGet(cards.map((card) => card.itemId));
-  const topics = peekTopics(profile.targets[0] ?? 'en');
+  const topics = peekTopics(lang);
 
   return cards.flatMap((card, index) => {
     const item = items[index];
@@ -267,11 +274,9 @@ export interface TodaySnapshot {
 /**
  * A read-only look at today's load, for the home screen.
  *
- * Deliberately counted the same way `dueCandidates` counts — profile-wide
- * rather than scoped to the active language — so the number on the home screen
- * cannot disagree with what the session it launches actually contains. That
- * scoping is a known wrinkle in the composer rather than a choice here; the two
- * move together when it changes.
+ * Counted the same way `dueCandidates` counts — scoped to the language being
+ * studied — so the number on the home screen cannot disagree with what the
+ * session it launches actually contains.
  *
  * Writes nothing. §2.2's ban on browsing as a study activity is about advancing
  * cards, and this advances none — it is the same class of read as the glossary
@@ -282,10 +287,7 @@ export const todaySnapshot = async (
   now: Timestamp,
 ): Promise<TodaySnapshot> => {
   const [due, introduced] = await Promise.all([
-    db.cards
-      .where('[profileId+suspended+dueAt]')
-      .between([profile.id, 0, Dexie.minKey], [profile.id, 0, now], true, true)
-      .count(),
+    dueCardCount(profile.id, now, profile.targets[0] ?? 'en'),
     introducedToday(profile.id, now),
   ]);
 
