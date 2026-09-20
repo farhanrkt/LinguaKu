@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
+import { KanaInput } from '../../ui/KanaInput.tsx';
 import { Button } from '../../ui/Button.tsx';
+import { SwipeCard } from '../../ui/SwipeCard.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import {
   isSpeechInputAvailable,
@@ -19,6 +21,12 @@ interface TaskProps {
   onAnswer: (payload: AnswerPayload) => void;
   onPlayAudio: () => void;
   audioAvailable: boolean;
+  /**
+   * An answer is already being written. One click is one answer, and the
+   * controls say so rather than silently swallowing the extra taps — see
+   * `SessionScreen`, where the guard that actually enforces it lives.
+   */
+  busy?: boolean;
 }
 
 const AudioButton = ({ onPlay, available }: { onPlay: () => void; available: boolean }) =>
@@ -33,14 +41,69 @@ const AudioButton = ({ onPlay, available }: { onPlay: () => void; available: boo
     </button>
   ) : (
     // SPEC §2.6: say that audio is missing rather than pretending it is there.
-    <p className="mt-3 text-sm text-stone-500 dark:text-slate-500">
+    <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">
       {copy.session.audio.unavailable}
     </p>
   );
 
+/**
+ * The word, and what it means in Indonesian.
+ *
+ * Glosses cover 30% of English words and 4% of Japanese — measured, D59 — so
+ * "no entry" is the ordinary case, not an error. It gets said out loud for the
+ * same reason the reader says it: a learner who sees nothing cannot tell
+ * whether the app has no answer or whether they missed it. What a gloss is
+ * *not* is an answer key (invariant 29), which is why this shows meaning and
+ * never grades against it.
+ */
+const WordMeaning = ({ task }: { task: Task }) => {
+  const senses = task.gloss ?? [];
+  return (
+    <div className="mt-4">
+      <p>
+        <span
+          data-testid="task-headword"
+          className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200"
+        >
+          {task.headword}
+        </span>
+        {senses.length > 0 ? (
+          <span data-testid="task-gloss" className="ml-2 text-lg text-stone-600 dark:text-slate-400">
+            {senses.join('; ')}
+          </span>
+        ) : null}
+      </p>
+      {senses.length === 0 ? (
+        <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="task-no-gloss">
+          {copy.session.meaning.none}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
 /** L0 — errorless first exposure. Nothing is being tested yet. */
-export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskProps) => (
+export const ExposureTask = ({
+  task,
+  onAnswer,
+  onPlayAudio,
+  audioAvailable,
+  busy,
+  onDefer,
+}: TaskProps & { onDefer?: () => void }) => (
   <div>
+    <SwipeCard
+      className="rounded-2xl border-2 border-stone-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+      {...(busy === true
+        ? {}
+        : {
+            right: {
+              label: copy.session.swipe.confirm,
+              onCommit: () => onAnswer({ raw: task.headword, confidence: null }),
+            },
+            ...(onDefer ? { left: { label: copy.session.swipe.defer, onCommit: onDefer } } : {}),
+          })}
+    >
     <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
       {copy.session.exposure.heading}
     </p>
@@ -50,27 +113,41 @@ export const ExposureTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: Ta
 
     <p className="mt-6 text-2xl leading-snug font-bold">{task.sentence.text}</p>
     <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
-    <p className="mt-4">
-      <span
-        data-testid="task-headword"
-        className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200"
+    {/* SPEC §2.3 L0: sentence + audio + gloss. */}
+    <WordMeaning task={task} />
+
+    {/* SPEC §2.5 + §2.9: where a chunk has an L1 trap, naming it is the whole
+        value of teaching the phrase whole rather than word by word. */}
+    {task.chunkNote ? (
+      <p
+        className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+        data-testid="chunk-note"
       >
-        {task.headword}
-      </span>
-    </p>
+        {task.chunkNote}
+      </p>
+    ) : null}
 
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
+    </SwipeCard>
 
-    <div className="mt-8">
-      <Button onClick={() => onAnswer({ raw: task.headword, confidence: null })}>
+    <div className="mt-6">
+      <Button
+        onClick={() => onAnswer({ raw: task.headword, confidence: null })}
+        disabled={busy === true}
+        data-testid="exposure-confirm"
+      >
         {copy.session.exposure.confirm}
       </Button>
     </div>
+    {/* The gesture is a shortcut, so it is mentioned rather than required. */}
+    <p className="mt-2 text-center text-xs text-stone-500 dark:text-slate-400">
+      {copy.session.swipe.hint}
+    </p>
   </div>
 );
 
 /** L1 — recognition. Distractors come from the same frequency band (§2.3). */
-export const RecognitionTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskProps) => (
+export const RecognitionTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }: TaskProps) => (
   <div>
     <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
       {copy.session.recognition.heading}
@@ -85,6 +162,7 @@ export const RecognitionTask = ({ task, onAnswer, onPlayAudio, audioAvailable }:
           key={option}
           label={option}
           selected={false}
+          disabled={busy === true}
           onToggle={() => onAnswer({ raw: option, confidence: null })}
         />
       ))}
@@ -100,7 +178,7 @@ export const RecognitionTask = ({ task, onAnswer, onPlayAudio, audioAvailable }:
  * exercise. An item only reaches this view when audio for it is genuinely
  * available (SPEC §2.6), so there is no "no audio" branch to fall back to.
  */
-export const DictationTask = ({ onAnswer, onPlayAudio }: TaskProps) => {
+export const DictationTask = ({ onAnswer, onPlayAudio, busy }: TaskProps) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
 
@@ -108,9 +186,9 @@ export const DictationTask = ({ onAnswer, onPlayAudio }: TaskProps) => {
     input.current?.focus();
   }, []);
 
-  const submit = (confidence: Confidence) => {
-    if (value.trim().length === 0) return;
-    onAnswer({ raw: value, confidence });
+  const submit = (confidence: Confidence, raw: string = value) => {
+    if (raw.trim().length === 0) return;
+    onAnswer({ raw, confidence });
   };
 
   return (
@@ -151,12 +229,12 @@ export const DictationTask = ({ onAnswer, onPlayAudio }: TaskProps) => {
           className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
         />
         <div className="mt-4 flex gap-3">
-          <Button type="submit" disabled={value.trim().length === 0}>
+          <Button type="submit" disabled={value.trim().length === 0 || busy === true}>
             {copy.session.cloze.sure}
           </Button>
           <Button
             variant="quiet"
-            disabled={value.trim().length === 0}
+            disabled={value.trim().length === 0 || busy === true}
             onClick={() => submit('ragu')}
             className="border-2 border-stone-300 dark:border-slate-700"
           >
@@ -169,7 +247,7 @@ export const DictationTask = ({ onAnswer, onPlayAudio }: TaskProps) => {
 };
 
 /** L2/L3 — contextual production, with or without the Indonesian support. */
-export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskProps) => {
+export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }: TaskProps) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const supported = task.kind === 'cloze-supported';
@@ -180,9 +258,9 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskP
     input.current?.focus();
   }, []);
 
-  const submit = (confidence: Confidence) => {
-    if (value.trim().length === 0) return;
-    onAnswer({ raw: value, confidence });
+  const submit = (confidence: Confidence, raw: string = value) => {
+    if (raw.trim().length === 0) return;
+    onAnswer({ raw, confidence });
   };
 
   return (
@@ -227,12 +305,12 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable }: TaskP
         {/* SPEC §2.12: the confidence signal *is* the submit button, so asking
             for it costs the learner nothing. */}
         <div className="mt-4 flex gap-3">
-          <Button type="submit" disabled={value.trim().length === 0}>
+          <Button type="submit" disabled={value.trim().length === 0 || busy === true}>
             {copy.session.cloze.sure}
           </Button>
           <Button
             variant="quiet"
-            disabled={value.trim().length === 0}
+            disabled={value.trim().length === 0 || busy === true}
             onClick={() => submit('ragu')}
             className="border-2 border-stone-300 dark:border-slate-700"
           >
@@ -277,7 +355,7 @@ export const KanjiTask = ({
 
       {face.components.length > 0 ? (
         <div className="mt-6">
-          <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.kanji.componentsHeading}
           </p>
           <p className="mt-1 text-2xl" data-testid="kanji-components">
@@ -288,7 +366,7 @@ export const KanjiTask = ({
 
       {face.reading ? (
         <div className="mt-4">
-          <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.kanji.readingHeading}
           </p>
           <p className="mt-1 text-xl">{face.reading}</p>
@@ -296,7 +374,7 @@ export const KanjiTask = ({
       ) : null}
 
       <div className="mt-6">
-        <p className="text-sm font-semibold text-stone-500 dark:text-slate-500">
+        <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
           {copy.session.kanji.mnemonicHeading}
           {face.mnemonicIsMine ? (
             <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-900 dark:bg-teal-950 dark:text-teal-200">
@@ -304,7 +382,7 @@ export const KanjiTask = ({
             </span>
           ) : null}
         </p>
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
           {copy.session.kanji.mnemonicHint}
         </p>
         <textarea
@@ -389,7 +467,7 @@ const SpeakButton = ({
         🎤 {listening ? copy.session.speech.listening : copy.session.speech.speak}
       </Button>
       {status ? (
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500" role="status">
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400" role="status">
           {status}
         </p>
       ) : null}
@@ -398,7 +476,7 @@ const SpeakButton = ({
 };
 
 /** L5 — production. The Indonesian alone, and a blank field (SPEC §2.3). */
-export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: string }) => {
+export const ProductionTask = ({ task, onAnswer, lang, busy }: TaskProps & { lang: string }) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
 
@@ -406,9 +484,9 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
     input.current?.focus();
   }, []);
 
-  const submit = (confidence: Confidence) => {
-    if (value.trim().length === 0) return;
-    onAnswer({ raw: value, confidence });
+  const submit = (confidence: Confidence, raw: string = value) => {
+    if (raw.trim().length === 0) return;
+    onAnswer({ raw, confidence });
   };
 
   return (
@@ -420,7 +498,43 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
         {lang === 'ja' ? copy.session.production.instructionJa : copy.session.production.instruction}
       </p>
 
-      <p className="mt-6 text-2xl leading-snug font-bold">{task.translation}</p>
+      {/*
+        §2.3 calls L5 "ID → target, produced": the prompt is the *meaning*, and
+        the learner produces the word. It used to be the whole Indonesian
+        sentence, while the graded answer was a single headword — so a learner
+        could read the prompt perfectly and still have no way of knowing which
+        word was wanted, or that one word was wanted at all.
+
+        Where a gloss exists it leads and the sentence becomes context. Where
+        none does — the common case at 30% coverage — the sentence leads, and
+        the note says why it is the only clue on offer instead of leaving the
+        learner to guess at the exercise as well as the answer.
+      */}
+      {task.gloss && task.gloss.length > 0 ? (
+        <>
+          <p className="mt-6 text-2xl leading-snug font-bold" data-testid="production-prompt">
+            {task.gloss.join('; ')}
+          </p>
+          <p className="mt-3 text-sm text-stone-600 dark:text-slate-400">
+            <span className="block text-xs tracking-wide uppercase">
+              {copy.session.meaning.sentenceLabel}
+            </span>
+            {task.translation}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="mt-6 text-2xl leading-snug font-bold" data-testid="production-prompt">
+            {task.translation}
+          </p>
+          <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="task-no-gloss">
+            {copy.session.meaning.none}
+          </p>
+        </>
+      )}
+      <p className="mt-2 text-sm font-semibold text-teal-800 dark:text-teal-300">
+        {copy.session.production.oneWord}
+      </p>
 
       <form
         onSubmit={(event) => {
@@ -428,26 +542,40 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
           submit('yakin');
         }}
       >
-        <input
-          ref={input}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          aria-label={copy.session.production.placeholder}
-          placeholder={copy.session.production.placeholder}
-          autoComplete="off"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
-        />
+        {/* SPEC §10: Japanese production is where an IME headache would stop a
+            learner cold, so this is the one rung that gets the kana input. */}
+        {lang === 'ja' ? (
+          <div className="mt-6">
+            <KanaInput
+              value={value}
+              onChange={setValue}
+              placeholder={copy.session.production.placeholder}
+              data-testid="production-input"
+              onSubmit={(committed) => submit('yakin', committed)}
+            />
+          </div>
+        ) : (
+          <input
+            ref={input}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            aria-label={copy.session.production.placeholder}
+            placeholder={copy.session.production.placeholder}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+          />
+        )}
         <SpeakButton lang={lang} onTranscript={setValue} />
         <div className="mt-4 flex gap-3">
-          <Button type="submit" disabled={value.trim().length === 0}>
+          <Button type="submit" disabled={value.trim().length === 0 || busy === true}>
             {copy.session.cloze.sure}
           </Button>
           <Button
             variant="quiet"
-            disabled={value.trim().length === 0}
+            disabled={value.trim().length === 0 || busy === true}
             onClick={() => submit('ragu')}
             className="border-2 border-stone-300 dark:border-slate-700"
           >
@@ -469,7 +597,7 @@ export const ProductionTask = ({ task, onAnswer, lang }: TaskProps & { lang: str
  * yours, and the check is that the word is in it. That is still the generation
  * effect doing its work; inventing a quality score would not add to it.
  */
-export const FreeProductionTask = ({ task, onAnswer }: TaskProps) => {
+export const FreeProductionTask = ({ task, onAnswer, busy }: TaskProps) => {
   const [value, setValue] = useState('');
   const [missing, setMissing] = useState(false);
 
@@ -488,7 +616,7 @@ export const FreeProductionTask = ({ task, onAnswer }: TaskProps) => {
         {copy.session.free.heading}
       </p>
       <p className="mt-2 text-lg">{copy.session.free.instruction(task.headword)}</p>
-      <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{copy.session.free.graded}</p>
+      <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{copy.session.free.graded}</p>
 
       <textarea
         value={value}
@@ -510,7 +638,7 @@ export const FreeProductionTask = ({ task, onAnswer }: TaskProps) => {
       ) : null}
 
       <div className="mt-4">
-        <Button onClick={submit} disabled={value.trim().length === 0} data-testid="free-submit">
+        <Button onClick={submit} disabled={value.trim().length === 0 || busy === true} data-testid="free-submit">
           {copy.session.free.submit}
         </Button>
       </div>

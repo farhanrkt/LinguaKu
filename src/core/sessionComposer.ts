@@ -20,6 +20,7 @@ export type CardType =
   | 'dictation'
   | 'drill'
   | 'kanji'
+  | 'chunk'
   | 'production';
 
 export const cardTypeForLevel = (level: LadderLevel): CardType => {
@@ -57,6 +58,8 @@ export const SECONDS_PER_CARD_TYPE: Record<CardType, number> = {
   drill: 12,
   // Read the breakdown, then write or edit a mnemonic (SPEC §2.11).
   kanji: 20,
+  // A multi-word formula: longer to read than a word, and longer to type back.
+  chunk: 20,
   // Producing a word cold, or a sentence of your own: the slowest thing here.
   production: 26,
 };
@@ -102,7 +105,7 @@ export interface Candidate {
    * sit at: four characters in a row is blocked practice however varied their
    * ladder levels are.
    */
-  itemKind?: 'lexeme' | 'kanji';
+  itemKind?: 'lexeme' | 'kanji' | 'chunk';
 }
 
 export interface ComposeInput {
@@ -141,7 +144,12 @@ export const cardTypeFor = (candidate: Candidate): CardType =>
     ? 'drill'
     : candidate.itemKind === 'kanji'
       ? 'kanji'
-      : cardTypeForLevel(candidate.ladderLevel);
+      : // A chunk is its own type for the same reason a kanji is: retrieving a
+        // fixed multi-word formula is a different act from retrieving a word,
+        // and three of them in a row is the blocked practice §2.8 forbids.
+        candidate.itemKind === 'chunk'
+        ? 'chunk'
+        : cardTypeForLevel(candidate.ladderLevel);
 
 const secondsFor = (candidate: Candidate): number =>
   SECONDS_PER_CARD_TYPE[cardTypeFor(candidate)];

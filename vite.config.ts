@@ -102,6 +102,17 @@ export default defineConfig({
           'content/*/{lexemes,anchors}.b1.json',
           'content/*/{lexemes,anchors}.b2.json',
           'content/*/{lexemes,anchors}.b3.json',
+          // Glosses for the same bands: ~33 KB raw across both languages, and
+          // the first exposure card of the first offline session wants one.
+          'content/*/glosses.b1.json',
+          'content/*/glosses.b2.json',
+          'content/*/glosses.b3.json',
+          // Chunks (SPEC §2.5): 96 authored phrases, a few KB, and they are
+          // items the very first session can introduce.
+          'content/*/topics.json',
+          'content/*/chunks.b1.json',
+          'content/*/chunks.b2.json',
+          'content/*/chunks.b3.json',
         ],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
@@ -121,8 +132,37 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'linguaku-content',
-              expiration: { maxEntries: 64 },
+              // **This must exceed the number of content shards, or offline
+              // breaks silently.** It was 64 when the app shipped 47 files;
+              // glosses, chunks, topics and passages took it to 65, so a
+              // learner who touched both languages was one fetch away from
+              // evicting a shard they had already downloaded — and the failure
+              // looks like content that mysteriously will not open on a plane.
+              // `purgeOnQuotaError` is the other half: when the device is full,
+              // dropping content is the right answer, because it is
+              // re-fetchable and the learner's review history is not.
+              expiration: { maxEntries: 192, purgeOnQuotaError: true },
               cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Pre-cached audio (risk R1). §5.4 promises the app is *"fully
+            // functional offline after first load, including audio for cached
+            // bands"*, and a clip matches none of the rules above — it is not
+            // JSON — so without this it would be fetched every play and be
+            // silently unavailable offline, which is the one situation the
+            // clips exist for.
+            //
+            // `rangeRequests` because an <audio> element issues Range requests
+            // and Safari always does: without the plugin a cached clip answers
+            // a range request with a 200 and the element refuses to play it.
+            urlPattern: /\/content\/.+\.(m4a|opus|mp3)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'linguaku-audio',
+              expiration: { maxEntries: 1_200, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
+              rangeRequests: true,
             },
           },
         ],

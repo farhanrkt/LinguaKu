@@ -50,10 +50,38 @@ has no accounts (SPEC §10) and adding one here would drag the whole product int
 needing them. Anyone running this for more than themselves should put real auth
 in front of it.
 
-## What is untested
+## Deployed 2026-08-19
 
-The client, the delta format and the merge rules have unit tests that run in CI.
-**The Worker itself has never been deployed or run** — that needs a Cloudflare
-account, which the build environment does not have. The published limits above
-were read from the documentation on the date given, not measured against a live
-account. Treat the deployment steps as unverified until someone runs them.
+The steps above have now been run, and two of them needed correcting: `d1
+execute` needs `--config` to resolve the binding from outside this directory,
+and `d1 create` prints a binding name (`linguaku`) that does **not** match the
+`DB` binding `index.ts` reads — take the `database_id` and nothing else.
+
+| | |
+|---|---|
+| Worker | `linguaku-sync` → `https://linguaku-sync.farhanrangki.workers.dev` |
+| D1 | `linguaku`, region **APAC** (served from SIN — the right side of the planet for this audience) |
+| Schema | applied `--remote`; one table, one index |
+
+**It is live and it is fail-closed.** `SYNC_TOKEN` is deliberately still unset,
+and with no token every `POST /sync` answers **401** — verified over 14
+consecutive requests. Anything that is not `POST /sync` answers 404. So the
+endpoint exists and grants nothing until its owner sets the secret:
+
+```bash
+npx wrangler secret put SYNC_TOKEN --config workers/sync/wrangler.toml
+```
+
+A note on reading the output while it settles: for the first minutes after a
+deploy, `workers.dev` returns intermittent Cloudflare `error code: 1042` pages
+with a 404. Those are the edge, not the Worker — the Worker's own 404 is
+`{"error":"not found"}`. They stopped within three minutes.
+
+## What is still untested
+
+The client, the delta format and the merge rules have unit tests that run in CI,
+and the Worker now answers on a real account. **The authenticated round trip has
+never run**, because that needs the token its owner has not set — so pushing a
+delta, storing it, and reading it back on a second device is still unverified.
+The free-tier limits above were read from documentation on the date given and
+have not been measured against traffic.

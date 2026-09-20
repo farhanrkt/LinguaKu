@@ -24,6 +24,13 @@ export const flag = (value: boolean): Flag => (value ? 1 : 0);
 /** Epoch milliseconds. */
 export type Timestamp = number;
 
+/**
+ * SPEC §5.4: whether optional downloads wait to be asked for. Stored on the
+ * profile, so it lives here rather than beside the Network Information wrapper
+ * that reads it — `src/data` does not depend on `src/platform`.
+ */
+export type DataPreference = 'auto' | 'save' | 'full';
+
 export type UiLang = 'id';
 export type TargetLang = 'en' | 'ja';
 
@@ -53,6 +60,32 @@ export interface Profile {
    * older profile needs no backfill, because absent already means "the default".
    */
   requestRetention?: number;
+  /**
+   * New words a day (SPEC §7.2, §2.14 autonomy). Absent means the default for
+   * `dailyMinutes` — an older profile needs no backfill, because absent already
+   * means "whatever suits my session length".
+   *
+   * Zero is a legitimate setting, not an error: reviewing what you already have
+   * without adding more is how a learner digs out of a backlog.
+   */
+  dailyNewWords?: number;
+  /**
+   * SPEC §5.4: what to do about downloads on a metered connection. Absent means
+   * `auto` — follow the browser's own Save-Data signal — which is what every
+   * profile written before v1.13.0 gets, and the right default either way.
+   */
+  dataSaver?: DataPreference;
+  /**
+   * SPEC §2.14 (autonomy): *"learner picks topic clusters"*, and SPEC §2.10:
+   * frequency order *"modulated by learner-selected topic goals"*.
+   *
+   * Absent or empty means no preference, which is not the same as "none" — a
+   * learner who has chosen nothing gets the frequency order they always got.
+   * Choosing a topic *reorders* new items; it never restricts them, because a
+   * learner who picks "food" still needs the function words that hold a
+   * sentence together.
+   */
+  topics?: string[];
 }
 
 /** SPEC §4.2: three abilities are estimated separately, never collapsed. */
@@ -108,6 +141,37 @@ export interface Item {
   levelTag?: string;
   /** SPEC §2.11: kanji components, e.g. 校 → ['木', '交']. */
   componentsOf?: string[];
+  /**
+   * Chunks only (SPEC §2.5): the Indonesian meaning, and the L1 trap where
+   * there is one.
+   *
+   * A lexeme's meaning comes from its anchor sentences and, where one exists,
+   * the gloss shard — but a chunk is authored *with* its meaning, because the
+   * whole reason it is an item is that its parts do not add up to it. Carrying
+   * two short authored strings on the item is cheaper than a shard lookup for
+   * ninety-six rows, and it keeps the authored content and its licence
+   * together.
+   */
+  gloss?: string;
+  chunkNote?: string;
+  /**
+   * Chunks only: the example sentences, carried on the item.
+   *
+   * A lexeme's anchors are ids resolved against `anchors.b<band>.json`, which
+   * is the curated subset a band's vocabulary is taught through (D19). A chunk
+   * draws its anchors from the whole corpus, so that lookup missed silently —
+   * the task came back null and the session skipped the item. Carrying the
+   * sentences makes the failure impossible rather than unlikely.
+   */
+  examples?: Array<{
+    id: string;
+    text: string;
+    difficulty: number;
+    maxRank: number;
+    tr: { id: string; text: string };
+    tokens?: string[];
+    readings?: string[];
+  }>;
   /** SPEC §3: contrastive category IDs this item exercises. */
   interferenceTags: string[];
   sourceRef: SourceRef;
@@ -210,6 +274,20 @@ export interface ReviewLog {
   correct: Flag;
   /** Contrastive categories the wrong answer matched (SPEC §3.3). */
   interferenceHit?: string[];
+  /**
+   * This answer was the item's **first**, i.e. the moment the word entered the
+   * learner's deck (SPEC §7.2's daily introduction cap).
+   *
+   * Written rather than derived: "how many new words today" would otherwise mean
+   * finding each of today's items' earliest log row, which is a scan of an
+   * append-only table that only grows. `recordReview` already knows — it has
+   * just queried this card's history to compute promotion — so it costs nothing
+   * there and everything to recompute later.
+   *
+   * Absent on every row written before v1.12.0, which reads correctly as "not
+   * an introduction": the counter only ever asks about today.
+   */
+  introduction?: Flag;
   reviewedAt: Timestamp;
   scheduledDays: number;
   elapsedDays: number;
@@ -287,6 +365,34 @@ export interface DeferredItem {
   until: Timestamp;
   /** How many times running it has been declined; each skip defers it longer. */
   times: number;
+}
+
+/**
+ * One comprehension check on a passage the learner has just read (SPEC §9's
+ * reading axis, §2.4).
+ *
+ * Its own table, for D32's reason exactly: a passage has no FSRS card behind
+ * it — nothing scheduled, no stability — so filing these among the review logs
+ * would put unscheduled items into the retention rate §9 promises to report
+ * honestly, and `ReviewLog.cardId` would be a lie. Append-only, like the other
+ * two attempt logs.
+ */
+export interface ReadingAttempt {
+  id: string;
+  profileId: string;
+  lang: TargetLang;
+  passageId: string;
+  /** The lexeme that was blanked out of the text. */
+  itemId: string;
+  correct: Flag;
+  answerRaw: string;
+  /**
+   * Known-token coverage of the passage at the moment it was shown. Kept
+   * because a right answer on a text at 0.99 coverage and one at 0.92 are not
+   * the same evidence, and the difference is unrecoverable afterwards.
+   */
+  coverage: number;
+  answeredAt: Timestamp;
 }
 
 export interface Session {

@@ -6,5 +6,5 @@ compatibility_date = "2026-08-11"
 [[d1_databases]]
 binding = "DB"
 database_name = "linguaku"
-# Filled in by `wrangler d1 create linguaku`.
-database_id = ""
+# Filled in by `wrangler d1 create linguaku` — created 2026-08-19, region APAC.
+database_id = "b6b994f9-ceaf-40f5-81f4-6627ca64d741"

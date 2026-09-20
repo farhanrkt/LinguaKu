@@ -1,5 +1,953 @@
 # PROGRESS.md
 
+## v1.13.0 — the half of §5.4 that was never built (2026-09-20)
+
+Asked to develop the app further with no brief, so the work was choosing what
+to build. Three candidates were checked against the code before anything was
+written, and two of them turned out to be done already.
+
+**Leeches** (§7.2) are fully handled: a lapse threshold, demotion, re-teaching
+with a *fresh* sentence rather than the one that failed, a feedback line and a
+glossary badge. **Metacognitive calibration** (§2.12) is collected as the
+confidence tap and reported on the progress screen. Neither needed anything.
+
+**Metered connections did not exist in the codebase at all** — one comment in
+`index.css` referencing §5.4 and nothing else. That is the gap.
+
+### Why it matters more than it sounds
+
+§5.4's reference device is *"Indonesian mid-range Android on mobile data"*, and
+the architecture has taken that seriously since M2: §5.3 budgets a beginner's
+first download at 8 MB, and D20 explicitly defers the large shards so that *"a
+learner who never opens the reader never pays for them"*.
+
+So the deferral was right. What was never built is the other half of the
+sentence — telling the learner when they *are* about to pay.
+
+Measured from the manifest the pipeline already publishes: the first tap of
+**Baca** fetches its band's sentence and passage shards, **415 KB gzipped** for
+an English learner at band 2 and **479 KB** for a Japanese one. On a prepaid
+Indonesian plan that is money, spent silently, on a screen the learner may have
+opened out of curiosity.
+
+### The three decisions that make it honest rather than just cautious
+
+A warning that fires too often is worse than none, so most of the work was in
+deciding when *not* to ask.
+
+**A shard already in the cache is never charged for.** The gate asks
+`caches.match` before it asks the learner. Someone who downloaded this band last
+week already owns it, and warning them about a cost that no longer exists would
+be a false alarm dressed up as care.
+
+**Practice is never gated.** Only the reader is. The session's content is
+precached, so a learner who says no still studies exactly as before — and the
+gate's own copy says that, because a learner who thinks declining will break
+their practice will not decline.
+
+**Unknown connectivity does not hold back, and this is the load-bearing one.**
+Only Chromium implements the Network Information API; Firefox and Safari report
+nothing. Treating silence as "probably metered" would withhold the reader from
+most desktop learners and every iPhone on Wi-Fi, on no evidence whatsoever.
+Withholding what someone expected, on a guess, is a worse failure than the
+download — and anyone who disagrees can set *"always ask"*.
+
+The figure shown is `gzipBytes`, not `bytes`. Quoting the raw size would
+overstate the cost by roughly four times, which is its own kind of dishonesty.
+
+### Two things the visual pass caught
+
+Neither would have failed a test. The gate's "download" button and the footer's
+"Kembali" were both full-width teal primaries, so the screen offered the learner
+two things that looked equally like the answer; navigation is quiet while a
+decision is on screen and primary again once it is gone. And the screen-reader
+hint explaining the arrow keys for tap-to-gloss was still announced while the
+gate was up, on a screen with no words to move between.
+
+### Left open
+
+The session summary could point at the reader when the day's allowance is spent
+— an honest "there is more if you want it" that does not become a streak. It was
+scoped out rather than rushed in beside a feature it has nothing to do with.
+
+---
+
+## v1.12.1 — the bug v1.12.0 left open (2026-09-20)
+
+v1.12.0 closed by naming this and deliberately not fixing it, because it was
+adjacent to the work rather than part of it. Fixed now.
+
+**What was wrong.** Three builders feed a session queue. `newCandidates` scoped
+by the `[lang+kind]` index; `drillCandidates` scoped throughout; `dueCandidates`
+did not scope at all. So every *review* in an English session was drawn from the
+whole profile, and a learner who had studied both languages could be handed
+Japanese kanji under a heading that said they were studying English.
+
+The interesting part is that the invariant was already written down. `Session`
+gained a `lang` field at v1.0.1 for exactly this reason — resuming a session
+under a different target served the wrong language — and sessions written before
+that field are still never resumed because of it. The field recorded the
+intention; nothing enforced it one layer down.
+
+**Reading a card's language.** Cards are keyed `profileId::itemId` and carry no
+language. Rather than a second round trip per card to fetch its item,
+`langOfItemId` reads the namespace every item id already carries — the inverse
+of `lexemeIdFor`, which has been constructing those ids since M1.
+
+**Where the filter goes is the actual fix.** `dueCards` pages at 200 rows. Doing
+the filter after that page is fetched would be worse than useless for the
+learner this bug is about: a large Japanese backlog would occupy all 200 rows
+and their English session would come back looking empty. The predicate therefore
+runs inside the query, before the limit.
+
+**A test that passed against the bug.** The first version of the crowding test
+seeded 250 Japanese cards and one English card, all with the same due time, and
+passed whether or not the fix was present — `p1::en:lex:survivor` sorts before
+`p1::ja:...`, so the English card landed inside the first 200 rows for free. It
+now backdates the Japanese cards by a week so they genuinely fill the page.
+Worth recording because the test looked correct and asserted the right thing;
+only running it against the unfixed code showed it was measuring nothing.
+
+All three tests in the new suite were checked that way, and two of the three
+needed nothing — but the one that did would have shipped as false assurance.
+
+---
+
+## v1.12.0 — flashcards, and the pacing underneath them (2026-09-20)
+
+The ask was flashcards you tap or swipe through to learn new words every day,
+structured the way an SRS normally handles new material. The gesture was the
+visible half. The half that changes what a learner experiences was underneath.
+
+### What was actually missing
+
+The app has had FSRS, a seven-rung ladder and a review-debt throttle since M5.
+So "add spaced repetition" was already done. The gap was narrower and worse:
+
+§7.2 calls review debt *"the #1 cause of abandonment in SRS apps"* and requires
+the throttle to be automatic. `newItemAllowance` has implemented that since M5
+and it works. But it is a **brake**, not a speed limit. It is computed per
+*session*, from a seven-day forecast, and a forecast cannot move until cards
+exist and their due dates have spread — days after the evening that caused the
+problem. A learner running five sessions in one evening passed it five times.
+
+Measuring it was the moment the size of this became clear: **a fresh 4-minute
+learner's very first session queued 30 new words**, against a review capacity of
+20 a day. Thirty first exposures, each of which comes back several times over
+the following fortnight. The backlog is bought on day one and delivered on day
+four, and §7.2 says exactly what happens then.
+
+### The cap, and the cost of it
+
+`dailyNewWords` caps introductions per local day. Counting them needed nothing
+new: `recordReview` already queries a card's history to compute promotion, so it
+knows when an answer is an item's first and records that on the log row. No
+migration, no scan, and rows written before this release read correctly as "not
+an introduction" because the counter only ever asks about today.
+
+The default is `dailyCapacityFor(minutes) / 4` rather than a fresh constant —
+one source of truth, so the two halves of §7.2 cannot drift apart. That gives
+**5 / 10 / 19** new words a day for the three session lengths.
+
+**The cost is real and it is stated rather than buried.** A learner with no
+cards has nothing to review, so their first sessions are now exactly one day's
+allowance — five items, not thirty. The old behaviour *looked* more generous and
+was the thing that would have made them quit in a fortnight. The home screen
+names the number before they start, and anyone who wants more can say so.
+
+Two existing tests failed on this, and both were asserting session length as an
+incidental proxy — *"more than 5 items"* — for things that were actually about
+something else (that a queue gets filled; that declining a word costs nothing).
+They now measure what they were about. Worth flagging plainly: I changed the
+expectations of tests that were passing, and the reason is that the number they
+encoded was only true because the app was over-introducing.
+
+### The gesture
+
+`SwipeCard`. Right takes the word, left declines it, and the answered card
+swipes on. Three rules keep it from becoming a second way for things to go
+wrong: every swipe is also a button and the gesture is invisible to assistive
+technology; it only attaches to cards whose primary action was already a tap,
+because on a typed rung a horizontal drag fights the learner for text selection;
+and it commits through the same latch a tap does, so one swipe is one review.
+
+The drag decides its axis after 10px and then holds it — without that the page
+cannot be scrolled from anywhere on a card, which is the failure that makes
+swipe UIs feel broken. It resists a pull towards a side with nothing on it, and
+under `prefers-reduced-motion` it does not transform at all while still
+committing.
+
+### Three defects found by building it
+
+None of these were the feature. All three were found by using it.
+
+**Settings could persist out of order.** Every change started its own
+read-then-write chain, so two in flight raced and the row kept whichever
+*finished* last rather than whichever was asked for last. Stepping a control
+five times quickly saved the fourth value. Found because a Playwright test
+reloaded the page faster than a human would — which is a real learner killing
+the app right after a tap.
+
+**A stepper lost taps**, because each one waited for a write and a re-render
+before the next could count from the right base. My first fix moved the
+arithmetic into a state updater, which traded the race for a worse bug: the
+updater called `onChange`, and React is free to run an updater more than once.
+The value now lives in a ref, which is synchronous.
+
+**A swiped card scrolled the page sideways** — 464px of document in a 375px
+viewport. `Screen` clips horizontally now, with `clip` rather than `hidden`,
+because `hidden` creates a scroll container and would have silently broken the
+sticky footer directly above it.
+
+### Left open
+
+`dueCandidates` pulls due cards for the whole profile rather than the language
+being studied, so a learner who has studied both can get Japanese cards inside
+an English session. `todaySnapshot` deliberately counts the same way so the home
+screen cannot disagree with the session it launches; both should be scoped
+together when it is fixed.
+
+---
+
+## v1.11.1 — retiring the answered card (2026-08-19)
+
+v1.11.0 stopped the duplicate reviews with two latches and explicitly left the
+layout as it was, flagging it as the larger change. This is that change.
+
+**The layout was the actual cause.** The verdict rendered in the footer while
+the live card stayed mounted above it, so every control that produced the answer
+was still on screen and still wired up. The latch refused the second answer;
+nothing stopped it being *offered*. Replacing the card removes the offer, which
+is the difference between a rule and a structure — and this codebase's whole
+argument is that the structural version is the one that survives.
+
+**What the retired card keeps, and why.** The sentence, with the answer filled
+into the blank and chipped; the translation; and the learner's own answer where
+it differed from the correct one. Dropping the content and showing only the
+verdict would have been simpler and worse: *"Jawabannya 'A'"* is close to
+meaningless without *"He got an ___"* beside it, and a learner who answered
+wrongly needs to see what they wrote next to what was wanted.
+
+**Not dimmed, deliberately.** The reflex for "this is finished" is reduced
+opacity, and opacity on text is precisely the failure the dark-mode gate found
+54 instances of one release ago — a shade that clears AA at full strength does
+not at 60%. It retires by losing its controls and by saying *"Soal tadi"*, at
+full contrast, which is legible to someone who cannot perceive the styling at
+all.
+
+**A gap fell out of it.** With the retired card shorter than the live one, the
+`flex-1` main column pushed the sticky footer down and left a dead band between
+a card and the verdict about it — and the verdict was inside its own
+`max-h-[60vh]` scroller, nested in a page that also scrolled. Both went: the
+answered state is one column in the page, and the footer carries only *"Lanjut"*.
+That is what §10 asks for anyway — the thumb zone is for the thing you press,
+not for a scrollable panel of prose.
+
+Verified by hand in both themes at mobile width, with a short verdict (correct,
+promoted) and a long one (wrong, demoted, with a contrastive note attached).
+
+---
+
+## v1.11.0 — two reports from using it, and what was under them (2026-08-19)
+
+Both of this release's items came from the owner using the app rather than from
+a gate, which is worth noting on its own: eleven releases of CI and the two
+defects that a person found in one sitting were a **permanent data corruption**
+and a rung whose prompt could not be answered.
+
+### The double-write
+
+The report was that buttons could be spammed. The mechanism is that every write
+in the session is an `async` handler and none of them was latched, and there are
+two distinct ways to click twice — which matters, because the obvious fix only
+addresses one.
+
+*Racing* is two clicks inside one `await`. Eight taps on "Oke, paham" wrote
+**eight** review rows. *Sequentially* is a second click after the verdict is
+already up, which is possible because the feedback renders in the **footer**
+while the card stays mounted above it — every control that produced the answer
+is still there. An in-flight latch does nothing about the second case; the two
+clicks are seconds apart.
+
+**Why this is not a cosmetic bug.** `ReviewLog` is append-only, enforced at the
+Dexie hook, and that is deliberate: invariant 1 exists so the log can be trusted
+as the substrate for FSRS optimisation and for §9's retention rate. The same
+property means a duplicated row **cannot be corrected**. Every spare tap a
+learner made on a slow phone is permanently in the data the app uses to tell
+them how well they are doing.
+
+The race is held with a **ref** rather than state, because `setState` is
+asynchronous and two clicks in one tick would both read the old value — a state
+flag would have looked like a fix and not been one.
+
+**Both gates were falsified before being trusted.** Reverting each fix and
+re-running gives 8 rows instead of 1, and 5 instead of 3. A gate that has never
+failed has not been tested.
+
+### The missing meaning
+
+The report was that the translation of the word sometimes does not show. Three
+separate things were true.
+
+**It was fetched for one rung out of seven.** `glossFor` sat inside the
+`exposure` branch, so every other rung carried no gloss at all — even where the
+app had one on disk.
+
+**L5 was unanswerable as written.** §2.3 defines it as "ID → target, produced":
+the prompt should be the *meaning* and the learner produces the word. It was
+showing the *sentence* translation while grading a single headword. A learner
+reading *"Dia mendapat nilai A."* and asked for the English had to produce
+**"a"**, with nothing marking which word was wanted. This is the kind of defect
+that survives eleven milestones of CI because nothing about it is a type error,
+a failing assertion, or a crash — the screen renders perfectly and the exercise
+is impossible.
+
+**The empty case rendered as nothing.** Coverage is 30% and 4% (D59), so the
+absent branch is the *common* one, and a blank space where a meaning should be
+is indistinguishable from a bug. The reader has said this out loud since
+v1.7.0; the session was the surface that stayed silent. That silence is what the
+report was actually describing.
+
+The gloss now resolves once per task for every kind — `glossFor` caches per
+band, so it costs one shard read per band rather than one per card — and appears
+at L0, as L5's prompt, and in the feedback on **every** card, which is the one
+place it is both useful everywhere and incapable of leaking an answer.
+
+### The compliment nobody earned
+
+L0 submitted the headword as its own answer so that it would grade "correct",
+which meant a card that asked nothing printed "Benar!" and then waited for a
+second tap. It advances on the one tap now. The review is still recorded —
+invariant 0 is satisfied because the confirmation *is* the response — and
+promotions are reported in the summary, which is where §2.14 wants them.
+
+### Left open
+
+Nothing from this work. The three v2.0.0 gates are unchanged and all belong to a
+person.
+
+---
+
+## v1.10.1 — two of the four gates, worked as far as they go (2026-08-19)
+
+v1.9.0 named four things standing between this app and v2.0.0, and said all four
+belong to a person. That is still true of three of them. The fourth turned out
+to be a decision the owner could make in one word, and once made, it was mine to
+carry out.
+
+### Sync: deployed
+
+The choice was deploy or delete, and the answer was deploy. What made this worth
+doing rather than deferring is that `workers/sync/` had **never been executed**
+— its own README said *"The Worker itself has never been deployed or run"*, and
+a Worker that has never run is not a feature, it is a hypothesis.
+
+Running it found two errors in the procedure the README documented: `d1 execute`
+needs `--config` when invoked from the repo root, and `d1 create` prints a
+suggested binding named after the database, which is **not** the `DB` binding
+`index.ts` actually reads. Both would have stopped whoever followed those steps
+next.
+
+**The verification that mattered was that it grants nothing.** `SYNC_TOKEN` is
+unset on purpose, and the Worker is written to fail closed on exactly that —
+`!env.SYNC_TOKEN` is the first half of the auth check. Fourteen consecutive
+unauthenticated requests answered 401. The endpoint exists; the secret is the
+owner's to set, and I did not set it, because a bearer token that has been
+through a transcript is not a secret.
+
+**A thing worth knowing for the next deploy:** for the first few minutes,
+`workers.dev` returned intermittent Cloudflare `error code: 1042` pages with a
+404 status, mixed in with correct 401s from the Worker. That is the edge and not
+the code — the Worker's own 404 body is `{"error":"not found"}` — and reading it
+as a bug in the routing would have cost an hour. It settled inside three
+minutes.
+
+**Invariant 21 was re-run rather than reasoned about.** The e2e test that drives
+a full session and asserts zero requests leave the origin still passes. That was
+the expected result — nothing in `src/` imports the client — but "the invariant
+says so" is exactly the kind of confidence this project keeps finding to be
+misplaced.
+
+### R7: the index moved, and it still does not help
+
+R7 recorded on 2026-08-13 that Japanese had no voice in the official Piper set:
+173 voices, 54 language codes, no `ja_JP`. Re-measuring found **174 voices and
+55 codes** — and a Japanese one, filed under **`ja_JA`**. The register's own
+method had gone stale in five days, and the reason a search kept coming back
+empty was a non-standard region code rather than an absent voice.
+
+The voice is NICT's Hi-Fi-Captain, **CC BY-NC-SA 4.0**, and the NC disqualifies
+it under the rule R7 already wrote down. So the answer did not change; only the
+reason did, and the reason is worth having written down, because the next person
+to grep for `ja_JP` will also find nothing.
+
+The three remaining paths are in the register as a table. The short version is
+that there is **no Japanese voice that is both ready-made and unconditionally
+free**: the one that clears the non-commercial bar is a conditional grant
+attached to someone's mascot character and needs a forked generator, and the one
+with a genuinely clean licence (Common Voice, CC0) has no model behind it yet.
+Nothing was promoted. R7 says reading and dating is the owner's step, and that
+is still the right place for it.
+
+### The copy packet
+
+The third gate needed neither hardware nor a licence — only a native speaker and
+a legible list. All 349 strings, grouped by the screen they appear on, with the
+three tone rules from `id.ts`'s own docblock as the review criteria.
+
+### What is left
+
+Three gates, all of them a person's: the voice licence, four empty rows in the
+device matrix, and someone reading 349 lines of Indonesian. None of them is code,
+and none of them can be honestly closed by the thing that writes the code.
+
+---
+
+## v1.10.0 — the tab stops, and what dark mode had been hiding (2026-08-19)
+
+v1.9.1 closed with one item under **Left open**: every word in the reader is a
+focusable button, two passages add ~160 tab stops before the feed, and fixing it
+"means a different interaction model for tap-to-gloss, which is a design
+decision rather than a patch". That was true, and the decision is D70.
+
+### The interaction model
+
+The alternative to a button per word is not "fewer buttons" — a learner has to
+be able to reach *any* word, because the one they do not know is the one they
+will tap. So the words stay, and the *tab order* changes: a passage or a
+sentence is one composite widget, Tab enters and leaves it, and Left/Right and
+Home/End move inside. This is the WAI-ARIA roving tabindex pattern, and it is
+what a text editor, a toolbar and a date picker all do for the same reason.
+
+Two details were decisions rather than defaults. **Arrows clamp** instead of
+wrapping, because prose is a line and not a ring — arriving back at the first
+word of a paragraph reads as a bug to someone who cannot see the whole block.
+And a **click sets the entry point**, so tabbing back into a block returns the
+learner to the word they were last at rather than to the start of the paragraph.
+
+**The gate asserts both halves.** Counting tab stops alone would pass if the
+words stopped being reachable at all, which would be a worse §10 failure than
+the one being fixed — so the test also asserts that 100+ words are still there
+and that ArrowRight moves between them and Enter opens the panel.
+
+### What the two new scans found, which is the part worth reading
+
+Both new gates found real defects on their first run. That is now four releases
+in a row where the gate found something the code review did not.
+
+**Dark mode had never been scanned at all.** §10 promises "dark mode, WCAG AA
+contrast" as a single clause, and every axe run since v1.8.0 ran in light mode —
+so exactly half of that promise had been resting on care since M0. The tertiary
+text shade measured **4.23:1** on the page background, below the 4.5 floor, in
+**54 places across 15 files**. Every screen with secondary text was affected.
+
+The fix costs something and the cost is worth naming: raising that shade
+collapses it into the secondary one, so dark mode now has one fewer step of type
+hierarchy than light mode has. The third grey was not AA, and AA is what §10
+promises; the hierarchy was not promised.
+
+**Scanning the reader empty was scanning the wrong thing.** The existing sweep
+reached the reader before the learner had any vocabulary, so axe had only ever
+seen *"Belum ada bacaan yang pas"* — never a passage, never the feed, never the
+word panel, which are the parts carrying roles. Seeded with vocabulary, it found
+`text-stone-500` at **4.38:1** inside the tinted word panel. That shade clears
+AA at 4.60:1 on the page background: it was correct where it was written and
+wrong where it was reused, which is precisely the defect a person re-reading the
+CSS would not catch.
+
+### Running it on a second platform, which found two more
+
+The device matrix has had one row since v1.5.1, and the app collects rows
+itself. Running that on this machine was meant to fill the empty "Chrome,
+desktop" row. It did not — the browser is Chromium inside an Electron host, so
+the row is filed under its own name and the desktop row is still empty. Writing
+"Chrome, desktop" and meaning something else is the one thing that table cannot
+survive.
+
+**The report named the wrong operating system.** `Android/OS <version>` was
+printed unconditionally — the label was a constant, because the matrix is about
+Android phones. This machine reported *"Android/OS 26.5.0"*. An iPhone would
+have reported Android. The whole purpose of that screen is to produce rows a
+person can trust without re-deriving them, and the platform has been available
+as a free client hint the entire time.
+
+**The boot probe never answered while the page was hidden.** The home screen sat
+on *"Mengecek suara di HP ini…"* for 25 s and counting, then resolved correctly
+the moment the page was looked at. `requestIdleCallback` does not run for a
+hidden page and its `timeout` only counts while visible — so the comment in
+`idle()` claiming "the timeout is a ceiling, not a target" was wrong in the one
+case it existed for. Deferring until visible **stays**: the ~15 s first-call
+stall on a device with no speech service is why the probe waits at all, and a
+hidden page is not the moment to spend it. What changed is that the wait is now
+bounded once the learner is actually there.
+
+### Left open
+
+Nothing new. The four things standing between this and v2.0.0 are the same four
+v1.9.0 named, and every one of them is a decision or a measurement that belongs
+to a person: the voice model's licence (R7), the four empty matrix rows, the
+native-speaker pass over the Indonesian, and sync deployed or deleted. This
+release deliberately moved none of them, because moving them without the person
+is the one failure mode this project has been built to avoid.
+
+---
+
+## v1.9.1 — the review pass (2026-08-18)
+
+Nine releases went onto this branch in one sitting with no independent review.
+Every bug caught during that sitting was caught by a *gate* — the licence gate
+found a dataset the app never used, the offline gate found a cache one shard
+from evicting content, the chunk compiler found its own matcher rejecting real
+phrases. None was found by reading the code, so the code got read.
+
+Four defects, three of them invisible: nothing crashed, no test failed, and a
+learner would simply have received less than the release notes promised.
+
+**A fifth of the chunks were never shown.** The pipeline picks anchors from the
+whole corpus; the runtime resolved them against `anchors.b<band>.json`, the
+curated subset a band's vocabulary is taught through (D19). 15 of 70 English
+chunks and 5 of 17 Japanese resolved nothing, `buildTask` returned null, and
+`SessionScreen` skipped them — the composer scheduled the item, it took a slot
+in the queue, and the learner never saw it. The fix carries the sentences in the
+shard: ~20 KB to delete a class of lookup failure.
+
+**Japanese answers ending in ん were graded wrong.** `KanaInput` committed the
+conversion and called a zero-argument `onSubmit` in the same tick, so the caller
+submitted its pre-conversion state: `nihon` + Enter arrived as `にほn`, which
+grades *wrong* rather than near-miss. A correct answer marked wrong, on the exact
+rung §2.7 was written to protect.
+
+**The pipeline never pruned.** `chunks.b6.json` survived a re-banding because
+the manifest was only ever appended to — shipping duplicate content at a dead
+band, and making the output depend on what was there before.
+
+**Mining was missing from passages**, the surface the reader now shows first,
+guarded against a field (`fromSentenceId`) that nothing reads.
+
+### Left open
+
+Every word in the reader is a focusable button, so two passages add ~160 tab
+stops before the feed. The pattern predates this branch and passages amplify it;
+fixing it properly means a different interaction model for tap-to-gloss, which
+is a design decision rather than a patch.
+
+---
+
+## v1.9.0 — the deploy audit (2026-08-18)
+
+v1.9.0 was defined as the honest close: absorb what the device matrix reports,
+integrate the native copy pass, re-measure the launch checklist. Two of those
+three are gated on a person. The third was mine, and doing it properly meant
+auditing what the deploy actually ships — which found two live defects in the
+offline promise.
+
+### The runtime cache was one shard from evicting content
+
+`maxEntries: 64`, set at M2 when the app shipped 47 content files. Glosses,
+chunks, topics and passages took it to **65**. Workbox evicts least-recently-used
+entries past the cap, so a learner who worked in both languages was one fetch
+away from losing a shard they had already downloaded — and the symptom is
+content that mysteriously will not open, offline, later.
+
+Nothing else would have caught it. It is not a type error, no test exercised it,
+and the number was correct when it was written.
+
+### Audio would not have been cached at all
+
+Every runtime rule matched `.json`. The clips the owner is about to generate
+would have matched none of them — fetched on every play, absent offline, which
+is the one situation they exist for (§5.4 promises offline audio for cached
+bands, explicitly). They have their own cache now, with `rangeRequests`, because
+an `<audio>` element issues Range requests, Safari always does, and a cached
+clip answering one with a 200 will not play.
+
+Both were found by **writing the gate**, not by reading the code — which is the
+argument for the gate.
+
+### `check:offline`
+
+Asserts against `dist/sw.js` rather than `vite.config.ts` (D69): the built
+worker is what ships. It reads the cap per cache name, because the largest
+number in the file is the audio cache, and taking that would let the content
+cache silently shrink below the shard count again.
+
+### The checklist
+
+Every number in `docs/LAUNCH-CHECKLIST.md` is from the run that wrote it. The
+one worth noting: **icon tap → first answerable question is 103 ms** against a
+3 s budget, down from 1.4 s at v1.0.0 — the cold-start test now prints the
+figure so headroom is visible before it becomes a failure rather than after.
+
+The manual section gained a step that exists because of what was just fixed:
+open the reader before going offline. Content fetched at runtime is the half of
+the offline promise a precache cannot keep, and it is the half that was broken.
+
+### What v2.0.0 is waiting for
+
+Nothing in code. Audio shipped, the matrix filled, the Indonesian reviewed by a
+native speaker, sync deployed or deleted — four decisions, all of them yours.
+The v1 line is closed.
+
+---
+
+## v1.8.0 — accessibility, gated (2026-08-13)
+
+§10 has promised WCAG AA contrast, `motion-safe:` on every transition, 56px tap
+targets and *"full keyboard operation on desktop"* since M0. §13 listed CI gates
+for the bundle, the licences, the cold start and installability — and for none
+of that. Four promises, held up by care alone, for eleven milestones.
+
+**The first run found a real one.** The JSON restore control is a styled button
+in front of a visually hidden file input; a screen reader met an **unlabelled
+file field**, critical severity, on the single screen where a learner hands over
+their entire history. Fixed, and it is the kind of defect that only a gate
+finds — nothing about it is visible to someone looking at the screen.
+
+**The keyboard is checked by using it** (D68). axe cannot observe "full keyboard
+operation", so that test drives the app with nothing but Tab and Enter, from the
+home screen into a session and through an answer, with no clicks and no test ids
+reached past the UI. Reduced motion is checked by asking the browser for the
+preference and asserting nothing declares a transition.
+
+**axe is a floor, not a verdict**, and the spec comment says so: it catches
+contrast, names, roles and labels, and it cannot tell whether a screen makes
+sense to a person.
+
+### Still ahead
+
+| | | |
+|---|---|---|
+| **v1.9.0** | The honest close | Whatever the device matrix reports, the native copy pass integrated, the launch checklist re-measured. The last v1. |
+| **v2.0.0** | — | Gated on decisions and hardware rather than code: audio shipped, the matrix filled, the Indonesian reviewed by a native speaker, sync deployed or deleted. |
+
+---
+
+## v1.7.0 — the glossary (2026-08-13)
+
+Named at v1.6.0 as the obvious next thing and left rather than rushed; built
+now. SPEC §2.2 permits exactly one kind of browsing — *"a passive glossary is
+fine, but it does not create or advance cards"* — and the app had the ban
+without the permission.
+
+**Why it is worth a release.** The progress screen has been able to *count* a
+learner's vocabulary since M5 and never able to *show* it. §2.14 asks progress
+to be expressed as capability; a number is a claim about capability, a list you
+can scroll through is the thing itself.
+
+**The second half of §2.2's sentence is the design** (D67). `buildGlossary`
+opens no transaction, calls no writer, and has no path to `recordReview` — the
+only function permitted to move FSRS state (invariant 0). The test that matters
+builds the glossary against a timestamp thirty days later and asserts the card
+is byte-identical afterwards: looking at your own vocabulary must not schedule
+it.
+
+Ordered strongest first, which is a §2.14 decision rather than a technical one.
+Opening it shows what a learner has secured, not what they are currently
+failing.
+
+### The plan from here
+
+| | | |
+|---|---|---|
+| **v1.8.0** | Reachable | §10 promises WCAG AA, reduced motion and *"full keyboard operation on desktop"*; §13 gates none of it. An axe-core run and a keyboard-traversal test in CI, plus whatever they find. |
+| **v1.9.0** | The honest close | Whatever the device matrix reports, the native copy pass integrated, the launch checklist re-measured against real numbers. The last v1. |
+| **v2.0.0** | — | Gated on decisions rather than code: audio shipped, the matrix filled, the Indonesian reviewed by a native speaker, sync deployed or deleted. The first release whose every claim has been checked by a person on real hardware. |
+
+---
+
+## v1.6.0 — learning material, and the screen that had run out of room (2026-08-13)
+
+Two §2 requirements had been typed and empty since M0. Both now have content
+behind them, and both were built the same way: authored by a person, then held
+to the corpus by a compiler that fails the build.
+
+### §2.5 — chunks
+
+73 English and 23 Japanese collocations and formulas. The design question was
+authored versus mined, and mining lost on quality: Tatoeba is saturated with
+`tom said`, PMI cannot tell a collocation from a frequent accident, and D34
+already records that this pipeline has no part-of-speech tags to filter with.
+The output would have been teaching material nobody had read.
+
+So the corpus **validates** instead of generating (D64): every chunk must occur
+in a sentence the app actually ships, or the build fails — §2.5's own ingestion
+rule, the one that rejected 2,185 lexemes at M1.
+
+**The gate immediately found two bugs in itself, which is the useful part.**
+Seventeen chunks failed on the first run, and the cause was the matcher rather
+than the corpus: English inflects, so the corpus holds *"took a shower"* and not
+the base form; and separable phrasal verbs appear as *"drop me off"*. Fixing
+both recovered a third of the list. What stayed rejected — *get dressed*, *take
+it easy*, 「ただいま」 — genuinely is not in a 23,497-pair corpus, and was deleted
+rather than shipped without an example.
+
+A chunk carries its own Indonesian meaning, because its parts do not compose,
+and counts as its own card type so two cannot land back to back (§2.8).
+
+### §2.10 and §2.14 — topics
+
+Twelve English topics, seven Japanese, picked in settings. This closes the last
+promise §2.14 was making without a control: *"the learner picks topic clusters"*.
+
+**It reorders, never restricts** (D65) — a learner who picks "food" still needs
+the function words that make a sentence, and filtering to a topic would starve
+them of exactly those. The map is partial (6.9% of the English inventory, 2.0%
+of the Japanese) and says so in the shard, because a wrong topic is worse than
+no topic when topics steer what gets taught next.
+
+It also makes §2.8's second rule real for the first time. *"Never more than 3
+from the same topic cluster"* has been running against the frequency band since
+M2, which made it a restatement of the band gate; three food words in a row is
+now something the composer can actually see.
+
+The compiler caught three authoring errors on the first run, including a
+Cyrillic word that had slipped into the Japanese list — which is the argument
+for having it.
+
+### The home screen
+
+Seven links had accumulated between the learner and the practise button, each
+one shipped for a good reason (D66). Habit, sync, diagnostics and attribution
+are now behind one settings screen, which is where the topic picker lives too.
+The e2e suite goes through the same door a learner does rather than reaching
+past the UI, which is why four specs changed.
+
+### Not built, and worth naming
+
+A **browsable glossary** — §2.2 explicitly permits one ("a passive glossary is
+fine, but it does not create or advance cards") and there is still no screen
+where a learner can look at what they know. The progress screen counts it; it
+cannot show it. That is the obvious next thing here and it was left rather than
+rushed alongside two content pipelines.
+
+---
+
+## M8–M11 — the v1.2.0–v1.5.0 roadmap, executed in one pass (2026-08-12)
+
+`docs/ROADMAP.md` planned four releases. This entry records what actually
+landed, what the measurements changed, and the two items that are **not built**
+— named here rather than left to be discovered.
+
+| | planned | actual |
+|---|---|---|
+| unit tests | — | **724** (from 653) |
+| e2e tests | — | **45** (from 41) |
+| initial JS, gzipped | ≤ 200 KB | **136.2 KB** (68%) |
+| datasets cleared | — | **9** (from 7) |
+| §8 exercise catalog | all | complete — the error-correction drill was the last one |
+| radar axes measured | 5 | **4 of 5**; listening and reading stopped being `null` |
+
+### M8 · Audio, and the device we have never seen
+
+**The device matrix is now something anyone with a phone can fill.** It has been
+empty since M4 for a mundane reason — the person with the hardware is not the
+person with the debugger — so the probes moved into the app:
+`src/features/settings/DiagnosticsScreen.tsx` runs them on demand and emits
+markdown that pastes straight into Part 3 of `docs/DECISIONS.md`.
+
+Two things make it more than a convenience:
+
+**It probes from inside a tap, and a good answer counts** (D57). D29 recorded
+that the boot probe marks iOS Safari dead where audio would have worked, because
+iOS wants a user gesture and neither boot nor first paint is one. A button *is*
+one. `adoptVerdict` takes up that answer for the session — but only upward
+(a later failure never retracts an engine already heard to speak) and only
+inside the app's own 500 ms deadline, so a slow engine is reported honestly and
+still withheld from L4.
+
+**It measures rather than judges.** The diagnostic probe runs to a 5-second
+deadline and reports the elapsed time, because the open question is whether
+500 ms is right on a cheap Android — and at a 500 ms deadline, "finished in
+780 ms" and "never finished" look identical.
+
+**Listening stopped being `null`** (D58). §4.2 wants three abilities estimated
+separately; `vocab` has been real since M3 and `listening` is now estimated from
+L4 dictation answers through the same 1PL model placement uses, with the item's
+frequency rank as its difficulty. Not from placement — §4.2's 90 seconds are
+already spent (D24) — and not from minimal-pair drills either, because a drill
+has no difficulty on any measured scale and inventing one would be exactly the
+fabrication D25 refuses. Below five answers there is no estimate and no row.
+
+Two bugs fell out of writing it: the radar's listening axis counted every rung
+**≥ 4**, so L5 and L6 production answers were being reported as listening; and
+`production` had been hard-coded to `null` with the basis "(M7)" since M5, four
+milestones after production shipped. Both now read the rung from the log.
+
+**The audio pipeline exists and has never been run.** `scripts/ingest/build-audio.ts`
+plans, names and indexes clips deterministically, `npm run check:audio` is a new
+CI gate over the budget and the index, and the pure half is unit-tested. What is
+missing is not code: **no voice model has been licence-checked**, so nothing may
+enter `assets/` (invariant 5), and Piper is not installed here. This is stated
+the way `workers/sync` states the same thing rather than left to look finished.
+
+**D53's open half is closed.** First run offered a multi-select while the app
+teaches one language at a time; it now asks which language to *start* with and
+says switching is free and loses nothing.
+
+### M9 · Meaning — and the measurement that changed the plan
+
+The roadmap set a **70% go/no-go** on gloss coverage before building anything on
+top. Measured over the shipped lexeme inventory on 2026-08-12:
+
+| | bands 1–3 |
+|---|---|
+| English, id.wiktionary | **40.3%** (740 / 1,834) |
+| English, adding en.wiktionary translation tables | 56.5% on band 1 |
+| Japanese | **9.2%** (184 / 2,000) |
+
+**So L2 does not become meaning recall, and D21 stands.** Two things made that
+clear-cut rather than marginal. The misses are the *commonest* words — of band
+1's first sixty by rank, the ones with no gloss are *to, was, do, be, his, are,
+not, her, at, think, as, can, from, go, by* — function words, where a dictionary
+gloss is least useful anyway. And en.wiktionary's translation tables give
+`know → tahu, setubuh`: not wrong, and not something to show a learner meeting
+the word for the first time. That is a per-sense review problem, not a coverage
+problem, so those tables are not used at all.
+
+**What shipped instead is the distinction that makes glosses useful anyway**
+(D59): *grading* against a gloss demands it be right for every item, and an
+unfair "wrong" is what §2.7 exists to prevent; *displaying* one demands only
+that it be right where it is shown. So 1,581 English and 274 Japanese glosses
+ship as **reference** — the reader's word panel finally has the dictionary M7
+had to go without, and L0 finally has the gloss §2.3 always asked for — and a
+word without one says so.
+
+**The licence was cleared at source, which is what R3 suggested.** The old
+blocker was Kaikki's extraction stating no terms of its own; parsing the
+Wikimedia dump directly removes the intermediary. Confirmed two ways on
+2026-08-12: `dumps.wikimedia.org/legal.html`, and each wiki's own `rightsinfo`
+API. Glosses ship in **their own shards** under CC BY-SA 4.0 so the
+Tatoeba-derived English sentence shards stay CC BY 2.0 FR — mixing them into one
+file would have quietly upgraded the whole English corpus to share-alike.
+
+**The kana keyboard** (§10) is built, and with it `romajiToKana` — an IME-style
+live converter the repo never had. It holds a trailing `n` while typing (or
+`nani` would lose its first keystroke to ん) and commits it on submit, and it
+makes っ from doubled consonants, because きって is not きて and §3.2 says mora
+length is where Indonesian gives no intuition at all.
+
+### M10 · Reading
+
+**Simple English Wikipedia is cleared and ingested**: 389,501 articles →
+paragraphs → banded by 90th-percentile token rank, exactly as sentences are
+(D15). And the histogram is the finding:
+
+| band | paragraphs found | shipped |
+|---|---|---|
+| 1 | 5 | 5 |
+| 2 | 75 | 75 |
+| 3 | 712 | 400 |
+| 4 | 3,843 | 400 |
+| 5 | 4,558 | 400 |
+| 6 | 241,652 | 400 |
+
+**"Simple" English is not beginner English by our banding** — 96% of its prose
+sits in band 6. That is not a reason to relax the measure; it is a reason to say
+who the reader is for. The default learner is *intermediate English* (D3), which
+is band 3 and up, and that is where the material is. A band-1 learner keeps the
+sentence feed, and the screen does not pretend otherwise (D61).
+
+**§2.4's coverage band is finally operative.** D28 recorded that [0.92, 0.98] is
+literally unreachable on a ten-token sentence — the reachable values are 1.00,
+0.90, 0.80. On a forty-token paragraph there are forty values inside it, so
+`selectPassages` applies the spec's own threshold as written, and drops anything
+under 0.85 outright rather than approximating.
+
+**Reading stopped being `null`.** The check is a cloze over a word in the text
+just read — the same retrieval §2.2 already requires, over running text — and it
+is deliberately not a comprehension quiz: 1,680 passages cannot carry authored
+questions, and generated ones would be answerable by string-matching. Attempts
+go to their own append-only table (`ReadingAttempt`, schema v6) for D32's reason
+exactly: a passage has no card, so these could never be review logs.
+
+### M11 · The learner's own parameters
+
+**The error-correction drill** — §8's last unbuilt catalog item — ships as a
+drill *type* rather than an MCQ dressed as one: the prompt is a sentence with a
+mistake, the answer is the whole sentence back. 10 English and 5 Japanese,
+authored, one per morphosyntax category. The compiler refuses a correction whose
+answer equals its prompt, and caught the first Japanese one for ending in 。
+rather than a full stop, which is the gate doing its job.
+
+**The optional AI layer was built and then deleted** (D63). It went in under
+this pass's blanket instruction — bring-your-own-key, off by default, called
+only from a tap, with a zero-egress e2e test driving a session with a key
+configured. On review it was **declined outright**: the product's claim is that
+a learner's data never leaves the phone unless they run the infrastructure
+themselves, and a guarded module makes that claim conditional on the guard
+rather than on the shape of the code. Invariant 8 says prefer deleting code over
+guarding it, so `src/platform/ai.ts`, its screen, its feedback panel, its tests
+and its copy are gone rather than flagged off. §14 question 5 is now answered
+*declined* rather than *deferred*, and D63 records the reasoning so the next
+session starts from the decision instead of the code.
+
+The consequence is worth stating plainly: L6 still grades on whether the target
+word was used and says so (D49). That was the one thing the layer would have
+improved, and the honest version of that limitation is the one that ships.
+
+**The FSRS optimizer was evaluated and not shipped** (D62). `fsrs-browser@6.6.0`
+is BSD-3-Clause and 332 KB of WASM plus 36 KB of glue: fine as a lazy chunk,
+since invariant 6 counts the entry chunk. What is not established is whether it
+runs usefully single-threaded on the reference device — its threading goes
+through `wasm-bindgen-rayon`, which needs cross-origin isolation — and a
+parameter fit that silently degrades a learner's schedule is worse than the
+bounded nudge D39 already ships. The nudge stays; the numbers are recorded so
+the next session starts from them rather than from scratch.
+
+### Not built
+
+| | Why |
+|---|---|
+| **Chunks as first-class items** (§2.5, `ItemKind = 'chunk'`) | Extraction is mechanical (PMI over the shipped corpus) but the output needs a human pass before it becomes teaching material, and shipping unreviewed collocations as items would put content nobody read in front of learners. Typed and still unproduced. |
+| **Topic clusters** (§2.10, §2.14, §2.8's second rule) | The mechanism is small; the content is not. It needs ~20 authored clusters over the first 2,000 words in two languages, and a bad topic map is worse than none — it would gate new-item selection on a taxonomy nobody trusts. `clusterId` is still a constant, so §2.8's per-cluster rule remains inert. |
+
+Both were planned for v1.3.0 and v1.4.0 respectively. Neither is blocked by
+anything technical; both are blocked on authored content and a reviewer.
+
+### One defect found on the way out
+
+Writing the declared-but-unreferenced check for the audio sequencing turned up a
+live one: **`jmnedict` has been listed as a shipped dataset since M6** — and
+therefore named on the in-app attribution screen — for a proper-name
+disambiguation feature that was never built. Nothing fetches it, nothing parses
+it, no shard declares it. The screen was claiming a provenance the app does not
+have, which is the mirror of the failure M6 wrote that screen to avoid, and the
+e2e test only checked the other direction.
+
+It is now a candidate, `NOTICE.md` no longer attributes it, the e2e test asserts
+it is absent, and `check-licenses.mjs` fails the build on any dataset that
+nothing references. The same check is what will stop a voice model from being
+promoted before its clips exist.
+
+### Decisions I need from you
+
+**1. The voice model — you have taken this, and three things changed under it.**
+`en_US-libritts-high` exists and its corpus is CC BY 4.0, but it has 904
+speakers, so `--speaker` is now part of the clip hash. **There is no Japanese
+Piper voice in the official catalogue** — 173 voices, 54 language codes, no
+`ja_JP` — so `ja_JP-jsut-multi_di-medium` cannot be pulled from it, and a
+community model needs its own licence read (JSUT's terms especially). And the
+default output is now **AAC/m4a**, not Opus: Safari only plays Ogg Opus from
+17.5, and iOS is the device the clips exist to rescue. Output path is
+`assets/content/<lang>/<voiceKey>/` — `assets/content/audio/` fails the licence
+gate, by design.
+
+**2. Two datasets were cleared without you.** `wiktionary-id` and
+`wikipedia-simple-en` were promoted from candidates to datasets by reading the
+terms at source and dating them (2026-08-12). The reasoning is in
+`data/licenses.json` and `NOTICE.md`. If you would rather clear licences
+yourself, say so and they come back out.
+
+**3. The Indonesian copy grew again** — the diagnostics screen, the AI screen,
+the passage reader, the kana keyboard, and 15 new drill explanations. All of it
+still wants a native pass.
+
+**4. The sync Worker is still undeployed.** Written, documented, unproven, and
+now the only remaining path by which a learner's data could leave the phone —
+deploy it once to test D51's arithmetic, or delete `workers/`.
+
+---
+
 ## M7 — Production, reader, optional sync · complete (2026-08-11)
 
 **Acceptance:** the app remains fully functional with sync disabled **and** with

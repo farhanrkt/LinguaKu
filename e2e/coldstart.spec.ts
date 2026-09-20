@@ -35,6 +35,10 @@ test('icon tap to first answerable question stays under 3s on a warm cache', asy
   await page.goto('/?latihan=4');
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
   const elapsed = Date.now() - started;
+  // Printed so a run reports the headroom, not just a pass: the launch
+  // checklist quotes this number and a regression should be visible before it
+  // becomes a failure.
+  console.log(`icon tap → first answerable question: ${elapsed} ms`);
 
   expect(elapsed, `icon tap → first question took ${elapsed}ms`).toBeLessThanOrEqual(
     COLD_START_BUDGET_MS,

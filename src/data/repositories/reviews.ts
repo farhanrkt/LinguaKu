@@ -13,9 +13,12 @@ import type {
   Grade,
   LadderLevel,
   ReviewLog,
+  TargetLang,
   Timestamp,
 } from '../types.ts';
 import { flag } from '../types.ts';
+import { startOfLocalDay } from '../../core/forecast.ts';
+import { langOfItemId } from '../../core/coverage.ts';
 
 /**
  * The single writer of FSRS state.
@@ -140,6 +143,9 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
     ...(input.interferenceHit && input.interferenceHit.length > 0
       ? { interferenceHit: input.interferenceHit }
       : {}),
+    // The item's first answer is the moment it joined the deck, and `previous`
+    // has already told us (SPEC §7.2's daily cap counts these).
+    ...(previous.length === 0 ? { introduction: flag(true) } : {}),
     reviewedAt: input.now,
     scheduledDays: scheduled.scheduledDays,
     elapsedDays: scheduled.elapsedDays,
@@ -162,14 +168,68 @@ export const recordReview = async (input: RecordReviewInput): Promise<RecordRevi
   return { card: updated, decision, answeredAt };
 };
 
-/** Cards due for review, most at risk first is the composer's job — not this. */
+/**
+ * New words introduced since local midnight (SPEC §7.2).
+ *
+ * Reads the `[profileId+reviewedAt]` index rather than scanning: only today's
+ * rows are fetched, and `introduction` is already on each of them. "Today" is
+ * the device's own midnight, because a learner in Jakarta practising at 23:59
+ * has not started tomorrow.
+ */
+export const introducedToday = async (
+  profileId: string,
+  now: Timestamp,
+): Promise<number> => {
+  const logs = await db.reviewLogs
+    .where('[profileId+reviewedAt]')
+    .between([profileId, startOfLocalDay(now)], [profileId, now], true, true)
+    .toArray();
+  return logs.filter((log) => log.introduction === 1).length;
+};
+
+export interface DueCardsOptions {
+  /**
+   * Only cards belonging to this language. A card carries no language of its
+   * own — it is keyed by `profileId::itemId` — so the language is read off the
+   * item id's namespace (`langOfItemId`).
+   */
+  lang?: TargetLang;
+  limit?: number;
+}
+
+/**
+ * Cards due for review, most at risk first is the composer's job — not this.
+ *
+ * The language filter runs **inside** the query, before the limit, and that
+ * ordering is the whole point: filtering an already-capped page would let a
+ * learner's Japanese backlog crowd every English card out of the first 200 rows
+ * and leave their English session looking empty.
+ */
 export const dueCards = async (
   profileId: string,
   now: Timestamp,
-  limit = 200,
-): Promise<Card[]> =>
-  db.cards
+  options: DueCardsOptions = {},
+): Promise<Card[]> => {
+  const { lang, limit = 200 } = options;
+  const due = db.cards
     .where('[profileId+suspended+dueAt]')
-    .between([profileId, 0, Dexie.minKey], [profileId, 0, now], true, true)
+    .between([profileId, 0, Dexie.minKey], [profileId, 0, now], true, true);
+
+  return (lang === undefined ? due : due.filter((card) => langOfItemId(card.itemId) === lang))
     .limit(limit)
     .toArray();
+};
+
+/** How many are due, counted the same way the queue is built. */
+export const dueCardCount = async (
+  profileId: string,
+  now: Timestamp,
+  lang?: TargetLang,
+): Promise<number> => {
+  const due = db.cards
+    .where('[profileId+suspended+dueAt]')
+    .between([profileId, 0, Dexie.minKey], [profileId, 0, now], true, true);
+  return lang === undefined
+    ? due.count()
+    : due.filter((card) => langOfItemId(card.itemId) === lang).count();
+};

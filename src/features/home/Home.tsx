@@ -3,7 +3,7 @@ import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import { Screen } from '../../ui/Screen.tsx';
-import { sessionProgress } from '../../data/repositories/sessions.ts';
+import { sessionProgress, type TodaySnapshot } from '../../data/repositories/sessions.ts';
 import { activateTarget, scriptModeOnSwitch } from '../../data/repositories/profiles.ts';
 import type { DailyMinutes, Profile, Session, TargetLang } from '../../data/types.ts';
 import type { OfflineStatus } from '../../platform/serviceWorker.ts';
@@ -24,13 +24,14 @@ interface HomeProps {
   voice: VoiceReport | null;
   /** False while the learner has not yet taken (or declined) placement. */
   placementOffered: boolean;
+  /** Today's reviews and remaining new words, or null while it loads. */
+  today: TodaySnapshot | null;
   /** Fired once the home screen is up; releases the speech probe (risk R1). */
   onReady: () => void;
   onPlacement: () => void;
   onProgress: () => void;
-  onAttribution: () => void;
   onRead: () => void;
-  onSync: () => void;
+  onSettings: () => void;
   onPractise: () => void;
   onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => void;
   /**
@@ -38,7 +39,6 @@ interface HomeProps {
    * no practice, otherwise null. Their words, not ours — that is the mechanism.
    */
   cueDue: string | null;
-  onHabit: () => void;
   onDismissCue: () => void;
 }
 
@@ -56,16 +56,15 @@ export const Home = ({
   resumable,
   busy,
   placementOffered,
+  today,
   onReady,
   onPlacement,
   onProgress,
-  onAttribution,
   onRead,
-  onSync,
+  onSettings,
   onPractise,
   onChange,
   cueDue,
-  onHabit,
   onDismissCue,
 }: HomeProps) => {
   // Sessions, content, drills and the ability estimate all follow `targets[0]`,
@@ -114,6 +113,37 @@ export const Home = ({
         </strong>
         .
       </p>
+
+      {/*
+        Today's load, stated before the learner commits to it — the one thing an
+        SRS home screen owes its user, and the thing this one has never said.
+        Null while it loads: a flashed zero would read as "nothing to do"
+        (invariant 18 — an unmeasured figure is never drawn as a zero).
+      */}
+      {today === null ? null : today.due === 0 && today.daily.remaining === 0 ? (
+        <p className="mt-4 text-stone-600 dark:text-slate-400" data-testid="today-clear">
+          {today.daily.cap === 0 ? copy.home.today.clearPaused : copy.home.today.clear}
+        </p>
+      ) : (
+        <p className="mt-4 text-lg text-stone-600 dark:text-slate-400" data-testid="today-load">
+          <span className="font-bold text-stone-900 tabular-nums dark:text-slate-100">
+            {today.due}
+          </span>{' '}
+          {copy.home.today.dueLabel}
+          <span aria-hidden className="mx-2 text-stone-400 dark:text-slate-600">
+            ·
+          </span>
+          <span className="font-bold text-stone-900 tabular-nums dark:text-slate-100">
+            {today.daily.remaining}
+          </span>{' '}
+          {copy.home.today.newLabel}
+        </p>
+      )}
+      {today !== null && today.daily.reached && today.due > 0 ? (
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400" data-testid="today-cap">
+          {copy.home.today.capReached}
+        </p>
+      ) : null}
 
       {/* SPEC §2.13's in-app cue. An invitation with a way out, never a
           reprimand (§2.14) — and it names the learner's own words back. */}
@@ -211,34 +241,19 @@ export const Home = ({
         </li>
       </ul>
 
-      {/* SPEC §5.2: EDRDG's licence requires this acknowledgement to be
-          reachable from the app, not only from the repository. */}
+      {/* Everything that is not practice lives one tap deeper (SPEC §10): the
+          home screen's job is to get a learner into a session, and it had grown
+          seven links between them and the button that does it. */}
       <button
         type="button"
-        onClick={onHabit}
-        data-testid="habit-open"
-        className="mt-8 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+        onClick={onSettings}
+        data-testid="settings-open"
+        className="mt-6 min-h-12 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
       >
-        {copy.habit.open}
+        {copy.settings.open}
       </button>
 
-      <button
-        type="button"
-        onClick={onSync}
-        data-testid="sync-open"
-        className="mt-2 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
-      >
-        {copy.sync.open}
-      </button>
 
-      <button
-        type="button"
-        onClick={onAttribution}
-        data-testid="attribution-open"
-        className="mt-2 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
-      >
-        {copy.attribution.open}
-      </button>
     </Screen>
   );
 };

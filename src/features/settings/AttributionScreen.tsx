@@ -67,7 +67,7 @@ export const AttributionScreen = ({ onBack }: { onBack: () => void }) => {
             <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{dataset.use}</p>
 
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-              <dt className="text-stone-500 dark:text-slate-500">{copy.attribution.licenseLabel}</dt>
+              <dt className="text-stone-500 dark:text-slate-400">{copy.attribution.licenseLabel}</dt>
               <dd>
                 <a
                   href={dataset.licenseUrl}
@@ -84,7 +84,7 @@ export const AttributionScreen = ({ onBack }: { onBack: () => void }) => {
                 ) : null}
               </dd>
 
-              <dt className="text-stone-500 dark:text-slate-500">{copy.attribution.sourceLabel}</dt>
+              <dt className="text-stone-500 dark:text-slate-400">{copy.attribution.sourceLabel}</dt>
               <dd className="break-all">
                 <a
                   href={dataset.url}
@@ -98,7 +98,7 @@ export const AttributionScreen = ({ onBack }: { onBack: () => void }) => {
 
               {/* SPEC §5.2: licences drift, so the date we read them is part of
                   the claim rather than a footnote. */}
-              <dt className="text-stone-500 dark:text-slate-500">
+              <dt className="text-stone-500 dark:text-slate-400">
                 {copy.attribution.verifiedLabel}
               </dt>
               <dd className="tabular-nums">{dataset.verifiedOn}</dd>
@@ -107,7 +107,7 @@ export const AttributionScreen = ({ onBack }: { onBack: () => void }) => {
         ))}
       </ul>
 
-      <p className="mt-6 text-sm text-stone-500 dark:text-slate-500">
+      <p className="mt-6 text-sm text-stone-500 dark:text-slate-400">
         {copy.attribution.shareAlikeNote}
       </p>
     </Screen>

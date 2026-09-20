@@ -3,28 +3,16 @@
   "version": 1,
   "datasets": [
     {
-      "key": "linguaku-authored",
-      "name": "LinguaKu authored content",
-      "url": "https://github.com/farhanrkt/linguaku",
-      "use": "The Indonesian-L1 contrastive taxonomy, notes and drills (SPEC §3). Written for this project.",
-      "license": "MIT",
-      "licenseUrl": "https://github.com/farhanrkt/LinguaKu/blob/main/LICENSE",
-      "attributionRequired": false,
-      "shareAlike": false,
-      "verifiedOn": "2026-08-11",
-      "notes": "Not a third-party dataset. Source of truth is data/contrastive/*.yaml; assets/content/*/contrastive.json is generated from it. Example sentences in that file are authored here rather than lifted from Tatoeba, so no attribution obligation attaches. It ships under the project code licence, settled as MIT at v1.0.0 (decision D12)."
-    },
-    {
-      "key": "tatoeba",
-      "name": "Tatoeba",
-      "url": "https://tatoeba.org/en/downloads",
-      "use": "Example sentences and EN/JA/ID translation alignments (SPEC §2.5).",
-      "license": "CC BY 2.0 FR",
-      "licenseUrl": "https://creativecommons.org/licenses/by/2.0/fr/",
+      "key": "ipadic",
+      "name": "IPAdic, via kuromoji (Nara Institute of Science and Technology)",
+      "url": "https://github.com/takuyaa/kuromoji.js",
+      "use": "Build-time morphological tokenization of Japanese sentences (SPEC §5.1, decision D10).",
+      "license": "Apache-2.0 (kuromoji) with the IPAdic BSD-style notice",
+      "licenseUrl": "https://github.com/takuyaa/kuromoji.js/blob/master/LICENSE-2.0.txt",
       "attributionRequired": true,
       "shareAlike": false,
-      "verifiedOn": "2026-08-10",
-      "notes": "Sentence text is CC BY 2.0 FR; a subset is additionally CC0 1.0. Audio is NOT covered — each clip's licence is chosen by its contributor, and clips with an empty licence field may not be reused outside Tatoeba. See the `tatoeba-audio` candidate."
+      "verifiedOn": "2026-08-11",
+      "notes": "A build-time tool, not shipped content: the dictionary never reaches the browser (D10). What ships is token boundaries and readings derived from it, so it is attributed here rather than treated as a shard source."
     },
     {
       "key": "jmdict",
@@ -37,18 +25,6 @@
       "shareAlike": true,
       "verifiedOn": "2026-08-10",
       "notes": "EDRDG requires acknowledgement on each screen that displays dictionary content, or on a dedicated About screen for apps. Share-alike: any shard derived from this data must ship under CC BY-SA 4.0 or a compatible licence."
-    },
-    {
-      "key": "jmnedict",
-      "name": "JMnedict (Electronic Dictionary Research and Development Group)",
-      "url": "https://www.edrdg.org/enamdict/enamdict_doc.html",
-      "use": "Japanese proper names, for tokenizer and reader disambiguation (M6).",
-      "license": "CC BY-SA 4.0",
-      "licenseUrl": "https://www.edrdg.org/edrdg/licence.html",
-      "attributionRequired": true,
-      "shareAlike": true,
-      "verifiedOn": "2026-08-10",
-      "notes": "Same EDRDG terms as JMdict."
     },
     {
       "key": "kanjidic2",
@@ -75,37 +51,55 @@
       "notes": "Cleared at M6 by reading both pages: kradinf.html states the files are 'available under the EDRDG Licence', and licence.html lists RADKFILE/KRADFILE among the covered files under CC BY-SA 4.0. NB the licence covers KRADFILE and RADKFILE only — KRADFILE2/RADKFILE2 are copyright Jim Rose and are NOT used here."
     },
     {
-      "key": "ipadic",
-      "name": "IPAdic, via kuromoji (Nara Institute of Science and Technology)",
-      "url": "https://github.com/takuyaa/kuromoji.js",
-      "use": "Build-time morphological tokenization of Japanese sentences (SPEC §5.1, decision D10).",
-      "license": "Apache-2.0 (kuromoji) with the IPAdic BSD-style notice",
-      "licenseUrl": "https://github.com/takuyaa/kuromoji.js/blob/master/LICENSE-2.0.txt",
-      "attributionRequired": true,
+      "key": "linguaku-authored",
+      "name": "LinguaKu authored content",
+      "url": "https://github.com/farhanrkt/linguaku",
+      "use": "The Indonesian-L1 contrastive taxonomy, notes and drills (SPEC §3). Written for this project.",
+      "license": "MIT",
+      "licenseUrl": "https://github.com/farhanrkt/LinguaKu/blob/main/LICENSE",
+      "attributionRequired": false,
       "shareAlike": false,
       "verifiedOn": "2026-08-11",
-      "notes": "A build-time tool, not shipped content: the dictionary never reaches the browser (D10). What ships is token boundaries and readings derived from it, so it is attributed here rather than treated as a shard source."
-    }
-  ],
-  "candidates": [
-    {
-      "key": "tatoeba-audio",
-      "name": "Tatoeba audio",
-      "url": "https://tatoeba.org/en/downloads",
-      "blocker": "Licence is per-clip and chosen by the contributor; clips with an empty licence field are unusable. The pipeline must filter per file and record each clip's licence individually before any audio enters assets/."
+      "notes": "Not a third-party dataset. Source of truth is data/contrastive/*.yaml; assets/content/*/contrastive.json is generated from it. Example sentences in that file are authored here rather than lifted from Tatoeba, so no attribution obligation attaches. It ships under the project code licence, settled as MIT at v1.0.0 (decision D12)."
     },
     {
-      "key": "wiktionary-id",
-      "name": "Wiktionary Indonesian glosses (via Kaikki/wiktextract)",
-      "url": "https://kaikki.org/dictionary/rawdata.html",
-      "blocker": "Kaikki's raw-data page states no licence for the extraction itself. Underlying Wiktionary content is CC BY-SA 4.0 + GFDL, but the extraction's terms must be confirmed (wiktextract repo / kaikki maintainer) before M1 ships ID glosses."
+      "key": "tatoeba",
+      "name": "Tatoeba",
+      "url": "https://tatoeba.org/en/downloads",
+      "use": "Example sentences and EN/JA/ID translation alignments (SPEC §2.5).",
+      "license": "CC BY 2.0 FR",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0/fr/",
+      "attributionRequired": true,
+      "shareAlike": false,
+      "verifiedOn": "2026-08-10",
+      "notes": "Sentence text is CC BY 2.0 FR; a subset is additionally CC0 1.0. Audio is NOT covered — each clip's licence is chosen by its contributor, and clips with an empty licence field may not be reused outside Tatoeba. See the `tatoeba-audio` candidate."
     },
     {
       "key": "wikipedia-simple-en",
       "name": "Simple English Wikipedia",
-      "url": "https://dumps.wikimedia.org/",
-      "blocker": "Expected CC BY-SA 4.0 under the Wikimedia Terms of Use; not yet read and dated."
+      "url": "https://dumps.wikimedia.org/simplewiki/",
+      "use": "Graded reading passages (SPEC §8, §2.4). Paragraphs of running text, banded by 90th-percentile token rank like every other content type.",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attributionRequired": true,
+      "shareAlike": true,
+      "verifiedOn": "2026-08-12",
+      "notes": "Cleared the same way and on the same day as wiktionary-id: dumps.wikimedia.org/legal.html states GFDL + CC BY-SA 4.0 for original textual content, and simple.wikipedia.org's own siteinfo rightsinfo reports CC BY-SA 4.0. Share-alike: assets/content/en/passages.b*.json ship under CC BY-SA 4.0 and are kept separate from the Tatoeba-derived sentence shards, which stay CC BY 2.0 FR. Each passage records the article title it came from, which is what attribution needs to be traceable per paragraph rather than per corpus."
     },
+    {
+      "key": "wiktionary-id",
+      "name": "Indonesian Wiktionary (id.wiktionary.org)",
+      "url": "https://dumps.wikimedia.org/idwiktionary/",
+      "use": "Short Indonesian glosses for English and Japanese headwords (SPEC §2.5, risk R3). Shown as reference in the reader and on first-exposure cards; never used to grade an answer.",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attributionRequired": true,
+      "shareAlike": true,
+      "verifiedOn": "2026-08-12",
+      "notes": "Cleared by reading the terms at source rather than through a third party: dumps.wikimedia.org/legal.html states that original textual content is licensed under GFDL and CC BY-SA 4.0, and id.wiktionary's own API (action=query&meta=siteinfo&siprop=rightsinfo) reports CC BY-SA 4.0. Both read 2026-08-12. This replaces the earlier Kaikki-based candidate, whose blocker was that the *extraction* stated no licence of its own — parsing the Wikimedia dump directly removes that intermediary. Share-alike: assets/content/*/glosses.b*.json ship under CC BY-SA 4.0, kept as their own shards so the Tatoeba-derived English sentence shards stay CC BY 2.0 FR."
+    }
+  ],
+  "candidates": [
     {
       "key": "freq-en",
       "name": "English frequency list",
@@ -119,10 +113,34 @@
       "blocker": "Official JLPT lists are not published; community lists vary in provenance and licence. Needs a specific, licence-clear list before M6 level banding."
     },
     {
+      "key": "jmnedict",
+      "name": "JMnedict (Electronic Dictionary Research and Development Group)",
+      "url": "https://www.edrdg.org/enamdict/enamdict_doc.html",
+      "blocker": "Declared as a shipped dataset at M6 for a use — proper-name disambiguation in the tokenizer and reader — that was never built. Found 2026-08-13 by the new declared-but-unreferenced check: no shard names it, nothing in scripts/ or src/ mentions it, and the fetch step never downloaded it. It was therefore being listed on the in-app attribution screen while the app shipped nothing derived from it, which claims a provenance we do not have. Its EDRDG terms (CC BY-SA 4.0, verified 2026-08-10) are unchanged and it can be promoted the moment something actually uses it."
+    },
+    {
       "key": "librivox",
       "name": "LibriVox",
       "url": "https://librivox.org/pages/public-domain/",
       "blocker": "Recordings are public domain in the US; source-text status varies by country. Verify before shipping listening material."
+    },
+    {
+      "key": "piper-libritts-en",
+      "name": "Piper voice en_US-libritts-high (LibriTTS)",
+      "url": "https://huggingface.co/rhasspy/piper-voices/blob/main/en/en_US/libritts/high/MODEL_CARD",
+      "blocker": "Legwork done, decision not taken. Read 2026-08-13: the model card gives the training corpus as LibriTTS (openslr.org/60) under CC BY 4.0, and the voice ships from rhasspy/piper-voices. Two things to settle before promoting it: (a) confirm the *model weights'* licence, which is not the same object as the corpus licence, and (b) pin a speaker — the model carries 904 of them, so an unpinned run does not reproduce. Attribution for CC BY 4.0 would need a NOTICE.md section and an attribution-screen entry, both of which the gate already enforces."
+    },
+    {
+      "key": "piper-voice-ja",
+      "name": "Piper Japanese voice — none exists in the official catalogue",
+      "url": "https://huggingface.co/rhasspy/piper-voices/blob/main/voices.json",
+      "blocker": "Measured 2026-08-13 against the official voice index: 173 voices across 54 language codes, and **ja_JP is not among them**. There is no ja_JP-jsut-* voice to download. A community model would need its own licence check, and JSUT-derived weights in particular need their corpus terms read before use — a non-commercial restriction would be incompatible with an MIT-licensed app whose assets are meant to be redistributable. Until a Japanese voice clears, JA stays on synthesis-or-nothing and the mora-timing drills stay withheld on silent devices (SPEC §2.6)."
+    },
+    {
+      "key": "tatoeba-audio",
+      "name": "Tatoeba audio",
+      "url": "https://tatoeba.org/en/downloads",
+      "blocker": "Licence is per-clip and chosen by the contributor; clips with an empty licence field are unusable. The pipeline must filter per file and record each clip's licence individually before any audio enters assets/."
     }
   ]
 }

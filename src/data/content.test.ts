@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from './db.ts';
 import {
+  STARTER_BANDS,
   anchorPool,
   clearAnchorCache,
+  downloadCost,
   ensureBands,
   getAnchor,
   isContentReady,
-  STARTER_BANDS,
   type ContentManifest,
 } from './content.ts';
 
@@ -25,11 +26,11 @@ const manifest: ContentManifest = {
   lang: 'en',
   corpus: {},
   shards: [
-    { kind: 'lexemes', band: 1, path: 'lexemes.b1.json', count: 1, sha256: 'lex-1' },
-    { kind: 'anchors', band: 1, path: 'anchors.b1.json', count: 2, sha256: 'anc-1' },
-    { kind: 'sentences', band: 1, path: 'sentences.b1.json', count: 999, sha256: 'sen-1' },
-    { kind: 'lexemes', band: 4, path: 'lexemes.b4.json', count: 1, sha256: 'lex-4' },
-    { kind: 'anchors', band: 4, path: 'anchors.b4.json', count: 0, sha256: 'anc-4' },
+    { kind: 'lexemes', band: 1, path: 'lexemes.b1.json', count: 1, bytes: 4000, gzipBytes: 900, sha256: 'lex-1' },
+    { kind: 'anchors', band: 1, path: 'anchors.b1.json', count: 2, bytes: 8000, gzipBytes: 1800, sha256: 'anc-1' },
+    { kind: 'sentences', band: 1, path: 'sentences.b1.json', count: 999, bytes: 1007616, gzipBytes: 250000, sha256: 'sen-1' },
+    { kind: 'lexemes', band: 4, path: 'lexemes.b4.json', count: 1, bytes: 4000, gzipBytes: 900, sha256: 'lex-4' },
+    { kind: 'anchors', band: 4, path: 'anchors.b4.json', count: 0, bytes: 8000, gzipBytes: 1800, sha256: 'anc-4' },
   ],
 };
 
@@ -157,7 +158,7 @@ describe('ensureBands', () => {
   it('records no phantom import when a shard fetch fails', async () => {
     const broken: ContentManifest = {
       ...manifest,
-      shards: [{ kind: 'lexemes', band: 2, path: 'missing.json', count: 1, sha256: 'nope' }],
+      shards: [{ kind: 'lexemes', band: 2, path: 'missing.json', count: 1, bytes: 4000, gzipBytes: 900, sha256: 'nope' }],
     };
     await expect(ensureBands('en', [2], broken)).rejects.toThrow(/404/);
     expect(await db.contentShards.count()).toBe(0);
@@ -213,5 +214,30 @@ describe('isContentReady', () => {
 describe('starter set', () => {
   it('reaches band 3, because the default learner is not a beginner (D3)', () => {
     expect(STARTER_BANDS).toEqual([1, 2, 3]);
+  });
+});
+
+describe('downloadCost', () => {
+  it('adds up what the learner’s plan would actually be charged', async () => {
+    // Gzipped, because that is what travels — quoting the raw size would
+    // overstate the cost by roughly four times.
+    const cost = await downloadCost('en', [
+      { kind: 'sentences', band: 1 },
+      { kind: 'anchors', band: 1 },
+    ]);
+    expect(cost.gzipBytes).toBe(251_800);
+    expect(cost.urls).toEqual([
+      '/content/en/sentences.b1.json',
+      '/content/en/anchors.b1.json',
+    ]);
+  });
+
+  it('contributes nothing for a shard the manifest does not list', async () => {
+    // Invariant 18's rule applied to bytes: a figure we cannot read is not
+    // replaced by a guess, and a band with no passages costs nothing because
+    // there is nothing there to fetch.
+    const cost = await downloadCost('en', [{ kind: 'passages', band: 5 }]);
+    expect(cost.gzipBytes).toBe(0);
+    expect(cost.urls).toEqual([]);
   });
 });

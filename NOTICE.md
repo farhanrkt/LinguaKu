@@ -69,19 +69,51 @@ the contributor who recorded it; where the licence field is empty, the clip may
 not be reused outside Tatoeba. LinguaKu therefore resolves audio licences
 per file and ships no clip whose terms are unknown.
 
+## Simple English Wikipedia
+
+Graded reading passages.
+
+- Source: <https://dumps.wikimedia.org/simplewiki/>
+- Licence: **CC BY-SA 4.0** — <https://creativecommons.org/licenses/by-sa/4.0/>
+- Verified: 2026-08-12
+
+Cleared at source on the same day as the Wiktionary glosses, and confirmed the
+same two ways: `dumps.wikimedia.org/legal.html` and the wiki's own rights info.
+
+**Share-alike applies.** `assets/content/en/passages.b*.json` ship under CC
+BY-SA 4.0, separately from the Tatoeba-derived sentence shards, which remain CC
+BY 2.0 FR. Every passage records the article title it was taken from, so
+attribution is traceable per paragraph rather than only per corpus — the reader
+shows that title above each text.
+
+## Indonesian Wiktionary (id.wiktionary.org)
+
+Short Indonesian glosses for English and Japanese headwords.
+
+- Source: <https://dumps.wikimedia.org/idwiktionary/>
+- Licence: **CC BY-SA 4.0** — <https://creativecommons.org/licenses/by-sa/4.0/>
+- Verified: 2026-08-12
+
+Parsed from the Wikimedia dump directly rather than from a third-party
+extraction, so the only terms that apply are Wikimedia's own. Confirmed two
+ways on 2026-08-12: `dumps.wikimedia.org/legal.html` states that original
+textual content is licensed under the GFDL **and** CC BY-SA 4.0, and
+id.wiktionary's own API reports CC BY-SA 4.0 as the site's rights info.
+
+**Share-alike applies.** `assets/content/{en,ja}/glosses.b*.json` ship under CC
+BY-SA 4.0. They are kept as separate shards precisely so that this does not
+travel into the Tatoeba-derived sentence shards, which remain CC BY 2.0 FR.
+
+Glosses are shown as reference — in the reader's word panel and on first
+exposure — and are **never used to grade an answer**. Coverage is partial by
+measurement (30% of English lexemes, 4% of Japanese), and a word without one
+says so rather than being given an invented meaning.
+
 ## JMdict (Electronic Dictionary Research and Development Group)
 
 Japanese lexicon: headwords, readings and senses.
 
 - Source: <https://www.edrdg.org/jmdict/j_jmdict.html>
-- Licence: **CC BY-SA 4.0** — <https://www.edrdg.org/edrdg/licence.html>
-- Verified: 2026-08-10
-
-## JMnedict (Electronic Dictionary Research and Development Group)
-
-Japanese proper names.
-
-- Source: <https://www.edrdg.org/enamdict/enamdict_doc.html>
 - Licence: **CC BY-SA 4.0** — <https://www.edrdg.org/edrdg/licence.html>
 - Verified: 2026-08-10
 

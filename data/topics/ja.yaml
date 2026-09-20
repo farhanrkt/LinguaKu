@@ -1,0 +1,80 @@
+# Topic clusters for Japanese (SPEC §2.10, §2.14, §2.8).
+#
+# Same purpose as `en.yaml` and one structural difference: Japanese headwords
+# are dictionary forms from JMdict, so the words listed here are surface forms
+# in kanji or kana exactly as the inventory holds them. The compiler checks
+# every one against the shipped lexemes and fails on a miss, which is what keeps
+# a hand-written list honest against a corpus it did not produce.
+#
+# Smaller than the English map on purpose. Coverage is published rather than
+# claimed, and a word in no topic loses nothing — it simply is not boosted.
+#
+# Wants a native reviewer, like every other authored Japanese file here.
+
+version: 1
+lang: ja
+
+topics:
+  - id: daily
+    label: 'Kegiatan sehari-hari'
+    hint: 'Bangun, makan, kerja, pulang, tidur.'
+    words:
+      [
+        朝, 昼, 夜, 今日, 明日, 昨日, 時間, 毎日, 起きる, 寝る, 食べる, 飲む,
+        行く, 来る, 帰る, 見る, 聞く, 話す, 読む, 書く, 買う, 使う, 待つ, 休む,
+        働く, 洗う, 早い, 遅い, 家, 部屋,
+      ]
+
+  - id: family
+    label: 'Keluarga dan orang'
+    hint: 'Orang tua, saudara, teman.'
+    words:
+      [
+        家族, 父, 母, 兄, 姉, 弟, 妹, 子供, 友達, 人, 男, 女, 名前, 先生,
+        学生, 会う, 好き, 一緒, 結婚, 子, 家,
+      ]
+
+  - id: food
+    label: 'Makanan dan minuman'
+    hint: 'Nasi, air, restoran, memesan.'
+    words:
+      [
+        食べ物, ご飯, 水, お茶, 肉, 魚, 卵, 野菜, 果物, パン, 牛乳,
+        料理, 食べる, 飲む, 作る, 店, 味, 甘い, 辛い, 熱い, 冷たい, おいしい,
+      ]
+
+  - id: travel
+    label: 'Jalan-jalan dan transportasi'
+    hint: 'Kereta, stasiun, peta, hotel.'
+    words:
+      [
+        駅, 電車, 車, バス, 道, 町, 国, 地図, 旅行, 行く, 帰る, 歩く,
+        乗る, 降りる, 遠い, 近い, 右, 左, 前, 後ろ, 上, 下, 中, 外,
+      ]
+
+  - id: school
+    label: 'Sekolah dan belajar'
+    hint: 'Kelas, ujian, PR, guru.'
+    words:
+      [
+        学校, 学生, 先生, 勉強, 本, 字, 言葉, 質問, 答え, 試験, 宿題, 教える,
+        習う, 覚える, 忘れる, 分かる, 難しい, 易しい, 授業, 大学,
+      ]
+
+  - id: feelings
+    label: 'Perasaan dan pendapat'
+    hint: 'Senang, sedih, takut, setuju.'
+    words:
+      [
+        嬉しい, 悲しい, 楽しい, 怖い, 好き, 嫌い, 思う, 考える, 分かる, 知る,
+        欲しい, 大丈夫, 元気, 心配, 面白い, つまらない, 大切, 本当, 気持ち,
+      ]
+
+  - id: time
+    label: 'Waktu dan jadwal'
+    hint: 'Jam, hari, minggu, terlambat.'
+    words:
+      [
+        時, 分, 時間, 今, 今日, 明日, 昨日, 朝, 昼, 夜, 週, 月, 年, 曜日,
+        毎日, 早い, 遅い, 前, 後, 始まる, 終わる, 待つ,
+      ]

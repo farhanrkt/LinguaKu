@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  adoptVerdict,
   isTtsLive,
   listVoices,
   pickVoice,
@@ -9,6 +10,7 @@ import {
   speak,
   TTS_ONEND_DEADLINE_MS,
   ttsReport,
+  type VoiceReport,
 } from './speech.ts';
 
 /**
@@ -38,7 +40,7 @@ interface StubOptions {
    * What the engine does when asked to speak.
    *  'end'     — the honest engine: starts and finishes.
    *  'start'   — fires onstart and then never finishes. This is the Android
-   *              failure the 500 ms onend deadline exists to catch.
+   *              failure the onend deadline exists to catch.
    *  'error'   — refuses outright.
    *  'silent'  — accepts the utterance and does nothing at all.
    *  'slow'    — finishes, but after the deadline has passed.
@@ -214,7 +216,10 @@ describe('the boot verdict (risk R1)', () => {
   it('waits exactly half a second for onend before giving up', () => {
     // The device matrix's number. Kept as a named constant so the deadline is
     // one decision in one place rather than a literal sprinkled about.
-    expect(TTS_ONEND_DEADLINE_MS).toBe(500);
+    // Raised from 500 ms after the first real device row (2026-08-13): a phone
+    // with working on-device voices in both languages completed at 932 ms and
+    // 999 ms, and a 500 ms deadline withheld L4 from it. See D29.
+    expect(TTS_ONEND_DEADLINE_MS).toBe(2_000);
   });
 
   it('reports nothing until the probe has actually answered', () => {
@@ -294,5 +299,62 @@ describe('the boot verdict (risk R1)', () => {
     expect(isTtsLive('en')).toBe(false);
     // And it stays dead — no second chance mid-session.
     expect(ttsReport('en')?.support).toBe('dead');
+  });
+});
+
+describe('adoptVerdict — the gesture-driven second chance (D29)', () => {
+  const ready = (onendMs: number | null): VoiceReport => ({
+    support: 'ready',
+    voiceName: 'Samantha',
+    localService: true,
+    voiceCount: 1,
+    probedAt: 0,
+    onendMs,
+  });
+
+  it('rescues a device the boot probe called silent', async () => {
+    // Exactly iOS Safari: the boot probe cannot speak outside a gesture, so it
+    // marks a working engine dead. A probe from inside a tap knows better.
+    stubSpeech({ voices: [voice('Samantha', 'en-US')], utterance: 'silent' });
+    expect((await probeOnBoot('en', FAST)).support).toBe('dead');
+    expect(isTtsLive('en')).toBe(false);
+
+    expect(adoptVerdict('en', ready(120))).toBe(true);
+    expect(isTtsLive('en')).toBe(true);
+  });
+
+  it('refuses to adopt an engine that finished after the deadline', () => {
+    // L4 is scheduled against the deadline. Admitting a slower engine here
+    // would put dictation cards in front of someone who has to wait for them.
+    expect(adoptVerdict('en', ready(TTS_ONEND_DEADLINE_MS + 1))).toBe(false);
+    expect(isTtsLive('en')).toBe(false);
+  });
+
+  it('never retracts an engine that has already been heard to speak', async () => {
+    stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
+    await probeOnBoot('en', FAST);
+    expect(isTtsLive('en')).toBe(true);
+
+    // A later failure is not evidence the device cannot speak, and flipping the
+    // rung out mid-session is the flicker D29 exists to prevent.
+    expect(
+      adoptVerdict('en', { ...ready(null), support: 'dead', voiceName: null }),
+    ).toBe(false);
+    expect(isTtsLive('en')).toBe(true);
+  });
+});
+
+describe('probeVoice timing', () => {
+  it('records how long the utterance actually took, not just that it passed', async () => {
+    stubSpeech({ voices: [voice('Voice', 'en-US')], utterance: 'end' });
+    const report = await probeVoice('en', FAST);
+    expect(report.support).toBe('ready');
+    expect(report.onendMs).not.toBeNull();
+    expect(report.onendMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('reports no elapsed time when the engine never finished', async () => {
+    stubSpeech({ voices: [voice('Liar', 'en-US')], utterance: 'start' });
+    expect((await probeVoice('en', FAST)).onendMs).toBeNull();
   });
 });

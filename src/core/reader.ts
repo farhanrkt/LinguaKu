@@ -143,3 +143,97 @@ const hash = (id: string, seed: number): number => {
   }
   return value;
 };
+
+// ------------------------------------------------------------ running text
+
+/**
+ * A passage — running text, with no translation beside it.
+ *
+ * That absence is the point. A sentence in the feed comes with its Indonesian
+ * pair, so a learner can always fall back on it; a passage cannot, which is
+ * what makes coverage load-bearing rather than advisory (§2.4).
+ */
+export interface ReadablePassage {
+  id: string;
+  title: string;
+  text: string;
+  tokens: number;
+  /** Distinct in-inventory tokens, precomputed by the pipeline. */
+  vocab: string[];
+}
+
+export interface PassageItem<T extends ReadablePassage> {
+  passage: T;
+  coverage: number;
+  /** Lexeme ids in the passage the learner does not yet know. */
+  unknown: string[];
+  /** Whether coverage lands inside §2.4's band rather than merely above the floor. */
+  inBand: boolean;
+}
+
+/**
+ * §2.4's target band, quoted from the spec: high enough to comprehend, low
+ * enough to contain something new.
+ *
+ * Unreachable on a single sentence — coverage is quantized to 1/n, so on ten
+ * tokens the reachable values are 1.00, 0.90, 0.80 and the band is empty (D28).
+ * On a forty-token paragraph there are forty reachable values inside it, which
+ * is the first time in this project the spec's own threshold can be applied as
+ * written rather than approximated.
+ */
+export const COVERAGE_BAND_LOW = 0.92;
+export const COVERAGE_BAND_HIGH = 0.98;
+
+export interface SelectPassagesInput<T extends ReadablePassage> {
+  pool: readonly T[];
+  known: ReadonlySet<string>;
+  lang: string;
+  limit: number;
+  seed: number;
+}
+
+/**
+ * Picks the next passages, by known-token coverage (§2.4).
+ *
+ * Anything below `COVERAGE_FLOOR` is dropped outright: §2.4 says the selector
+ * must *never* return an item under 0.85, and below that a learner is decoding
+ * rather than reading. Above it, passages inside the band come first and are
+ * ordered by closeness to its middle, so the feed is comprehensible input with
+ * something new in it rather than either a wall of unknown words or a text with
+ * nothing left to learn.
+ */
+export const selectPassages = <T extends ReadablePassage>(
+  input: SelectPassagesInput<T>,
+): PassageItem<T>[] => {
+  const scored: PassageItem<T>[] = [];
+
+  for (const passage of input.pool) {
+    if (passage.tokens === 0) continue;
+
+    // Tokenized here with the pipeline's own tokenizer rather than trusting a
+    // precomputed count, for the reason that makes coverage mean anything: a
+    // word *outside* the inventory is a word the learner does not know either,
+    // and scoring over the in-inventory slice alone would report an
+    // encyclopedia paragraph full of unknown proper nouns as fully understood.
+    const report = coverageOf(passage.text, input.known, input.lang);
+
+    if (report.coverage < COVERAGE_FLOOR) continue;
+    scored.push({
+      passage,
+      coverage: report.coverage,
+      unknown: report.unknown,
+      inBand:
+        report.coverage >= COVERAGE_BAND_LOW && report.coverage <= COVERAGE_BAND_HIGH,
+    });
+  }
+
+  const middle = (COVERAGE_BAND_LOW + COVERAGE_BAND_HIGH) / 2;
+  return scored
+    .sort((a, b) => {
+      if (a.inBand !== b.inBand) return a.inBand ? -1 : 1;
+      const distance = Math.abs(a.coverage - middle) - Math.abs(b.coverage - middle);
+      if (distance !== 0) return distance;
+      return hash(a.passage.id, input.seed) - hash(b.passage.id, input.seed);
+    })
+    .slice(0, input.limit);
+};

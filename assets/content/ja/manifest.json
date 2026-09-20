@@ -98,6 +98,87 @@
       "sha256": "6d8e4cb6e4ca8ee763b00abb4ea38943ecbefb71d124f3df8ad071da16ef7409"
     },
     {
+      "kind": "chunks",
+      "band": 1,
+      "path": "chunks.b1.json",
+      "count": 9,
+      "bytes": 7292,
+      "gzipBytes": 2045,
+      "sha256": "d75165a3e8c9fb33ddfd967c41d7b010eeda2f8920d23257c0704d5c4a7f20b2"
+    },
+    {
+      "kind": "chunks",
+      "band": 2,
+      "path": "chunks.b2.json",
+      "count": 6,
+      "bytes": 5393,
+      "gzipBytes": 1674,
+      "sha256": "2314efbfae714ebf9e4a845091eb8399b82710e03664295d946c7f1e09d56da0"
+    },
+    {
+      "kind": "chunks",
+      "band": 3,
+      "path": "chunks.b3.json",
+      "count": 2,
+      "bytes": 1850,
+      "gzipBytes": 752,
+      "sha256": "cc8e6ee866573aeaef01ac2fb4072ea2152a97f379ef316b5bd87f3f5856b123"
+    },
+    {
+      "kind": "chunks",
+      "band": 4,
+      "path": "chunks.b4.json",
+      "count": 6,
+      "bytes": 4545,
+      "gzipBytes": 1369,
+      "sha256": "e7a0591a204c270e790450c4a2fb90a88c9aa556009aaba4eb29ebd08fd629b4"
+    },
+    {
+      "kind": "glosses",
+      "band": 1,
+      "path": "glosses.b1.json",
+      "count": 79,
+      "bytes": 3715,
+      "gzipBytes": 1724,
+      "sha256": "37bcdcc89895f20ed09ab77b99d62f770acb3e8ac0d0f1a4473df5a5e7602ac8"
+    },
+    {
+      "kind": "glosses",
+      "band": 2,
+      "path": "glosses.b2.json",
+      "count": 49,
+      "bytes": 2038,
+      "gzipBytes": 1029,
+      "sha256": "cfc479c49c5106cf8c5471724296a794a508960f36b487b3be67fd1737050371"
+    },
+    {
+      "kind": "glosses",
+      "band": 3,
+      "path": "glosses.b3.json",
+      "count": 50,
+      "bytes": 2209,
+      "gzipBytes": 1125,
+      "sha256": "6fad9c278780d31c1e440b6250b4aab58a584f005b84887492c875f22deb7e14"
+    },
+    {
+      "kind": "glosses",
+      "band": 4,
+      "path": "glosses.b4.json",
+      "count": 62,
+      "bytes": 2772,
+      "gzipBytes": 1376,
+      "sha256": "8fbf7a640b8656c8a5d9ba10eddcffbbb79cea7e7e3d461284c76a7d7ab1def7"
+    },
+    {
+      "kind": "glosses",
+      "band": 5,
+      "path": "glosses.b5.json",
+      "count": 34,
+      "bytes": 1513,
+      "gzipBytes": 846,
+      "sha256": "c46f3b683d05c1500b2b9a99acb29832cf61370b42c77e8ba91f4e73dd602632"
+    },
+    {
       "kind": "kanji",
       "band": 1,
       "path": "kanji.b1.json",
@@ -204,6 +285,20 @@
       "bytes": 6696,
       "gzipBytes": 1561,
       "sha256": "8644f7f9f413cfeac691584309a3a5af73603d261b7a5644a94fe1a78309060d"
+    },
+    {
+      "kind": "topics",
+      "band": 0,
+      "path": "topics.json",
+      "count": 7,
+      "bytes": 4139,
+      "gzipBytes": 1293,
+      "sha256": "0a7a434d281a615bdd124f86034274e9624a2e461f8d546790eb8bbfe2c80b12"
     }
-  ]
+  ],
+  "glossCoverage": {
+    "glossed": 274,
+    "lexemes": 6904,
+    "share": 0.0397
+  }
 }

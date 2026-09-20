@@ -124,7 +124,7 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
             <button
               type="button"
               onClick={onDone}
-              className="mt-2 min-h-12 w-full text-sm text-stone-500 underline-offset-4 hover:underline dark:text-slate-500"
+              className="mt-2 min-h-12 w-full text-sm text-stone-500 underline-offset-4 hover:underline dark:text-slate-400"
               data-testid="placement-skip"
             >
               {copy.placement.skip}
@@ -135,7 +135,7 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
         <h1 className="mt-6 text-2xl font-bold">{copy.placement.heading}</h1>
         <p className="mt-3 text-stone-600 dark:text-slate-400">{copy.placement.intro}</p>
         <p className="mt-3 text-stone-600 dark:text-slate-400">{copy.placement.instruction}</p>
-        <p className="mt-6 text-sm text-stone-500 dark:text-slate-500">
+        <p className="mt-6 text-sm text-stone-500 dark:text-slate-400">
           {copy.placement.skipNote}
         </p>
       </Screen>
@@ -161,7 +161,7 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
           </div>
         }
       >
-        <p className="text-sm text-stone-500 dark:text-slate-500" data-testid="placement-progress">
+        <p className="text-sm text-stone-500 dark:text-slate-400" data-testid="placement-progress">
           {copy.placement.progress(state?.asked.length ?? 0)}
         </p>
         <p

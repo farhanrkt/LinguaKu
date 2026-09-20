@@ -101,3 +101,64 @@ export const newItemAllowance = (input: ThrottleInput): ThrottleResult => {
 /** Reviews per day a session of this length can absorb, for the throttle. */
 export const dailyCapacityFor = (budgetMinutes: number, secondsPerReview = 12): number =>
   Math.max(1, Math.floor((budgetMinutes * 60) / secondsPerReview));
+
+// ------------------------------------------------- the daily introduction cap
+
+/**
+ * How many *new* words a day this budget can carry, before review debt is even
+ * considered.
+ *
+ * SCIENCE: `newItemAllowance` above is a debt brake — it reacts to a backlog
+ * that already exists, a week after the decision that caused it. This is the
+ * speed limit that stops the backlog forming, and it is the single most
+ * important setting in every mature SRS for exactly that reason. The two are
+ * not redundant: the throttle is per *session* and derived from the forecast,
+ * so a learner running five sessions in one evening passes it five times and
+ * introduces five doses of new material. The forecast only catches up days
+ * later, which is precisely when SPEC §7.2 says they abandon the app.
+ *
+ * Derived from `dailyCapacityFor` rather than from a second magic number, so
+ * the two halves of §7.2 cannot drift apart. Each new word costs roughly four
+ * reviews a day while it is still young, so a learner's daily review capacity
+ * divided by four is what they can add without the backlog growing.
+ *
+ * **This makes the first sessions short, and that is the correct behaviour.**
+ * Uncapped, a 4-minute learner's very first session queued 30 new words against
+ * a capacity of 20 reviews a day — a backlog bought on day one and paid for on
+ * day four, which is the abandonment §7.2 describes. A learner who wants more
+ * can say so (§2.14); a learner who says nothing gets a pace they can keep.
+ */
+const REVIEWS_PER_NEW_WORD = 4;
+
+export const defaultDailyNewWords = (budgetMinutes: number): number =>
+  Math.max(1, Math.round(dailyCapacityFor(budgetMinutes) / REVIEWS_PER_NEW_WORD));
+
+export interface DailyNewInput {
+  /** The learner's cap, or undefined to use the default for their budget. */
+  cap?: number | undefined;
+  budgetMinutes: number;
+  /** New words already introduced today, from the review log. */
+  introducedToday: number;
+}
+
+export interface DailyNewResult {
+  cap: number;
+  introduced: number;
+  remaining: number;
+  /** True when today's allowance is spent — a fact to state, never a scolding. */
+  reached: boolean;
+}
+
+export const dailyNewWords = (input: DailyNewInput): DailyNewResult => {
+  const cap = Math.max(0, Math.floor(input.cap ?? defaultDailyNewWords(input.budgetMinutes)));
+  const introduced = Math.max(0, input.introducedToday);
+  const remaining = Math.max(0, cap - introduced);
+  return { cap, introduced, remaining, reached: remaining === 0 };
+};
+
+/** Local-midnight boundary for "today", in the device's own timezone. */
+export const startOfLocalDay = (now: Timestamp): Timestamp => {
+  const date = new Date(now);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};

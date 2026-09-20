@@ -2,16 +2,31 @@ import { useCallback, useEffect, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
-import { selectReading, tokensOf, type ReaderItem } from '../../core/reader.ts';
+import { TappableText, WORD_NAV_HINT_ID, type TextPart } from '../../ui/TappableText.tsx';
+import {
+  selectPassages,
+  selectReading,
+  tokensOf,
+  type PassageItem,
+  type ReaderItem,
+} from '../../core/reader.ts';
 import { knownItemIds, lexemeIdFor } from '../../core/coverage.ts';
 import { isKanji, toHiragana } from '../../core/kana.ts';
 import { bandForAbility } from '../../core/placement.ts';
-import { loadSentences, type AnchorSentence } from '../../data/content.ts';
+import { glossFor } from '../../data/glosses.ts';
+import { loadPassages, type Passage } from '../../data/passages.ts';
+import { PassageView } from './PassageView.tsx';
+import { downloadCost, loadSentences, type AnchorSentence } from '../../data/content.ts';
 import { db } from '../../data/db.ts';
+import {
+  connectionHint,
+  holdBackDownloads,
+  isAlreadyCached,
+} from '../../platform/connection.ts';
 import { vocabularyAbility } from '../../data/repositories/abilities.ts';
 import { mineItem, minedItemIds, unmineItem } from '../../data/repositories/mining.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { Item, Profile } from '../../data/types.ts';
+import type { Item, Profile, TargetLang } from '../../data/types.ts';
 
 /**
  * The graded reader (SPEC §8), which the spec calls "the retention engine" and
@@ -34,6 +49,8 @@ import type { Item, Profile } from '../../data/types.ts';
  */
 
 const READING_LENGTH = 20;
+/** Two passages a session: §2.13's four minutes is the constraint, not the shelf. */
+const PASSAGE_LENGTH = 2;
 
 interface ReaderScreenProps {
   profile: Profile;
@@ -44,9 +61,35 @@ interface Tapped {
   token: string;
   itemId: string;
   item: Item | null;
-  sentence: AnchorSentence;
+  /** Null when the word was tapped inside a passage rather than the feed. */
+  sentence: AnchorSentence | null;
+  /** What it was read in — a sentence id or a passage id. Mining's provenance. */
+  source: string;
   mined: boolean;
+  /** Indonesian senses, where this word has any (risk R3, partial by design). */
+  senses: readonly string[];
 }
+
+/**
+ * The feed's words, with §2.4's unknown-word highlight preserved per token.
+ *
+ * No separator between them: `tokensOf` returns words without the whitespace,
+ * and the padding on each word is what has always spaced them apart.
+ */
+const tokenParts = (
+  tokens: readonly string[],
+  lang: TargetLang,
+  unknown: readonly string[],
+): TextPart[] =>
+  tokens.map((token) => ({
+    kind: 'word',
+    text: token,
+    className:
+      'rounded px-0.5 text-left motion-safe:transition-colors ' +
+      (unknown.includes(lexemeIdFor(lang, token.toLowerCase()))
+        ? 'bg-amber-100 font-semibold hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900'
+        : 'hover:bg-stone-100 dark:hover:bg-slate-800'),
+  }));
 
 export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
@@ -54,6 +97,20 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
   const [mined, setMined] = useState<ReadonlySet<string>>(new Set());
   const [tapped, setTapped] = useState<Tapped | null>(null);
+  /** SPEC §8's graded reader proper — running text, English only for now. */
+  const [passages, setPassages] = useState<PassageItem<Passage>[]>([]);
+
+  /**
+   * SPEC §5.4. This screen is the one tap in the app that spends a noticeable
+   * amount of the learner's data plan: its band's sentence shards are ~415 KB
+   * gzipped for English and ~479 KB for Japanese. The architecture has deferred
+   * that cost since M2 (D20) — what was missing is telling the learner about it.
+   *
+   * `null` means "not decided yet", which is not the same as "no cost": the
+   * screen shows neither the gate nor an empty reader until the answer is known.
+   */
+  const [gate, setGate] = useState<{ kb: number } | null>(null);
+  const [payAnyway, setPayAnyway] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -66,12 +123,48 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
       // with the frontier supplying what is new.
       const bands: FrequencyBand[] =
         frontier > 1 ? [(frontier - 1) as FrequencyBand, frontier] : [frontier];
+
+      if (!payAnyway && holdBackDownloads(profile.dataSaver ?? 'auto', connectionHint())) {
+        const cost = await downloadCost(
+          lang,
+          bands.flatMap((band) => [
+            { kind: 'sentences' as const, band },
+            { kind: 'passages' as const, band },
+          ]),
+        );
+        // Only ask where there is something to pay for. A learner who fetched
+        // this band last week already owns it, and warning them about a cost
+        // that no longer exists would be a false alarm, not caution.
+        const unpaid = await Promise.all(cost.urls.map((url) => isAlreadyCached(url)));
+        if (unpaid.some((cached) => !cached) && cost.gzipBytes > 0) {
+          setGate({ kb: Math.round(cost.gzipBytes / 1024) });
+          return;
+        }
+      }
+      setGate(null);
+
       const pool = (
         await Promise.all(bands.map((band) => loadSentences(lang, band)))
       ).flat();
 
+      // The passage corpus is Simple English Wikipedia; there is no free,
+      // licence-cleared graded corpus for Japanese, so Japanese keeps the feed
+      // and the screen says so rather than implying parity.
+      const passagePool = (
+        await Promise.all(bands.map((band) => loadPassages(lang, band)))
+      ).flat();
+
       setKnown(knownSet);
       setMined(await minedItemIds(profile.id));
+      setPassages(
+        selectPassages({
+          pool: passagePool,
+          known: knownSet,
+          lang,
+          limit: PASSAGE_LENGTH,
+          seed: Math.floor(Date.now() / 86_400_000),
+        }),
+      );
       setItems(
         selectReading({
           pool,
@@ -82,7 +175,29 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         }),
       );
     })();
-  }, [profile.id, lang]);
+  }, [profile.id, lang, profile.dataSaver, payAnyway]);
+
+  const handleTapToken = useCallback(
+    async (token: string, passageId: string) => {
+      const itemId = lexemeIdFor(lang, token.toLowerCase());
+      const item = (await db.items.get(itemId)) ?? null;
+      // A word tapped inside a passage has no sentence pair behind it — that is
+      // what makes running text a different exercise — but it is still minable.
+      // §8 calls mining the retention engine, and passages are the first thing
+      // the reader shows; withholding it there would remove the feature from
+      // the surface it matters most on. The passage id is the provenance.
+      setTapped({
+        token,
+        itemId,
+        item,
+        sentence: null,
+        source: passageId,
+        mined: mined.has(itemId),
+        senses: item ? await glossFor(lang, item.band, itemId) : [],
+      });
+    },
+    [lang, mined],
+  );
 
   const handleTap = useCallback(
     async (token: string, sentence: AnchorSentence) => {
@@ -93,7 +208,11 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         itemId,
         item,
         sentence,
+        source: sentence.id,
         mined: mined.has(itemId),
+        // Glossed where we have one, and honest where we do not — coverage is
+        // 30% of English and 4% of Japanese, measured (src/data/glosses.ts).
+        senses: item ? await glossFor(lang, item.band, itemId) : [],
       });
     },
     [lang, mined],
@@ -106,7 +225,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
       await unmineItem(profile.id, tapped.itemId);
       next.delete(tapped.itemId);
     } else {
-      await mineItem(profile.id, tapped.itemId, tapped.sentence.id, Date.now());
+      await mineItem(profile.id, tapped.itemId, tapped.source, Date.now());
       next.add(tapped.itemId);
     }
     setMined(next);
@@ -114,11 +233,69 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   }, [tapped, mined, profile.id]);
 
   return (
-    <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
+    <Screen
+      footer={
+        // While the gate is up, "download" is the decision and "back" is the
+        // way out of it — two full-width primaries would make the learner pick
+        // between two things that look equally like the answer.
+        <Button variant={gate === null ? 'primary' : 'quiet'} onClick={onBack}>
+          {copy.progress.back}
+        </Button>
+      }
+    >
       <h1 className="text-2xl font-bold">{copy.reader.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.reader.intro}</p>
+      {/* Referenced by every tappable block on this screen (D70). Once, because
+          repeating it per paragraph is what makes a hint into noise — and not
+          at all while the download gate is up, because there are no words yet
+          and a screen reader would be told how to move between nothing. */}
+      {gate !== null ? null : (
+        <p id={WORD_NAV_HINT_ID} className="sr-only">
+          {copy.reader.wordNav}
+        </p>
+      )}
 
-      {items === null ? (
+      {gate !== null ? (
+        <section
+          className="mt-6 rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+          data-testid="reader-data-gate"
+        >
+          <h2 className="font-bold">{copy.reader.data.heading}</h2>
+          <p className="mt-1 text-stone-600 dark:text-slate-400">
+            {copy.reader.data.body(gate.kb)}
+          </p>
+          <div className="mt-4">
+            <Button onClick={() => setPayAnyway(true)} data-testid="reader-data-download">
+              {copy.reader.data.download}
+            </Button>
+          </div>
+          <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
+            {copy.reader.data.note}
+          </p>
+        </section>
+      ) : null}
+
+      {gate !== null ? null : passages.length > 0 ? (
+        <section data-testid="passages">
+          <h2 className="mt-8 text-lg font-bold">{copy.reader.passage.heading}</h2>
+          {passages.map((item) => (
+            <PassageView
+              key={item.passage.id}
+              item={item}
+              profileId={profile.id}
+              lang={lang}
+              known={known}
+              onTapWord={(token) => void handleTapToken(token, item.passage.id)}
+            />
+          ))}
+        </section>
+      ) : lang === 'ja' ? (
+        <p className="mt-4 text-sm text-stone-500 dark:text-slate-400" data-testid="passages-absent">
+          {copy.reader.passage.onlyEnglish}
+        </p>
+      ) : null}
+
+      {gate !== null ? null : items === null ? (
         <p className="mt-8 text-stone-600 dark:text-slate-400">{copy.reader.loading}</p>
       ) : items.length === 0 ? (
         <p className="mt-8 text-stone-600 dark:text-slate-400">{copy.reader.empty}</p>
@@ -129,28 +306,14 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
               key={item.sentence.id}
               className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
             >
-              <p className="text-xl leading-relaxed">
-                {tokensOf(item.sentence).map((token, index) => {
-                  const itemId = lexemeIdFor(lang, token.toLowerCase());
-                  const isNew = item.unknown.includes(itemId);
-                  return (
-                    <button
-                      key={`${item.sentence.id}-${index}`}
-                      type="button"
-                      onClick={() => void handleTap(token, item.sentence)}
-                      data-testid="reader-token"
-                      className={
-                        'rounded px-0.5 text-left motion-safe:transition-colors ' +
-                        (isNew
-                          ? 'bg-amber-100 font-semibold hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900'
-                          : 'hover:bg-stone-100 dark:hover:bg-slate-800')
-                      }
-                    >
-                      {token}
-                    </button>
-                  );
-                })}
-              </p>
+              <TappableText
+                parts={tokenParts(tokensOf(item.sentence), lang, item.unknown)}
+                label={copy.reader.sentenceLabel}
+                describedBy={WORD_NAV_HINT_ID}
+                onTap={(token) => void handleTap(token, item.sentence)}
+                className="text-xl leading-relaxed"
+                wordTestId="reader-token"
+              />
               <p className="mt-2 text-stone-600 dark:text-slate-400">{item.sentence.tr.text}</p>
             </li>
           ))}
@@ -197,7 +360,7 @@ const WordPanel = ({
     >
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-2xl font-bold">{tapped.token}</p>
-        <span className="text-sm text-stone-500 dark:text-slate-500">
+        <span className="text-sm text-stone-500 dark:text-slate-400">
           {known ? copy.reader.word.known : copy.reader.word.unknown}
         </span>
       </div>
@@ -209,7 +372,7 @@ const WordPanel = ({
       ) : null}
 
       {item ? (
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
           {copy.reader.word.band(item.band)}
         </p>
       ) : null}
@@ -220,17 +383,29 @@ const WordPanel = ({
         </p>
       ) : null}
 
-      {/* R3: no cleared per-word dictionary, so meaning rests on the sentence —
-          which is what SPEC §2.5 chose deliberately, not a gap being papered. */}
-      <p className="mt-3 text-sm text-stone-500 dark:text-slate-500">
-        {copy.reader.word.noGloss}
-      </p>
-      <p className="mt-2 rounded-xl bg-stone-100 p-3 dark:bg-slate-900">
-        <span className="block text-sm text-stone-500 dark:text-slate-500">
-          {copy.reader.word.inSentence}
-        </span>
-        {sentence.tr.text}
-      </p>
+      {/* A gloss where one exists, and the honest empty state where none does.
+          Glosses are reference only: they are never graded against, because
+          coverage is partial and an unfair "wrong" is what §2.7 forbids. */}
+      {tapped.senses.length > 0 ? (
+        <p className="mt-3 text-base text-stone-800 dark:text-slate-200" data-testid="word-gloss">
+          {tapped.senses.join('; ')}
+        </p>
+      ) : (
+        <p className="mt-3 text-sm text-stone-500 dark:text-slate-400" data-testid="word-no-gloss">
+          {copy.reader.word.noGloss}
+        </p>
+      )}
+      {/* The feed's translation, where the tap came from the feed. A word
+          tapped in a passage has no translation beside it — that is what makes
+          running text a different exercise from a sentence pair. */}
+      {sentence ? (
+        <p className="mt-2 rounded-xl bg-stone-100 p-3 dark:bg-slate-900">
+          <span className="block text-sm text-stone-600 dark:text-slate-400">
+            {copy.reader.word.inSentence}
+          </span>
+          {sentence.tr.text}
+        </p>
+      ) : null}
 
       <div className="mt-4 flex gap-3">
         {item ? (

@@ -59,6 +59,18 @@ interface WireLexeme {
   share?: number;
 }
 
+/** An authored collocation or formula (SPEC §2.5). */
+interface WireChunk {
+  id: string;
+  headword: string;
+  gloss: string;
+  note?: string;
+  freqRank: number;
+  band: FrequencyBand;
+  anchors: string[];
+  examples?: AnchorSentence[];
+}
+
 /** A kanji, from KANJIDIC2 and KRADFILE (SPEC §2.11). */
 export interface WireKanji {
   id: string;
@@ -76,11 +88,23 @@ export interface WireKanji {
   breakdown: string[];
 }
 
+export type ShardKind =
+  | 'sentences'
+  | 'lexemes'
+  | 'anchors'
+  | 'kanji'
+  | 'chunks'
+  | 'glosses'
+  | 'passages';
+
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji';
+  kind: ShardKind;
   band: FrequencyBand;
   path: string;
   count: number;
+  bytes: number;
+  /** What actually travels. The pipeline has emitted this since M1. */
+  gzipBytes: number;
   sha256: string;
 }
 
@@ -127,6 +151,34 @@ const toItem = (wire: WireLexeme, lang: TargetLang): Item => ({
   // Derived from the corpus rather than lifted from one sentence, so the
   // external id is the surface form itself.
   sourceRef: { dataset: 'tatoeba', externalId: wire.headword },
+});
+
+/**
+ * A chunk becomes an `Item` like any other, and gets a card, a schedule and a
+ * place in the session. SPEC §2.5 is explicit that collocations and formulaic
+ * chunks are *first-class items, not derived from single words* — teaching
+ * `take` and `shower` separately never adds up to "take a shower", which is the
+ * whole reason the requirement exists.
+ *
+ * It carries its meaning with it, because that meaning is authored rather than
+ * looked up: the parts do not compose, so a per-word gloss cannot help.
+ */
+const toChunkItem = (wire: WireChunk, lang: TargetLang): Item => ({
+  id: wire.id,
+  lang,
+  kind: 'chunk',
+  headword: wire.headword,
+  gloss: wire.gloss,
+  ...(wire.note !== undefined ? { chunkNote: wire.note } : {}),
+  anchorSentenceIds: wire.anchors,
+  // Carried rather than referenced: a chunk's anchors come from the whole
+  // corpus, and `anchors.b<band>.json` is only the slice a band's vocabulary is
+  // taught through, so the id lookup missed for a fifth of them (D19).
+  ...(wire.examples !== undefined ? { examples: wire.examples } : {}),
+  freqRank: wire.freqRank,
+  band: wire.band,
+  interferenceTags: [],
+  sourceRef: { dataset: 'linguaku-authored', externalId: wire.headword },
 });
 
 /**
@@ -177,7 +229,9 @@ export const ensureBands = async (
     // not follow the vocabulary bands, and 1,748 records is small enough that
     // splitting it would cost more requests than it saves bytes.
     const wanted =
-      shard.kind === 'kanji' ? true : shard.kind === 'lexemes' && bands.includes(shard.band);
+      shard.kind === 'kanji'
+        ? true
+        : (shard.kind === 'lexemes' || shard.kind === 'chunks') && bands.includes(shard.band);
     if (!wanted) continue;
 
     const existing = await db.contentShards.get(shard.path);
@@ -186,13 +240,17 @@ export const ensureBands = async (
       continue;
     }
 
-    const payload = await fetchJson<{ lexemes?: WireLexeme[]; kanji?: WireKanji[] }>(
-      `${CONTENT_BASE}/${lang}/${shard.path}`,
-    );
+    const payload = await fetchJson<{
+      lexemes?: WireLexeme[];
+      kanji?: WireKanji[];
+      chunks?: WireChunk[];
+    }>(`${CONTENT_BASE}/${lang}/${shard.path}`);
     const rows =
       shard.kind === 'kanji'
         ? (payload.kanji ?? []).map((wire) => toKanjiItem(wire, lang))
-        : (payload.lexemes ?? []).map((wire) => toItem(wire, lang));
+        : shard.kind === 'chunks'
+          ? (payload.chunks ?? []).map((wire) => toChunkItem(wire, lang))
+          : (payload.lexemes ?? []).map((wire) => toItem(wire, lang));
     await db.items.bulkPut(rows);
     await db.contentShards.put({
       path: shard.path,
@@ -273,6 +331,42 @@ export const loadSentences = async (
     sentenceCache.set(key, []);
     return [];
   }
+};
+
+export interface DownloadCost {
+  /** Gzipped bytes — what the learner's plan is actually charged for. */
+  gzipBytes: number;
+  /** The shard URLs, so a caller can ask the cache which are already paid for. */
+  urls: string[];
+}
+
+/**
+ * What a set of shards would cost to fetch (SPEC §5.4).
+ *
+ * Read from the manifest the pipeline already publishes rather than measured or
+ * estimated: `gzipBytes` is the number that travels, and it is the number the
+ * learner is shown. A shard the manifest does not list contributes nothing
+ * rather than a guess — the same rule the rest of the app follows about figures
+ * it cannot measure (invariant 18).
+ *
+ * Deliberately says nothing about what is already cached. That needs the Cache
+ * API, which lives in `src/platform`, and `src/data` does not depend on it.
+ */
+export const downloadCost = async (
+  lang: TargetLang,
+  wanted: ReadonlyArray<{ kind: ShardKind; band: FrequencyBand }>,
+): Promise<DownloadCost> => {
+  const manifest = await fetchManifest(lang).catch(() => null);
+  if (!manifest) return { gzipBytes: 0, urls: [] };
+
+  const cost: DownloadCost = { gzipBytes: 0, urls: [] };
+  for (const { kind, band } of wanted) {
+    const shard = manifest.shards.find((entry) => entry.kind === kind && entry.band === band);
+    if (!shard) continue;
+    cost.gzipBytes += shard.gzipBytes;
+    cost.urls.push(`${CONTENT_BASE}/${lang}/${shard.path}`);
+  }
+  return cost;
 };
 
 /** Same-band sentences, for SPEC §2.3's multiple-choice distractors. */

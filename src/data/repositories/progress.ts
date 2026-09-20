@@ -22,9 +22,11 @@ import {
   type RetentionReport,
 } from '../../core/retention.ts';
 import { categoryStandings } from './contrastive.ts';
+import { readingAttempts } from './reading.ts';
 import { vocabularyAbility } from './abilities.ts';
 import { rankForAbility } from '../../core/placement.ts';
-import { isMastered } from '../../core/ladder.ts';
+import { AUDIO_LEVEL, isMastered } from '../../core/ladder.ts';
+import { loadContrastive } from '../contrastive.ts';
 import { buildRecap, type Recap } from '../../core/recap.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Profile, TargetLang, Timestamp } from '../types.ts';
@@ -134,11 +136,35 @@ export const buildProgressReport = async (
   const grammarAnswers = standings.reduce((sum, standing) => sum + standing.attempts, 0);
   const grammarCorrect = standings.reduce((sum, standing) => sum + standing.correct, 0);
 
-  const listeningLogs = logs.filter((log) => log.ladderLevel >= 4);
-  const vocabAnswers = logs.filter((log) => log.ladderLevel <= 3);
+  // The rung the answer was given at, not the rung the card sits at now: one
+  // card carries one FSRS state across the whole ladder (D18), so the log is the
+  // only record of what was actually on screen.
+  const listeningLogs = logs.filter((log) => log.ladderLevel === AUDIO_LEVEL);
+  const productionLogs = logs.filter((log) => log.ladderLevel > AUDIO_LEVEL);
+  const vocabAnswers = logs.filter((log) => log.ladderLevel < AUDIO_LEVEL);
+
+  // Minimal-pair drills are listening too, and they are the only listening a
+  // learner gets on the phonology categories. They are counted in the axis (a
+  // raw accuracy) but deliberately not in the ability estimate, which needs a
+  // difficulty per response — see src/core/listening.ts.
+  const pack = await loadContrastive(lang).catch(() => null);
+  const phonologyIds = new Set(
+    (pack?.categories ?? []).filter((c) => c.kind === 'phonology').map((c) => c.id),
+  );
+  const earDrills = drillAttempts.filter((attempt) => phonologyIds.has(attempt.categoryId));
+
+  // SPEC §9's reading axis. Its own attempt log (D32's rule applied to
+  // passages), so a learner who has never opened the reader has no row and the
+  // axis renders as a gap rather than a zero (invariant 18).
+  const reading = await readingAttempts(profile.id, lang);
 
   const rate = (correct: number, total: number): number | null =>
     total > 0 ? correct / total : null;
+
+  const listeningAnswers = listeningLogs.length + earDrills.length;
+  const listeningCorrect =
+    listeningLogs.filter((log) => log.correct === 1).length +
+    earDrills.filter((attempt) => attempt.correct === 1).length;
 
   const skills: SkillPoint[] = [
     {
@@ -155,16 +181,22 @@ export const buildProgressReport = async (
     },
     {
       skill: 'listening',
-      score: rate(listeningLogs.filter((log) => log.correct === 1).length, listeningLogs.length),
-      basis: 'dikte',
-      answers: listeningLogs.length,
+      score: rate(listeningCorrect, listeningAnswers),
+      basis: 'dikte dan latihan bunyi',
+      answers: listeningAnswers,
     },
-    // SPEC §9 names five axes. Two of them have no items at all yet — the reader
-    // is M7 and free production is M7 — and decision D25's rule applies: a
-    // missing measurement reads as "not measured", a fabricated one reads as a
-    // measurement. So they render as gaps rather than as zeroes.
-    { skill: 'reading', score: null, basis: 'bacaan bertingkat (M7)', answers: 0 },
-    { skill: 'production', score: null, basis: 'produksi bebas (M7)', answers: 0 },
+    {
+      skill: 'reading',
+      score: rate(reading.filter((attempt) => attempt.correct === 1).length, reading.length),
+      basis: 'bacaan bertingkat',
+      answers: reading.length,
+    },
+    {
+      skill: 'production',
+      score: rate(productionLogs.filter((log) => log.correct === 1).length, productionLogs.length),
+      basis: 'produksi bebas',
+      answers: productionLogs.length,
+    },
   ];
 
   const ability = await vocabularyAbility(profile.id, lang);

@@ -1,21 +1,30 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FirstRun } from './features/onboarding/FirstRun.tsx';
 import { Home } from './features/home/Home.tsx';
 import { SessionScreen } from './features/session/SessionScreen.tsx';
 import { PlacementScreen } from './features/placement/PlacementScreen.tsx';
 import { ProgressScreen } from './features/progress/ProgressScreen.tsx';
+import { GlossaryScreen } from './features/progress/GlossaryScreen.tsx';
 import { AttributionScreen } from './features/settings/AttributionScreen.tsx';
 import { ReaderScreen } from './features/reader/ReaderScreen.tsx';
 import { SyncScreen } from './features/settings/SyncScreen.tsx';
+import { DiagnosticsScreen } from './features/settings/DiagnosticsScreen.tsx';
+import { SettingsScreen } from './features/settings/SettingsScreen.tsx';
 import { HabitScreen } from './features/habit/HabitScreen.tsx';
 import { copy } from './i18n/id.ts';
-import { hasBeenPlaced } from './data/repositories/abilities.ts';
+import { hasBeenPlaced, refreshListeningAbility } from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
-import { findResumable, startSession } from './data/repositories/sessions.ts';
+import {
+  findResumable,
+  startSession,
+  todaySnapshot,
+  type TodaySnapshot,
+} from './data/repositories/sessions.ts';
 import { getHabit, lastPractisedAt } from './data/repositories/habits.ts';
 import { cueIsDue, scheduleReminder } from './platform/notifications.ts';
 import { ensureBands, STARTER_BANDS } from './data/content.ts';
 import { loadContrastive } from './data/contrastive.ts';
+import { loadTopics } from './data/topics.ts';
 import {
   getStorageDurability,
   requestPersistentStorage,
@@ -34,6 +43,9 @@ type Screen =
   | { name: 'attribution'; profile: Profile }
   | { name: 'reader'; profile: Profile }
   | { name: 'sync'; profile: Profile }
+  | { name: 'diagnostics'; profile: Profile }
+  | { name: 'settings'; profile: Profile }
+  | { name: 'glossary'; profile: Profile }
   | { name: 'habit'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
@@ -44,6 +56,8 @@ export const App = () => {
   const [voice, setVoice] = useState<VoiceReport | null>(null);
   const [resumable, setResumable] = useState<Session | null>(null);
   const [placementOffered, setPlacementOffered] = useState(true);
+  /** Today's load for the home screen — null until it has actually been read. */
+  const [today, setToday] = useState<TodaySnapshot | null>(null);
   /** SPEC §2.13: the in-app cue, for every device that cannot schedule one. */
   const [cueDue, setCueDue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,6 +128,9 @@ export const App = () => {
       // Warm the contrastive pack off the critical path, so it is in memory by
       // the time the composer looks for it (SPEC §5.4).
       void loadContrastive(profile?.targets[0] ?? 'en');
+      // The composer reads the topic map from memory and must never wait on a
+      // fetch inside the ≤3s budget (§5.4), so it is warmed here like the pack.
+      void loadTopics(profile?.targets[0] ?? 'en');
       if (!profile) {
         setScreen({ name: 'first-run' });
         return;
@@ -135,6 +152,10 @@ export const App = () => {
   // soon as there is a profile so the first session does not wait on it.
   useEffect(() => {
     if (screen.name !== 'home') return;
+    // Today's load, re-read every time the home screen comes up rather than
+    // decremented as the learner works: the session just changed both figures,
+    // and guessing by how much is how a counter drifts away from the deck.
+    void todaySnapshot(screen.profile, Date.now()).then(setToday);
     const lang = screen.profile.targets[0];
     if (!lang) return;
     void ensureBands(lang, STARTER_BANDS).catch(() => {
@@ -154,16 +175,43 @@ export const App = () => {
     setDurability(await requestPersistentStorage());
   }, []);
 
+  /**
+   * Profile writes, in the order they were asked for.
+   *
+   * Each change used to start its own `getCurrentProfile` → `updateProfile`
+   * chain, so two changes in flight raced and the DB kept whichever *finished*
+   * last rather than whichever the learner asked for last. Stepping a control
+   * five times quickly persisted the fourth value. Every setting on this screen
+   * shares the one profile row, so they all share this queue.
+   */
+  const profileWrites = useRef<Promise<unknown>>(Promise.resolve());
+
+  const queueProfileWrite = useCallback(<T,>(work: () => Promise<T>): Promise<T> => {
+    const next = profileWrites.current.then(work, work);
+    profileWrites.current = next.catch(() => undefined);
+    return next;
+  }, []);
+
   const handleChange = useCallback(
-    async (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => {
+    async (
+      changes: Partial<
+        Pick<
+          Profile,
+          'targets' | 'dailyMinutes' | 'scriptMode' | 'topics' | 'dailyNewWords' | 'dataSaver'
+        >
+      >,
+    ) => {
       setScreen((current) =>
-        current.name === 'home'
-          ? { name: 'home', profile: { ...current.profile, ...changes } }
+        current.name === 'home' || current.name === 'settings'
+          ? { ...current, profile: { ...current.profile, ...changes } }
           : current,
       );
+      // The read is not queued — the profile id never changes, so concurrent
+      // reads are safe and serializing them only put a round trip in front of
+      // every write. Only the writes need an order.
       const profile = await getCurrentProfile();
       if (!profile) return;
-      await updateProfile(profile.id, changes);
+      await queueProfileWrite(() => updateProfile(profile.id, changes));
 
       // Switching the language switches everything that hangs off it. Left
       // stale, the home screen offers to resume the *other* language's session
@@ -172,6 +220,7 @@ export const App = () => {
       const lang = changes.targets?.[0];
       if (!lang) return;
       void loadContrastive(lang);
+      void loadTopics(lang);
       void ensureBands(lang, STARTER_BANDS).catch(() => undefined);
       const [resume, placed] = await Promise.all([
         findResumable(profile.id, lang),
@@ -180,7 +229,7 @@ export const App = () => {
       setResumable(resume);
       setPlacementOffered(placed);
     },
-    [],
+    [queueProfileWrite],
   );
 
   const handlePractise = useCallback(async () => {
@@ -196,7 +245,12 @@ export const App = () => {
   const handleFinish = useCallback(async () => {
     const profile = await getCurrentProfile();
     if (!profile) return;
-    setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
+    const lang = profile.targets[0] ?? 'en';
+    // SPEC §4.2: re-estimate continuously, never make the learner retake
+    // anything. A session is the natural moment — new dictation answers exist
+    // or they do not, and where they do not this writes nothing at all.
+    void refreshListeningAbility(profile.id, lang, Date.now());
+    setResumable(await findResumable(profile.id, lang));
     // They just practised, so the cue has been answered (§2.14).
     setCueDue(null);
     setScreen({ name: 'home', profile });
@@ -242,27 +296,58 @@ export const App = () => {
           profile={screen.profile}
           onDone={() => {
             setCueDue(null);
-            setScreen({ name: 'home', profile: screen.profile });
+            setScreen({ name: 'settings', profile: screen.profile });
           }}
+        />
+      );
+    case 'diagnostics':
+      return (
+        <DiagnosticsScreen
+          onProbed={(lang, report) => {
+            // Only the active language drives the home screen's audio line; the
+            // other language's verdict is still adopted inside the probe.
+            if (lang === (screen.profile.targets[0] ?? 'en')) setVoice(report);
+          }}
+          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
+        />
+      );
+    case 'settings':
+      return (
+        <SettingsScreen
+          profile={screen.profile}
+          onChange={(changes) => void handleChange(changes)}
+          onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
+          onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
+          onDiagnostics={() => setScreen({ name: 'diagnostics', profile: screen.profile })}
+          onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
+          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
         />
       );
     case 'sync':
       return (
         <SyncScreen
           profile={screen.profile}
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
         />
       );
     case 'attribution':
       return (
         <AttributionScreen
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
+        />
+      );
+    case 'glossary':
+      return (
+        <GlossaryScreen
+          profile={screen.profile}
+          onBack={() => setScreen({ name: 'progress', profile: screen.profile })}
         />
       );
     case 'progress':
       return (
         <ProgressScreen
           profile={screen.profile}
+          onGlossary={() => setScreen({ name: 'glossary', profile: screen.profile })}
           onBack={() => setScreen({ name: 'home', profile: screen.profile })}
         />
       );
@@ -276,14 +361,13 @@ export const App = () => {
           resumable={resumable}
           busy={busy}
           placementOffered={placementOffered}
+          today={today}
           onReady={() => probeAudio(screen.profile.targets[0] ?? 'en')}
           onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
           onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}
-          onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
           onRead={() => setScreen({ name: 'reader', profile: screen.profile })}
-          onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
+          onSettings={() => setScreen({ name: 'settings', profile: screen.profile })}
           cueDue={cueDue}
-          onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
           onDismissCue={() => setCueDue(null)}
           onPractise={() => void handlePractise()}
           onChange={(changes) => void handleChange(changes)}

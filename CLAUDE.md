@@ -11,12 +11,20 @@ this app is supposed to trace to a named finding there.
 npm run dev          # Vite dev server (no service worker — offline is prod-only)
 npm run verify       # the gate: typecheck → lint → unit → licences → build → bundle budget
 npm run test:watch   # Vitest in watch mode
-npm run test:e2e     # Playwright smoke against a real production build
+npm run test:e2e     # Playwright against a real production build, including
+                     # the WCAG 2.1 AA and keyboard-operation gates (§10)
 npm run icons        # regenerate public/icons/ (committed; run only on redesign)
 
 npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)
 npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
-npm run ingest:contrastive  # compile data/contrastive/en.yaml → contrastive.json
+npm run ingest:contrastive  # compile data/contrastive/*.yaml → contrastive.json
+npm run ingest:chunks       # compile data/chunks/*.yaml, validated against the corpus
+npm run ingest:topics       # compile data/topics/*.yaml → topics.json
+
+npm run ingest:fetch:wiki   # download the Wikimedia dumps into .cache/ (needs bunzip2)
+npm run ingest:glosses      # id.wiktionary → assets/content/*/glosses.b*.json
+npm run ingest:passages     # Simple English Wikipedia → passages.b*.json
+npm run ingest:audio        # Piper → pre-cached clips. Never run: see R7.
 ```
 
 Ingest scripts are TypeScript run directly by Node — no transpiler — so they
@@ -24,7 +32,9 @@ share `src/core` with the app rather than duplicating the tokenizer or the
 difficulty scorer. That is why **every relative import in this repo carries its
 file extension** (`./frequency.ts`, not `./frequency`).
 
-`npm run verify` is what CI runs. If it is red, the milestone is not done.
+`npm run verify` is what CI runs — typecheck → lint → unit → licences → **audio
+budget** → build → bundle budget → **offline integrity**. If it is red, the
+milestone is not done.
 
 ## Architecture
 
@@ -32,18 +42,20 @@ file extension** (`./frequency.ts`, not `./frequency`).
 src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   (from M2)
                  scheduler · ladder · sessionComposer · grader · cloze · rng
                  coverage · forecast · placement · pseudoword · difficulty
-                 recap
+                 recap · listening
                  frequency · tokenize · properNoun · elo · interference
                  vocabulary · retention · reader · delta · kana · furigana
 src/data/        Dexie schema, migrations, repositories. The source of truth.
 src/features/    session, reader, placement, progress, habit, settings — screens.
+                 settings holds attribution, sync and diagnostics (R1).
 src/ui/          presentational primitives.
 src/platform/    browser capability wrappers: speech, storage, notifications.
 src/i18n/        all learner-facing copy. Components hold no literal strings.
 scripts/         offline build-time tooling (content pipeline, CI gates).
 workers/         optional sync Worker + D1 schema. Deployed separately; nothing
                  in src/ imports it, and the app is complete without it.
-data/            authored, versioned content: licences, contrastive YAML.
+data/            authored, versioned content: licences, contrastive YAML,
+                 chunks (§2.5) and topic clusters (§2.10).
 assets/content/  generated content shards (from M1).
 ```
 
@@ -70,9 +82,12 @@ needs React state to work, it is in the wrong place.
    inside a compound key.
 4. **Zero recurring cost** (§0 rule 1). No dependency, dataset or service that
    is not free at the tier we use. If there is no free path, stop and report.
-5. **No dataset in `assets/` without an entry in `data/licenses.json`** and a
-   matching section in `NOTICE.md`. `npm run check:licenses` enforces it.
-   Datasets under `candidates` in that file are **not** cleared for use.
+5. **The licence manifest and the build agree in both directions.** No dataset
+   in `assets/` without an entry in `data/licenses.json` and a matching section
+   in `NOTICE.md` — *and* no entry in `datasets` that no asset references, since
+   the in-app attribution screen renders that list and would otherwise claim a
+   provenance the app does not have. `npm run check:licenses` enforces both.
+   Datasets under `candidates` are **not** cleared for use.
 6. **Initial JS ≤ 200 KB gzipped**, initial CSS ≤ 40 KB. `npm run check:bundle`
    enforces it against the real build manifest. Language content is lazy and
    never enters the JS bundle.
@@ -150,6 +165,89 @@ needs React state to work, it is in the wrong place.
 26. **Mining records an intention, never a card** (D46). A card is the product
     of an answer (invariant 0); `minedItems` holds the intention and the
     composer acts on it next session.
+27. **No audio clip exists without a licence-cleared *voice model*** (D57, R7).
+    Invariant 5 applied to a generator rather than a corpus: `build-audio.ts`
+    refuses to write before checking `data/licenses.json`, and
+    `npm run check:audio` polices the budget and the index in CI. The clip set
+    is empty today because no voice has been chosen — that is the honest state,
+    not an oversight.
+28. **Glosses and passages ship in their own share-alike shards** (D60). Both
+    are CC BY-SA 4.0; the Tatoeba-derived English shards are CC BY 2.0 FR.
+    A shard's licence is never widened by mixing sources into it, and the
+    content tests assert the split in both directions.
+29. **A gloss is reference, never an answer key** (D59). Coverage is 30% of
+    English lexemes and 4% of Japanese, measured. Displaying one where it exists
+    is honest; grading against a set that thin would mark good answers wrong,
+    which is what §2.7 exists to prevent. L2 stays D21's supported cloze.
+30. **There is no AI layer, and there is no seam for one** (D63). Not a flag,
+    not a dormant module, not a key field. §14 question 5 is answered *declined*:
+    the app must be structurally incapable of sending a learner's data to a
+    model, and a guarded implementation is not that. It was built once during
+    v1.5.0 and deleted; do not rebuild it.
+31. **Reading and drill attempts are not review logs** (D32, extended). Neither
+    a passage nor a drill has an FSRS card, so `ReadingAttempt` and
+    `DrillAttempt` are their own append-only tables. Putting either into
+    `ReviewLog` would corrupt the retention rate §9 reports.
+32. **Authored content is validated against the corpus, never trusted** (D64,
+    D65). A chunk without a real example sentence fails the build (§2.5's own
+    ingestion rule); a topic word that is not in the shipped inventory fails the
+    build. Both compilers exist so that a hand-written file cannot rot silently
+    as the corpus changes.
+33. **A topic reorders new items; it never restricts them** (D65). Coverage is
+    partial by design and published in the shard, and a word in no topic keeps
+    its band as its §2.8 cluster — the behaviour the app had before topics.
+34. **The offline promise is checked against `dist/sw.js`** (D69). The runtime
+    cache cap must exceed the shard count or a learner silently loses content
+    they already downloaded, and every content type needs a rule that matches
+    it — audio is not JSON. `npm run check:offline` reads the built worker.
+35. **Running text costs one tab stop per block, not one per word** (D70).
+    `src/ui/TappableText.tsx` is a roving-tabindex composite: Tab enters and
+    leaves a passage or a sentence, Left/Right and Home/End move inside it.
+    Withdrawing the stops is only half — an e2e gate asserts the words are still
+    individually reachable, because a reader you cannot gloss from the keyboard
+    is a worse §10 failure than the one this fixed.
+36. **Both themes are scanned, not just the light one** (D71). §10 promises
+    "dark mode, WCAG AA contrast" as one clause; `e2e/a11y.spec.ts` runs axe
+    under `colorScheme: 'dark'` as well, and over the reader **with content in
+    it**. A shade that clears AA on the page background can fail inside a
+    tinted panel, and only the scan knows which.
+
+37. **One click is one answer** (D72). Every session write is latched twice: a
+    synchronous ref against two clicks racing, and a refusal to answer a card
+    whose verdict is already showing. `ReviewLog` is append-only, so a duplicate
+    row is permanent and lands in the retention rate §9 reports. Both halves
+    have e2e gates.
+38. **A card shows what the word means, or says it has no entry** (D73). The
+    gloss is resolved for every rung, not just L0, and coverage is 30% / 4% —
+    so the absent branch is the common one and it is never rendered as blank
+    space. It is still reference, never an answer key (invariant 29).
+
+39. **An answered card retires** (D75). Its content stays — a verdict refers to
+    the sentence it came from — but every control goes, which makes a second
+    answer impossible rather than merely refused. Never dimmed: opacity on text
+    is what D71's contrast gate exists to catch.
+
+40. **New words are capped per day, not just per session** (D76). The debt
+    throttle reacts to a backlog; `dailyNewWords` stops one forming, counted
+    from `ReviewLog.introduction` since local midnight. The default is derived
+    from `dailyCapacityFor` so the two halves of §7.2 cannot drift. Zero is a
+    valid setting, and early sessions being short is the correct consequence.
+41. **A swipe is a shortcut, never a second code path** (D77). Every swipe is
+    also a button, it is `aria-hidden`, it only goes on cards whose primary
+    action is already a tap, and it commits through the same latch as a tap
+    (invariant 37) — one swipe is one review.
+
+42. **A review queue holds one language** (D79). `dueCandidates` scopes by
+    `langOfItemId`, matching `newCandidates` and `drillCandidates`, and the
+    filter runs *inside* the query so the 200-row page cannot be filled by the
+    other language's backlog. `todaySnapshot` counts through the same predicate.
+
+43. **An optional download is announced before it is spent** (D80). §5.4's
+    learner is on mobile data; the reader states its real cost from the
+    manifest's `gzipBytes` and waits. Never for content already cached, never
+    for the practice session, and `unknown` connectivity does not hold back —
+    withholding on a guess is worse than the download.
+
 
 ## Conventions
 

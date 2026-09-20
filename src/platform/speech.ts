@@ -40,26 +40,84 @@ export interface VoiceReport {
   localService: boolean;
   voiceCount: number;
   probedAt: number;
+  /**
+   * How long the test utterance actually took to reach `onend`, in ms, or null
+   * if it never did.
+   *
+   * The verdict only records whether it beat the deadline; the *number* is what
+   * answered the open question in the device matrix — was 500 ms right on a
+   * cheap Android? It was not: the first real row came back at 932 ms and
+   * 999 ms on working on-device voices, which is only visible because the
+   * elapsed time is kept rather than just the verdict.
+   */
+  onendMs: number | null;
 }
 
 const VOICES_TIMEOUT_MS = 2_000;
 
 /**
- * How long the boot probe waits for `onend` before declaring the engine dead
- * for this session.
+ * How long the probe waits for `onend` before declaring the engine dead for
+ * this session.
  *
- * 500 ms is the number the device matrix settled on, and it is deliberately
- * tight: this budget is spent inside the ≤3s icon-tap-to-first-question window
- * (SPEC §5.4), and an engine that cannot finish a zero-volume full stop in half
- * a second is not going to deliver a dictation card on time either.
+ * **This was 500 ms until the device matrix answered the question it was
+ * collected to answer.** The first real row, 2026-08-13, Chrome 151 on Android:
+ * en-US completed in **932 ms** and ja-JP in **999 ms**, both on-device voices
+ * (`localService: true`) that genuinely spoke. Under a 500 ms deadline that
+ * phone lost L4 dictation *and* the mora-timing drills in both languages while
+ * owning working offline voices for both — the precise false negative D29
+ * warned the number might produce.
+ *
+ * So 500 ms was wrong, and the reasoning behind it ("an engine that cannot
+ * finish a zero-volume full stop in half a second will not deliver a dictation
+ * card either") is refuted by measurement: nearly all of that second is engine
+ * *start-up*, paid once, not per syllable.
+ *
+ * **2,000 ms**, for three reasons. It is twice the slowest engine yet observed
+ * to work, which leaves room for a slower phone than the one we have seen. It
+ * matches `VOICES_TIMEOUT_MS`, so the two halves of the probe give up on the
+ * same schedule rather than on two different guesses. And the cost of the extra
+ * 1.5 s is nothing a learner waits on: the probe runs *after* first paint (see
+ * `probeOnBoot`), audio is withheld until it answers, and the ≤3 s
+ * icon-tap-to-first-question budget never touches it.
+ *
+ * What the deadline is *for* is unchanged, and is why loosening it is safe: it
+ * detects the engine that announces itself and never finishes. An engine that
+ * fires `onend` has, by definition, finished speaking — so a longer wait cannot
+ * admit a liar, it can only stop excluding an honest engine that is slow.
  *
  * `onend`, specifically — not `onstart`. The engine that lies about audio fires
  * `onstart` and then goes quiet forever; only completion proves it spoke.
  */
-export const TTS_ONEND_DEADLINE_MS = 500;
+export const TTS_ONEND_DEADLINE_MS = 2_000;
 
 const synth = (): SpeechSynthesis | null =>
   typeof globalThis.speechSynthesis === 'undefined' ? null : globalThis.speechSynthesis;
+
+/**
+ * How long the very first `getVoices()` call took, in ms.
+ *
+ * M4 measured this at ~15 seconds on an environment with no speech service
+ * behind the API — the main thread gone, five times the entire icon-tap budget
+ * (R1). The probe is deferred past first paint because of it, and the deferral
+ * is a mitigation, not a fix: the stall still happens, just somewhere the
+ * learner is already looking at a question.
+ *
+ * Nothing in the app branches on this. It exists so the diagnostics screen can
+ * report a real number from a real device, because the open question in the
+ * matrix is whether that measurement reproduces on hardware at all.
+ */
+let firstCallMs: number | null = null;
+
+/** The measurement above, or null if `getVoices()` has not been called yet. */
+export const firstCallLatencyMs = (): number | null => firstCallMs;
+
+const timedGetVoices = (speech: SpeechSynthesis): SpeechSynthesisVoice[] => {
+  if (firstCallMs !== null) return speech.getVoices();
+  const started = performance.now();
+  const voices = speech.getVoices();
+  firstCallMs = performance.now() - started;
+  return voices;
+};
 
 /** BCP-47 prefix match: `en` accepts `en-US`, `en-GB`, `en_AU`. */
 const matchesLanguage = (voiceLang: string, language: string): boolean =>
@@ -80,7 +138,7 @@ export const listVoices = async (
   const filter = (voices: SpeechSynthesisVoice[]) =>
     language === undefined ? voices : voices.filter((voice) => matchesLanguage(voice.lang, language));
 
-  const immediate = filter(speech.getVoices());
+  const immediate = filter(timedGetVoices(speech));
   if (immediate.length > 0) return immediate;
 
   return new Promise((resolve) => {
@@ -120,9 +178,12 @@ export const pickVoice = (
 const utteranceCompletes = async (
   voice: SpeechSynthesisVoice,
   timeoutMs = TTS_ONEND_DEADLINE_MS,
-): Promise<boolean> => {
+): Promise<{ completed: boolean; elapsedMs: number | null }> => {
   const speech = synth();
-  if (!speech || typeof globalThis.SpeechSynthesisUtterance === 'undefined') return false;
+  if (!speech || typeof globalThis.SpeechSynthesisUtterance === 'undefined') {
+    return { completed: false, elapsedMs: null };
+  }
+  const started = performance.now();
 
   return new Promise((resolve) => {
     let settled = false;
@@ -131,7 +192,7 @@ const utteranceCompletes = async (
       settled = true;
       clearTimeout(timer);
       speech.cancel();
-      resolve(completed);
+      resolve({ completed, elapsedMs: completed ? performance.now() - started : null });
     };
 
     const utterance = new SpeechSynthesisUtterance('.');
@@ -162,23 +223,21 @@ export const probeVoice = async (
   options: ProbeOptions = {},
 ): Promise<VoiceReport> => {
   const probedAt = Date.now();
-  if (!synth()) {
-    return { support: 'unsupported', voiceName: null, localService: false, voiceCount: 0, probedAt };
-  }
+  const absent = { voiceName: null, localService: false, voiceCount: 0, probedAt, onendMs: null };
+  if (!synth()) return { support: 'unsupported', ...absent };
 
   const voices = await listVoices(language, options.voicesTimeoutMs);
   const voice = pickVoice(voices);
-  if (!voice) {
-    return { support: 'no-voice', voiceName: null, localService: false, voiceCount: 0, probedAt };
-  }
+  if (!voice) return { support: 'no-voice', ...absent };
 
-  const completed = await utteranceCompletes(voice, options.utteranceTimeoutMs);
+  const { completed, elapsedMs } = await utteranceCompletes(voice, options.utteranceTimeoutMs);
   return {
     support: completed ? 'ready' : 'dead',
     voiceName: voice.name,
     localService: voice.localService,
     voiceCount: voices.length,
     probedAt,
+    onendMs: elapsedMs,
   };
 };
 
@@ -252,16 +311,61 @@ export const probeOnBoot = async (
 /** Long enough that the first question is painted, where there is no idle API. */
 export const IDLE_FALLBACK_MS = 1_500;
 
-/** Resolves once the main thread has nothing better to do. */
+/**
+ * The hard ceiling on the wait, because `requestIdleCallback`'s own `timeout`
+ * is not one.
+ *
+ * Measured 2026-08-19, Chromium 148: **a hidden page never runs an idle
+ * callback at all**, and the `timeout` option only counts down while the page
+ * is visible. A tab that booted in the background sat on the home screen's
+ * *"Mengecek suara di HP ini…"* for 25 s and counting, and resolved correctly
+ * the moment it was looked at. The old comment here claimed this timeout was
+ * "a ceiling, not a target"; for a hidden page it was neither.
+ */
+export const IDLE_CEILING_MS = 3_000;
+
+const pageIsHidden = (): boolean => globalThis.document?.visibilityState === 'hidden';
+
+/**
+ * Resolves once the main thread has nothing better to do — and no later than
+ * `IDLE_CEILING_MS` after the page is being looked at.
+ *
+ * **Waiting for visibility is deliberate and is not the bug above.** The first
+ * `speechSynthesis` call on a device with no speech service blocks the main
+ * thread for ~15 s (see R1), so this probe may only run when it is cheap. A
+ * hidden page will get its probe on return; what it must not do is wait
+ * unbounded once the learner is actually there.
+ */
 const idle = (deferMs = IDLE_FALLBACK_MS): Promise<void> =>
   new Promise((resolve) => {
-    if (typeof globalThis.requestIdleCallback === 'function') {
-      // The timeout is a ceiling, not a target: on a busy first load the probe
-      // still happens, just late enough not to be in front of the learner.
-      globalThis.requestIdleCallback(() => resolve(), { timeout: 3_000 });
-    } else {
-      setTimeout(resolve, deferMs);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const schedule = () => {
+      if (typeof globalThis.requestIdleCallback !== 'function') {
+        setTimeout(finish, deferMs);
+        return;
+      }
+      globalThis.requestIdleCallback(() => finish(), { timeout: IDLE_CEILING_MS });
+      // The ceiling the line above only pretends to be.
+      setTimeout(finish, IDLE_CEILING_MS);
+    };
+
+    if (pageIsHidden()) {
+      globalThis.document?.addEventListener(
+        'visibilitychange',
+        () => {
+          if (!pageIsHidden()) schedule();
+        },
+        { once: true },
+      );
+      return;
     }
+    schedule();
   });
 
 /** The session's verdict, or null if the probe has not answered yet. */
@@ -277,10 +381,43 @@ export const ttsReport = (language: string): VoiceReport | null =>
 export const isTtsLive = (language: string): boolean =>
   verdicts.get(language)?.support === 'ready';
 
+/**
+ * Adopts a verdict produced by an explicit learner action — the "Uji audio"
+ * button on the diagnostics screen — and reports whether it was taken up.
+ *
+ * This is D29's recorded cost being paid back. The boot probe cannot speak from
+ * inside a user gesture, so on iOS Safari, which requires one, it marks the
+ * engine dead where audio would in fact have worked. A probe run from inside a
+ * tap is the one context that requirement is satisfied in, so its answer is
+ * worth more than the boot probe's — and it arrives because the learner asked,
+ * so the rung appearing is a response to their action rather than the mid-session
+ * flicker D29 exists to prevent.
+ *
+ * Two rules keep it honest:
+ *
+ *  - **It can only raise capability.** A `dead` reading from a later probe does
+ *    not retract an engine that has already been heard to complete an utterance;
+ *    that would be exactly the flicker, and a transient failure is not evidence
+ *    the device cannot speak.
+ *  - **It is held to the same deadline as everything else.** A run that finishes
+ *    at 900 ms is reported as the number it is and is *not* adopted, because L4
+ *    is scheduled against `TTS_ONEND_DEADLINE_MS` and quietly admitting a slower
+ *    engine would put dictation cards in front of a learner who has to wait for
+ *    them.
+ */
+export const adoptVerdict = (language: string, report: VoiceReport): boolean => {
+  if (report.support !== 'ready') return false;
+  if (report.onendMs !== null && report.onendMs > TTS_ONEND_DEADLINE_MS) return false;
+  if (verdicts.get(language)?.support === 'ready') return false;
+  verdicts.set(language, report);
+  return true;
+};
+
 /** Test seam: the verdict is module state and would otherwise leak between cases. */
 export const resetTtsVerdict = (): void => {
   verdicts.clear();
   inFlight.clear();
+  firstCallMs = null;
 };
 
 // ------------------------------------------------------------------ speaking

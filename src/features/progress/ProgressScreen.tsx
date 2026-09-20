@@ -28,6 +28,8 @@ import type { Profile } from '../../data/types.ts';
 interface ProgressScreenProps {
   profile: Profile;
   onBack: () => void;
+  /** SPEC §2.2's passive glossary: the numbers here, made browsable. */
+  onGlossary: () => void;
 }
 
 interface HeatRow {
@@ -37,7 +39,7 @@ interface HeatRow {
 
 const percent = (value: number): number => Math.round(value * 100);
 
-export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
+export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
   const [report, setReport] = useState<ProgressReport | null>(null);
   const [rows, setRows] = useState<HeatRow[] | null>(null);
@@ -102,6 +104,17 @@ export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
       <h1 className="text-2xl font-bold">{copy.progress.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.localOnly}</p>
 
+      {/* SPEC §2.2's passive glossary. The numbers below count what a learner
+          knows; this is where they can look at it. */}
+      <button
+        type="button"
+        onClick={onGlossary}
+        data-testid="glossary-open"
+        className="mt-5 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 font-semibold text-teal-800 motion-safe:transition-colors hover:border-teal-700 dark:border-slate-700 dark:text-teal-300"
+      >
+        {copy.glossary.open}
+      </button>
+
       {report === null ? null : (
         <>
           <Vocabulary report={report} />
@@ -131,11 +144,16 @@ export const ProgressScreen = ({ profile, onBack }: ProgressScreenProps) => {
         >
           {copy.progress.data.importLabel}
         </Button>
+        {/* The visible control is the button above, which opens this input.
+            A screen reader meets the input itself, though, so it carries its own
+            name — without one it is announced as an unlabelled file field, and
+            the learner has no idea what they are being asked to hand over. */}
         <input
           ref={fileInput}
           type="file"
           accept="application/json,.json"
           className="sr-only"
+          aria-label={copy.progress.data.importLabel}
           data-testid="import-file"
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -170,19 +188,19 @@ const Vocabulary = ({ report }: { report: ProgressReport }) => {
           <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
             {copy.progress.vocab.range(vocabulary.low, vocabulary.high)}
           </p>
-          <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+          <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
             {copy.progress.vocab.floor(vocabulary.floor)}
           </p>
           {coverage.share > 0 ? (
             <>
               <p className="mt-3">{copy.progress.vocab.capability(percent(coverage.share))}</p>
-              <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+              <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
                 {copy.progress.vocab.ceiling(percent(coverage.teachableShare))}
               </p>
             </>
           ) : null}
           {vocabulary.unsampledBands.length > 0 ? (
-            <p className="mt-2 text-sm text-stone-500 dark:text-slate-500">
+            <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
               {copy.progress.vocab.wide}
             </p>
           ) : null}
@@ -397,7 +415,7 @@ const Consistency = ({ report }: { report: ProgressReport }) => (
     <p className="mt-2">
       {copy.progress.consistency.days(report.consistency.days, report.consistency.window)}
     </p>
-    <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+    <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
       {copy.progress.consistency.note}
     </p>
   </section>
@@ -431,7 +449,7 @@ const WeeklyRecap = ({ report }: { report: ProgressReport }) => {
           </ul>
           <p className="mt-2">{copy.recap.days(recap.daysPractised)}</p>
           {recap.previousDaysPractised !== null ? (
-            <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">
+            <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
               {recap.previousDaysPractised === recap.daysPractised
                 ? copy.recap.comparedSame
                 : copy.recap.comparedMore(recap.previousDaysPractised)}
@@ -493,7 +511,7 @@ const Heatmap = ({ rows, drills }: { rows: HeatRow[] | null; drills: number }) =
         </ul>
       )}
 
-      <p className="mt-4 text-sm text-stone-500 dark:text-slate-500">
+      <p className="mt-4 text-sm text-stone-500 dark:text-slate-400">
         {copy.progress.heatmap.attemptsSoFar(drills)}
       </p>
     </section>
@@ -512,7 +530,7 @@ const HeatmapRow = ({ row }: { row: HeatRow }) => {
     <li className="rounded-2xl border-2 border-stone-200 p-3 dark:border-slate-800">
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-semibold">{category.label}</span>
-        <span className="text-xs text-stone-500 dark:text-slate-500">
+        <span className="text-xs text-stone-500 dark:text-slate-400">
           {copy.progress.heatmap.kinds[category.kind]}
         </span>
       </div>
@@ -531,7 +549,7 @@ const HeatmapRow = ({ row }: { row: HeatRow }) => {
           </p>
         </>
       ) : (
-        <p className="mt-2 text-sm text-stone-500 dark:text-slate-500">
+        <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">
           {copy.progress.heatmap.notMeasured}
           {' · '}
           {copy.progress.heatmap.notMeasuredHint(MIN_ATTEMPTS_TO_CLAIM - standing.attempts)}

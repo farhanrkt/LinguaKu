@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  dailyCapacityFor,
   FORECAST_DAYS,
-  forecastLoad,
   HALT_RATIO,
-  newItemAllowance,
   THROTTLE_RATIO,
+  dailyCapacityFor,
+  dailyNewWords,
+  defaultDailyNewWords,
+  forecastLoad,
+  newItemAllowance,
+  startOfLocalDay,
   type ForecastDay,
 } from './forecast.ts';
 
@@ -132,5 +135,74 @@ describe('dailyCapacityFor', () => {
 
   it('never reports zero capacity, which would halt everything', () => {
     expect(dailyCapacityFor(0)).toBeGreaterThan(0);
+  });
+});
+
+describe('defaultDailyNewWords', () => {
+  it('scales with the learner’s own budget', () => {
+    // Daily review capacity divided by the ~4 reviews a day a young card costs.
+    expect(defaultDailyNewWords(4)).toBe(5);
+    expect(defaultDailyNewWords(8)).toBe(10);
+    expect(defaultDailyNewWords(15)).toBe(19);
+  });
+
+  it('never returns zero, however small the budget', () => {
+    // A learner who picks the shortest session still gets to learn something.
+    expect(defaultDailyNewWords(1)).toBeGreaterThanOrEqual(1);
+    expect(defaultDailyNewWords(0)).toBe(1);
+  });
+});
+
+describe('dailyNewWords', () => {
+  it('counts down from the default for the budget', () => {
+    const result = dailyNewWords({ budgetMinutes: 8, introducedToday: 3 });
+    expect(result.cap).toBe(10);
+    expect(result.remaining).toBe(7);
+    expect(result.reached).toBe(false);
+  });
+
+  it('honours a cap the learner set themselves', () => {
+    // SPEC §2.14: autonomy. Someone who wants five a day gets five a day.
+    const result = dailyNewWords({ cap: 5, budgetMinutes: 15, introducedToday: 2 });
+    expect(result.cap).toBe(5);
+    expect(result.remaining).toBe(3);
+  });
+
+  it('stops at zero rather than going negative', () => {
+    // A restored export, or a cap lowered mid-day, can put `introduced` above
+    // the cap. That is a spent allowance, not a debt to carry into tomorrow.
+    const result = dailyNewWords({ cap: 5, budgetMinutes: 4, introducedToday: 9 });
+    expect(result.remaining).toBe(0);
+    expect(result.reached).toBe(true);
+  });
+
+  it('lets a learner turn new words off entirely', () => {
+    // Reviewing what you have without adding more is a legitimate way to use
+    // an SRS, and the commonest way to dig out of a backlog.
+    const result = dailyNewWords({ cap: 0, budgetMinutes: 8, introducedToday: 0 });
+    expect(result.cap).toBe(0);
+    expect(result.remaining).toBe(0);
+    expect(result.reached).toBe(true);
+  });
+});
+
+describe('startOfLocalDay', () => {
+  it('is midnight in the device’s own timezone', () => {
+    const noon = new Date(2026, 8, 20, 12, 34, 56).getTime();
+    const midnight = new Date(2026, 8, 20, 0, 0, 0, 0).getTime();
+    expect(startOfLocalDay(noon)).toBe(midnight);
+  });
+
+  it('is idempotent', () => {
+    const noon = new Date(2026, 8, 20, 12, 0, 0).getTime();
+    expect(startOfLocalDay(startOfLocalDay(noon))).toBe(startOfLocalDay(noon));
+  });
+
+  it('puts one minute before midnight in the previous day', () => {
+    // The learner's day, not UTC's: someone in Jakarta practising at 23:59 has
+    // not started tomorrow yet.
+    const late = new Date(2026, 8, 20, 23, 59, 0).getTime();
+    const early = new Date(2026, 8, 21, 0, 1, 0).getTime();
+    expect(startOfLocalDay(late)).not.toBe(startOfLocalDay(early));
   });
 });

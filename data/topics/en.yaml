@@ -1,0 +1,167 @@
+# Topic clusters for English (SPEC §2.10, §2.14, §2.8).
+#
+# Three separate requirements land on this one file, which is why it is worth
+# authoring rather than inferring:
+#
+#  - **§2.10** orders new items by frequency, *"modulated by learner-selected
+#    topic goals"*. Without topics there is nothing to modulate by.
+#  - **§2.14 (autonomy)** says the learner *"picks topic clusters"*. Until now
+#    the app offered them nothing to pick.
+#  - **§2.8** forbids more than three items from one topic cluster in a row.
+#    That rule has been running against `clusterId = "b3"` — the frequency band —
+#    since M2, which made it a near-duplicate of the band gate rather than the
+#    interleaving constraint it was written to be. This is the first content
+#    that makes it real.
+#
+# ## Why authored, and what that costs
+#
+# Clustering the inventory automatically needs either embeddings (a model in the
+# build) or a lexical database (a licence, and WordNet's domains are not this).
+# A wrong topic is worse than no topic here, because topics *gate what a learner
+# is taught next* — so this is a hand-written map, deliberately partial.
+#
+# **Partial is the design.** A word in no topic is not excluded from anything;
+# it simply is not boosted when a topic is chosen, and it keeps its own band as
+# its cluster for §2.8. Coverage is checked by the compiler and published, so
+# "how much of the inventory is tagged" is a number rather than an impression.
+#
+# Every word here must exist in the shipped lexeme inventory — the compiler
+# fails on one that does not, which is what stops this file from drifting as the
+# corpus changes.
+
+version: 1
+lang: en
+
+topics:
+  - id: daily
+    label: 'Kegiatan sehari-hari'
+    hint: 'Bangun, makan, mandi, kerja, tidur.'
+    words:
+      [
+        morning, night, day, today, tomorrow, yesterday, time, hour, minute,
+        week, month, year, early, late, sleep, wake, eat, drink, food, water,
+        coffee, tea, rice, breakfast, lunch, dinner, wash, clean, home, house,
+        room, door, window, bed, kitchen, bathroom, shower, clothes, shirt,
+        shoes, wear, buy, cook, hungry, thirsty, tired, busy, ready, again,
+      ]
+
+  - id: family
+    label: 'Keluarga dan orang'
+    hint: 'Orang tua, saudara, teman, tetangga.'
+    words:
+      [
+        family, mother, father, parents, brother, sister, son, daughter, child,
+        children, baby, wife, husband, friend, people, person, man, woman, boy,
+        girl, name, old, young, live, love, marry, together, neighbor, uncle,
+        aunt, grandmother, grandfather, home, visit, help, know, meet,
+      ]
+
+  - id: work
+    label: 'Kerja dan sekolah'
+    hint: 'Kantor, tugas, ujian, rapat, gaji.'
+    words:
+      [
+        work, job, office, company, business, money, pay, boss, meeting, plan,
+        report, email, phone, call, write, read, study, school, student,
+        teacher, class, book, learn, question, answer, test, hard, easy, finish,
+        start, late, important, problem, help, try, need, must, busy,
+      ]
+
+  - id: travel
+    label: 'Jalan-jalan dan transportasi'
+    hint: 'Bus, kereta, jalan, hotel, bandara.'
+    words:
+      [
+        go, come, walk, run, drive, car, bus, train, plane, ticket, station,
+        airport, road, street, city, town, country, map, hotel, room, travel,
+        trip, visit, arrive, leave, wait, far, near, left, right, north, south,
+        east, west, stop, fast, slow, lost, way,
+      ]
+
+  - id: food
+    label: 'Makanan dan minuman'
+    hint: 'Warung, pasar, memasak, memesan.'
+    words:
+      [
+        food, eat, drink, water, rice, bread, meat, fish, chicken, egg, fruit,
+        apple, vegetable, milk, coffee, tea, sugar, salt, hot, cold, sweet,
+        delicious, cook, kitchen, restaurant, market, order, price, cheap,
+        expensive, buy, hungry, thirsty, taste, dish, plate, cup,
+      ]
+
+  - id: health
+    label: 'Kesehatan dan tubuh'
+    hint: 'Sakit, dokter, obat, olahraga.'
+    words:
+      [
+        doctor, hospital, sick, pain, medicine, health, body, head, hand, foot,
+        eye, ear, mouth, nose, hair, heart, blood, tooth, sleep, rest, tired,
+        strong, weak, hurt, better, worse, cold, fever, help, care, walk, run,
+        exercise, water, safe, danger,
+      ]
+
+  - id: money
+    label: 'Uang dan belanja'
+    hint: 'Harga, tawar-menawar, bayar, tabungan.'
+    words:
+      [
+        money, buy, sell, pay, price, cost, cheap, expensive, market, shop,
+        store, bank, card, cash, change, save, spend, rich, poor, free, business,
+        job, salary, bill, order, customer, ticket, count, number, more, less,
+      ]
+
+  - id: feelings
+    label: 'Perasaan dan pendapat'
+    hint: 'Senang, takut, marah, setuju, ragu.'
+    words:
+      [
+        happy, sad, angry, afraid, tired, surprised, worried, glad, sorry, hope,
+        want, need, like, love, hate, think, feel, believe, know, understand,
+        remember, forget, agree, sure, maybe, mind, idea, reason, true, false,
+        good, bad, better, best, worse, nice, terrible, funny, serious, boring,
+      ]
+
+  - id: weather
+    label: 'Cuaca dan alam'
+    hint: 'Hujan, panas, laut, gunung, musim.'
+    words:
+      [
+        weather, rain, sun, wind, cloud, hot, cold, warm, cool, dry, wet, snow,
+        storm, sky, sea, river, mountain, tree, flower, garden, animal, dog,
+        cat, bird, fish, water, fire, earth, air, light, dark, morning, night,
+        season, summer, winter, spring,
+      ]
+
+  - id: home
+    label: 'Rumah dan barang'
+    hint: 'Perabot, alat, memperbaiki, membersihkan.'
+    words:
+      [
+        house, home, room, door, window, wall, floor, roof, table, chair, bed,
+        kitchen, bathroom, key, lamp, light, box, bag, book, paper, pen, pencil,
+        clock, phone, computer, television, radio, machine, tool, clean, fix,
+        break, open, close, put, keep, find, lose, move,
+      ]
+
+  - id: talking
+    label: 'Ngobrol dan sopan santun'
+    hint: 'Menyapa, minta tolong, minta maaf, berterima kasih.'
+    words:
+      [
+        hello, please, thank, sorry, welcome, yes, no, maybe, say, tell, ask,
+        answer, talk, speak, listen, hear, call, name, question, word, language,
+        English, mean, understand, repeat, slow, again, excuse, help, meet,
+        introduce, polite, friend, together, everyone, someone, anything,
+      ]
+
+  - id: time
+    label: 'Waktu dan jadwal'
+    hint: 'Jam, hari, janji, terlambat.'
+    words:
+      [
+        time, hour, minute, second, clock, watch, day, week, month, year,
+        today, tomorrow, yesterday, morning, afternoon, evening, night, early,
+        late, now, soon, always, never, sometimes, often, usually, before,
+        after, until, during, begin, start, finish, end, wait, ready, plan,
+        Monday, Sunday,
+      ]

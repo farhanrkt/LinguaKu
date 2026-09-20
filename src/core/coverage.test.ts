@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  COVERAGE_FLOOR,
-  COVERAGE_TARGET_MAX,
-  COVERAGE_TARGET_MIN,
-  coverageOf,
-  knownItemIds,
-  lexemeIdFor,
-  selectGraded,
-} from './coverage.ts';
+import { COVERAGE_FLOOR, COVERAGE_TARGET_MAX, COVERAGE_TARGET_MIN, coverageOf, knownItemIds, langOfItemId, lexemeIdFor, selectGraded } from './coverage.ts';
 import { applyRating } from './scheduler.ts';
 import { emptyFsrsState } from '../data/fsrsState.ts';
 
@@ -179,5 +171,30 @@ describe('selectGraded (SPEC §2.4 acceptance)', () => {
       'en',
     );
     expect(selection?.item.id).toBe('richer');
+  });
+});
+
+describe('langOfItemId', () => {
+  it('reads the language off every kind of item id', () => {
+    expect(langOfItemId('en:lex:word')).toBe('en');
+    expect(langOfItemId('ja:kanji:水')).toBe('ja');
+    expect(langOfItemId('en:chunk:how_are_you')).toBe('en');
+  });
+
+  it('round-trips with lexemeIdFor', () => {
+    expect(langOfItemId(lexemeIdFor('ja', 'する'))).toBe('ja');
+  });
+
+  it('is null for anything not namespaced', () => {
+    // A caller scoping by language drops these rather than guessing — the same
+    // thing `dueCandidates` already does with a card whose item is missing.
+    expect(langOfItemId('word')).toBeNull();
+    expect(langOfItemId('')).toBeNull();
+    expect(langOfItemId(':lex:word')).toBeNull();
+  });
+
+  it('does not confuse the separator inside the key', () => {
+    // Japanese keys can carry colons in principle; only the first one delimits.
+    expect(langOfItemId('ja:lex:a:b')).toBe('ja');
   });
 });

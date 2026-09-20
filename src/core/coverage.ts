@@ -38,6 +38,25 @@ export const knownItemIds = (cards: readonly KnownCard[], now: Timestamp): Set<s
 
 export const lexemeIdFor = (lang: string, token: string): string => `${lang}:lex:${token}`;
 
+/**
+ * The language half of an item id — the inverse of the namespacing every item
+ * id in this app carries: `en:lex:word`, `ja:kanji:水`, `en:chunk:how_are_you`.
+ *
+ * It exists so a *card* can be scoped to a language without loading its item.
+ * Cards are keyed by `profileId::itemId` and carry no language of their own, so
+ * without this the only way to know which language a due card belongs to is a
+ * second round trip — which is exactly what made it easy to forget.
+ *
+ * Null for anything that is not namespaced. A caller filtering by language
+ * should drop those rather than guess: `dueCandidates` already drops a card
+ * whose item cannot be resolved, and an unparseable id is the same condition.
+ */
+export const langOfItemId = (itemId: string): string | null => {
+  const separator = itemId.indexOf(':');
+  if (separator <= 0) return null;
+  return itemId.slice(0, separator);
+};
+
 export interface CoverageReport {
   coverage: number;
   totalTokens: number;

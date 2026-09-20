@@ -5,6 +5,7 @@ import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
+import { glossFor } from '../../data/glosses.ts';
 import { selectGraded } from '../../core/coverage.ts';
 import { tokenizeLatin } from '../../core/tokenize.ts';
 import { presentableLevel, TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
@@ -48,6 +49,16 @@ export interface Task {
   translation: string;
   /** Recognition only: the correct translation plus distractors, shuffled. */
   options?: string[];
+  /**
+   * Indonesian senses for the word itself (SPEC §2.3). Absent where the dictionary
+   * has nothing — coverage is partial and measured, never invented.
+   */
+  gloss?: readonly string[];
+  /**
+   * A chunk's L1 trap, in Indonesian (SPEC §2.5, §2.9). Present only where the
+   * phrase has one — "take a shower" does, "have lunch" does not.
+   */
+  chunkNote?: string;
   /** Cloze rungs only. */
   cloze?: Cloze;
   /** Kanji cards only (SPEC §2.11). */
@@ -181,17 +192,40 @@ export const buildTask = async (
   // Which example sentence teaches this word is an i+1 decision (SPEC §2.4):
   // among the anchors, pick the one whose coverage best fits what this learner
   // already knows, rather than always the globally easiest.
-  const anchors = (
-    await Promise.all(
-      item.anchorSentenceIds.map((id) => getAnchor(item.lang, item.band, id)),
-    )
-  ).filter((anchor): anchor is AnchorSentence => anchor !== null);
+  // A chunk carries its own examples (SPEC §2.5): its anchors are drawn from
+  // the whole corpus, while `getAnchor` reads only the band's curated anchor
+  // shard (D19), so resolving them by id silently failed for a fifth of them —
+  // `buildTask` returned null and the session skipped the item without a trace.
+  const anchors =
+    item.examples !== undefined && item.examples.length > 0
+      ? item.examples
+      : (
+          await Promise.all(
+            item.anchorSentenceIds.map((id) => getAnchor(item.lang, item.band, id)),
+          )
+        ).filter((anchor): anchor is AnchorSentence => anchor !== null);
   if (anchors.length === 0) return null;
+
+  /**
+   * The word's own meaning, resolved once for **every** rung.
+   *
+   * This used to be fetched only on the `exposure` branch, so L1–L6 carried no
+   * gloss at all even where one existed — and L5, whose whole job is
+   * "meaning → produce the word" (§2.3), had nothing to show but the sentence
+   * translation. `glossFor` caches per band, so asking on every task costs one
+   * shard read per band rather than one per card (§5.4).
+   *
+   * A chunk's authored gloss wins: its parts do not compose, so a per-word
+   * lookup cannot stand in for it (§2.5).
+   */
+  const gloss =
+    item.gloss !== undefined ? [item.gloss] : await glossFor(item.lang, item.band, itemId);
 
   const base = {
     itemId,
     cardId: cardIdFor(profileId, itemId),
     headword: item.headword,
+    ...(gloss.length > 0 ? { gloss } : {}),
   };
 
   // L4 first, because it is the only rung with a precondition. A dictation card
@@ -270,7 +304,13 @@ export const buildTask = async (
   }
 
   if (effective === 'exposure') {
-    return { ...withSentence, kind: 'exposure', answer: item.headword, asksConfidence: false };
+    return {
+      ...withSentence,
+      kind: 'exposure',
+      answer: item.headword,
+      asksConfidence: false,
+      ...(item.chunkNote !== undefined ? { chunkNote: item.chunkNote } : {}),
+    };
   }
 
   return {

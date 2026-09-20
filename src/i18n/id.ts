@@ -14,8 +14,11 @@ export const copy = {
     tagline: 'Belajar bahasa, tanpa akun, tanpa kuota.',
   },
   firstRun: {
-    heading: 'Mau belajar bahasa apa?',
-    subheading: 'Bisa diubah kapan saja. Tidak perlu daftar.',
+    heading: 'Mau mulai dari bahasa apa?',
+    // D53: one language at a time, said out loud. Switching later costs nothing
+    // and loses nothing, so the copy promises exactly that and no more.
+    subheading:
+      'Satu dulu. Nanti bisa ganti kapan saja — yang satunya tetap tersimpan, tidak hilang. Tidak perlu daftar.',
     targets: {
       en: { label: 'Bahasa Inggris', hint: 'Untuk kamu yang sudah belajar di sekolah' },
       ja: { label: 'Bahasa Jepang', hint: 'Mulai dari nol, dari hiragana' },
@@ -28,9 +31,28 @@ export const copy = {
       15: { label: '15 menit', hint: 'Kalau kamu lagi niat' },
     },
     start: 'Mulai',
-    needTarget: 'Pilih dulu minimal satu bahasa.',
+    needTarget: 'Pilih dulu bahasa yang mau kamu mulai.',
   },
   home: {
+    /**
+     * What today actually holds, said before the learner commits to it.
+     *
+     * Counts, never targets (§2.15) and never praise (§2.14): "12 ulangan" is
+     * a fact about the deck, and a finished day is reported the same flat way a
+     * busy one is. Nothing here can be fallen behind on.
+     */
+    today: {
+      // The noun only: the view sets the figure beside it in tabular numerals,
+      // so the number and its label are never spliced back out of a sentence.
+      dueLabel: 'ulangan',
+      newLabel: 'kata baru',
+      clear: 'Ulangan hari ini sudah beres. Kata baru lagi besok.',
+      // Not the same sentence: a learner who switched new words off is not
+      // waiting for tomorrow, and telling them otherwise would be a small lie
+      // about their own setting.
+      clearPaused: 'Tidak ada ulangan yang jatuh tempo, dan kata baru sedang kamu matikan.',
+      capReached: 'Kata baru hari ini sudah cukup. Ulangan tetap jalan.',
+    },
     greeting: 'Halo!',
     learningLabel: 'Kamu sedang belajar',
     minutesLabel: 'Target harian',
@@ -47,6 +69,14 @@ export const copy = {
     audioProbing: 'Mengecek suara di HP ini…',
     audioReady: 'Suara aktif — latihan mendengar tersedia',
     audioDead: 'HP ini belum bisa mengeluarkan suara, jadi latihan mendengar kami sembunyikan dulu',
+  },
+  /** SPEC §10: Japanese input without an IME headache. */
+  kana: {
+    showKeyboard: 'Papan kana',
+    hideKeyboard: 'Tutup papan kana',
+    hiragana: 'あ hiragana',
+    katakana: 'ア katakana',
+    hint: 'Ketik pakai huruf latin — otomatis jadi kana. Atau ketuk hurufnya di bawah.',
   },
   langNames: {
     en: 'Inggris',
@@ -69,6 +99,44 @@ export const copy = {
       heading: 'Kenalan dulu',
       instruction: 'Baca dan dengar. Belum perlu dihafal.',
       confirm: 'Oke, paham',
+    },
+
+    /**
+     * The thumb shortcut. Every one of these is also a button, so this copy
+     * never carries an instruction a learner *must* follow — it tells them a
+     * faster way exists and names what each direction does.
+     */
+    swipe: {
+      confirm: 'Paham',
+      defer: 'Belum perlu',
+      next: 'Lanjut',
+      hint: 'Geser kartunya, atau pakai tombol di bawah.',
+    },
+
+    /**
+     * The card, after it has been answered.
+     *
+     * It stays on screen because the feedback refers to it — the correct answer
+     * only means something in the sentence it belongs to — but it stops being a
+     * question. No controls, and it says which it is.
+     */
+    answered: {
+      label: 'Soal tadi',
+      yours: (raw: string) => `Jawabanmu: “${raw}”`,
+    },
+
+    /**
+     * The meaning of the word itself, as opposed to the sentence it sits in.
+     *
+     * Glosses cover 30% of English words and 4% of Japanese (measured, D59), so
+     * the absent case is the common one and it gets said out loud rather than
+     * rendering nothing — the reader has done this since v1.7.0 and the session
+     * was the surface that stayed silent.
+     */
+    meaning: {
+      label: 'Arti katanya',
+      none: 'Kata ini belum ada di kamus kami. Terjemahan kalimatnya yang jadi petunjuk.',
+      sentenceLabel: 'Kalimat lengkapnya',
     },
     recognition: {
       heading: 'Yang mana artinya?',
@@ -130,6 +198,10 @@ export const copy = {
       instruction: 'Tanpa pilihan, tanpa contoh. Apa bahasa Inggrisnya?',
       instructionJa: 'Tanpa pilihan, tanpa contoh. Apa bahasa Jepangnya?',
       placeholder: 'Ketik kata yang dimaksud',
+      // This rung grades one word, and it used to show a whole sentence as its
+      // prompt — so a learner could read the prompt correctly and still not know
+      // what was being asked of them.
+      oneWord: 'Satu kata saja, bukan seluruh kalimatnya.',
     },
 
     free: {
@@ -172,6 +244,10 @@ export const copy = {
       // SPEC §3: framed as a pattern worth knowing, never as a weakness to fix.
       heading: 'Pola yang sering bikin kepeleset',
       typePlaceholder: 'Ketik jawabanmu',
+      // SPEC §8: "perbaiki kalimat ini". Framed as a fix, never as a mistake
+      // the learner made — they have not written this sentence.
+      correctionInstruction: 'Ada satu yang keliru di kalimat ini. Tulis ulang yang benar.',
+      correctionPlaceholder: 'Tulis kalimat yang benar',
       submit: 'Jawab',
       whyHeading: 'Kenapa begitu',
       l1Heading: 'Di bahasa Indonesia',
@@ -232,6 +308,38 @@ export const copy = {
     loading: 'Menyiapkan bacaan…',
     newWord: 'baru',
     tapHint: 'Ketuk kata untuk melihat artinya.',
+    // SPEC §10: a block of reading is one tab stop and the arrows move inside
+    // it, so this is the only place a keyboard learner is told how.
+    wordNav:
+      'Pakai tombol panah kiri dan kanan untuk pindah antar kata, lalu Enter untuk membuka artinya.',
+    sentenceLabel: 'Kalimat bacaan',
+
+    /**
+     * SPEC §5.4: the reference learner is on mobile data, and opening the
+     * reader is the one tap in this app that spends a noticeable amount of it.
+     * Said in kilobytes, before the tap, with a way to say no.
+     */
+    data: {
+      heading: 'Bacaan perlu diunduh dulu',
+      body: (kb: number) =>
+        `Sekitar ${kb} KB, sekali saja — setelah itu bisa dibaca offline tanpa kuota lagi.`,
+      download: 'Unduh sekarang',
+      note: 'Kamu memakai mode hemat kuota. Latihan tetap jalan seperti biasa.',
+    },
+
+    /** SPEC §8 + §2.4: real running text, where the coverage band is reachable. */
+    passage: {
+      from: (title: string) => `Dari artikel “${title}” (Wikipedia Bahasa Inggris Sederhana)`,
+      check: 'Cek pemahaman',
+      checkInstruction: 'Satu kata dihilangkan dari teks tadi. Kata apa?',
+      checkPlaceholder: 'Ketik kata yang hilang',
+      // Japanese has no graded passage corpus that is free and cleared, and
+      // saying so is better than letting the learner infer parity.
+      onlyEnglish:
+        'Bacaan panjang baru ada untuk bahasa Inggris. Untuk bahasa Jepang, kami sajikan kalimat satu per satu dulu.',
+      heading: 'Bacaan panjang',
+      textLabel: 'Teks bacaan',
+    },
 
     word: {
       reading: 'Dibaca',
@@ -244,13 +352,123 @@ export const copy = {
       mined: 'Sudah masuk daftar',
       unmine: 'Batalkan',
       minedNote: 'Akan muncul di sesi latihan berikutnya.',
-      // R3: no Indonesian gloss source is licence-cleared, so the reader shows
-      // what it actually has rather than inventing a definition.
+      // Glosses cover 30% of English words and 4% of Japanese (measured), and
+      // the gaps are mostly function words. Where there is nothing, say so —
+      // the sentence translation is a real answer, not a consolation.
       noGloss:
-        'Kami belum punya kamus kata per kata. Sementara ini, terjemahan kalimatnya di bawah yang jadi petunjuk.',
+        'Kata ini belum ada di kamus kami. Terjemahan kalimat di bawah yang jadi petunjuknya.',
       components: 'Tersusun dari',
       close: 'Tutup',
     },
+  },
+
+  /**
+   * SPEC §2.2's passive glossary — the one browsing the spec allows, because it
+   * creates and advances nothing. §2.14 is why it is worth having: capability
+   * you can scroll through is evidence, where a number is a claim.
+   */
+  glossary: {
+    open: 'Lihat daftar katamu',
+    heading: 'Kata yang sudah kamu temui',
+    intro:
+      'Semua kata yang pernah kamu jawab, yang paling kuat di atas. Melihat daftar ini tidak mengubah jadwal latihanmu sama sekali.',
+    search: 'Cari kata',
+    count: (total: number) => `${total.toLocaleString('id-ID')} kata`,
+    more: (rest: number) => `Dan ${rest.toLocaleString('id-ID')} lagi. Ketik di kotak cari untuk menemukannya.`,
+    empty:
+      'Belum ada isinya. Setiap kata yang kamu jawab — benar atau salah — langsung masuk ke sini.',
+    noMatch: 'Tidak ada kata yang cocok.',
+    noGloss: 'Belum ada artinya di kamus kami; contoh kalimatnya yang jadi petunjuk.',
+    band: (band: number) => `Kata tingkat ${band}`,
+    // Capability, never a score (§2.14): each of these is a state, not a grade.
+    strength: {
+      mastered: 'Sudah nempel',
+      known: 'Kamu kenal',
+      weak: 'Mulai pudar',
+      leech: 'Diajarkan ulang',
+    },
+  },
+
+  /** SPEC §10: one place for everything that is not practice. */
+  settings: {
+    /** SPEC §5.4's quota control. */
+    data: {
+      heading: 'Kuota',
+      intro:
+        'Latihan harian sudah ada di HP-mu. Yang perlu diunduh cuma bacaan panjang — sekali saja per tingkat.',
+      auto: 'Ikut pengaturan HP',
+      autoHint: 'Kalau HP-mu menyalakan penghemat data, kami ikut.',
+      save: 'Selalu tanya dulu',
+      saveHint: 'Tidak ada yang diunduh sebelum kamu setuju.',
+      full: 'Unduh saja',
+      fullHint: 'Jangan tanya, langsung ambil.',
+    },
+    /** SPEC §7.2's pace control, and §2.14's autonomy over it. */
+    pace: {
+      heading: 'Kata baru per hari',
+      intro:
+        'Kata baru hari ini menjadi ulangan minggu depan. Pelan-pelan justru lebih cepat — dan kamu boleh atur sendiri.',
+      unit: (count: number) => `${count} kata baru per hari`,
+      none: 'Tidak ada kata baru dulu. Ulangan yang sudah ada tetap jalan — ini cara paling ampuh mengejar tumpukan ulangan.',
+      fewer: 'Kurangi',
+      more: 'Tambah',
+      reset: 'Kembali ke bawaan',
+      defaultNote: (count: number) => `Bawaan untuk sesi sepanjang ini: ${count}.`,
+    },
+    open: 'Pengaturan',
+    heading: 'Pengaturan',
+    done: 'Selesai',
+    loading: 'Memuat…',
+    // SPEC §2.14: autonomy. The wording has to make clear this is a preference,
+    // not a syllabus you are locked into.
+    topicsHeading: 'Topik yang kamu butuhkan',
+    topicsIntro:
+      'Pilih topik yang paling kamu perlukan sekarang. Kata-kata dari topik itu akan lebih dulu muncul — tapi kata dasar yang bikin kalimat nyambung tetap diajarkan.',
+    topicsNone: 'Belum ada yang dipilih. Kami ikut urutan kata yang paling sering dipakai.',
+    topicsNote: 'Bisa diubah atau dikosongkan kapan saja.',
+    noTopics: 'Belum ada daftar topik untuk bahasa ini.',
+    moreHeading: 'Lainnya',
+  },
+
+  /**
+   * Risk R1's device matrix, run by whoever is holding the phone.
+   *
+   * The tone rule is the same as everywhere else — this says what the device
+   * can do, in plain words, and never implies the learner did something wrong
+   * by owning a phone with no speech engine.
+   */
+  diagnostics: {
+    open: 'Uji suara di HP ini',
+    heading: 'Uji perangkat',
+    intro:
+      'Kalau latihan mendengar tidak muncul, di sini tempat mengeceknya. Tombolnya membunyikan suara sekali dan mencatat hasilnya. Tidak ada yang dikirim ke mana pun.',
+    run: 'Uji audio sekarang',
+    running: 'Sedang mengecek…',
+    again: 'Uji lagi',
+    langHeading: (lang: string) => `Suara bahasa ${lang}`,
+    ready: (ms: number) => `Bunyi, selesai dalam ${ms} milidetik.`,
+    // Being over the deadline is a real outcome and it is explained, not hidden.
+    slow: (ms: number) =>
+      `Bunyi, tapi baru selesai setelah ${ms} milidetik. Untuk soal dikte itu kelamaan, jadi latihan mendengar tetap kami sembunyikan.`,
+    noVoice: 'Belum ada suara untuk bahasa ini di HP kamu.',
+    dead: 'Suaranya terdaftar, tapi tidak pernah benar-benar berbunyi.',
+    unsupported: 'Peramban ini tidak punya fitur suara sama sekali.',
+    // The one case where pressing the button changes what the app will offer.
+    adopted: 'Ternyata bisa. Latihan mendengar kami buka sekarang.',
+    firstCall: (ms: number) => `Panggilan pertama ke mesin suara makan waktu ${ms} milidetik.`,
+    firstCallSlow:
+      'Itu lama sekali, dan bukan salahmu — pengecekan suara memang kami tunda supaya aplikasinya tidak ikut macet.',
+    recognitionReady: 'HP ini bisa mendengar suaramu untuk latihan berbicara.',
+    recognitionAbsent: 'HP ini belum bisa mengenali suaramu. Latihan tetap jalan, tinggal diketik.',
+    remindersScheduled: 'Pengingat bisa muncul walau aplikasi tertutup.',
+    remindersInApp: 'Pengingat hanya muncul saat kamu buka aplikasi.',
+    remindersNone: 'Peramban ini tidak punya pengingat.',
+    copyHeading: 'Kirim ke pengembang',
+    copyHint:
+      'Salin teks ini dan kirimkan ke kami. Isinya cuma tentang kemampuan HP-mu — tidak ada satu pun jawaban latihanmu di dalamnya.',
+    copy: 'Salin',
+    copied: 'Tersalin.',
+    back: 'Kembali',
   },
 
   /**

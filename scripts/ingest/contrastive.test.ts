@@ -18,7 +18,7 @@ const PACK = join(ROOT, 'assets', 'content', 'en', 'contrastive.json');
 interface Drill {
   id: string;
   categoryId: string;
-  type: 'mcq' | 'cloze' | 'minimal-pair';
+  type: 'mcq' | 'cloze' | 'minimal-pair' | 'correction';
   prompt: string;
   options?: string[];
   answer: string;
@@ -156,15 +156,29 @@ describe('drill integrity', () => {
   });
 
   it('always includes the answer among the options', () => {
-    for (const drill of drills.filter((d) => d.type !== 'cloze')) {
+    for (const drill of drills.filter((d) => d.type === 'mcq' || d.type === 'minimal-pair')) {
       expect(drill.options).toBeDefined();
       expect(drill.options).toContain(drill.answer);
     }
   });
 
   it('never gives a typed drill options to pick from', () => {
-    for (const drill of drills.filter((d) => d.type === 'cloze')) {
+    // Cloze and correction are both typed: the learner writes the answer, and
+    // options would turn a production task into a recognition one (§2.15).
+    for (const drill of drills.filter((d) => d.type === 'cloze' || d.type === 'correction')) {
       expect(drill.options).toBeUndefined();
+    }
+  });
+
+  it('gives every correction drill a sentence to fix and a different one back', () => {
+    // SPEC §8's "perbaiki kalimat ini". A correction whose answer equals its
+    // prompt is a trick question; the compiler refuses it and this holds the
+    // line in the shipped file.
+    const corrections = drills.filter((drill) => drill.type === 'correction');
+    expect(corrections.length).toBeGreaterThanOrEqual(10);
+    for (const drill of corrections) {
+      expect(drill.prompt).not.toBe(drill.answer);
+      expect(drill.explain.length).toBeGreaterThan(0);
     }
   });
 

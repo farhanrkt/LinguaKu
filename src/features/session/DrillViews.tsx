@@ -18,12 +18,17 @@ interface DrillProps {
   task: DrillTask;
   onAnswer: (raw: string) => void;
   onPlayAudio: () => void;
+  /** A drill answer is already being written — one tap is one `DrillAttempt`. */
+  busy?: boolean;
 }
 
-export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
+export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
-  const typed = task.drill.type === 'cloze';
+  // Cloze and correction are both typed; only the instruction differs, because
+  // a correction asks for the whole sentence back rather than one word.
+  const correction = task.drill.type === 'correction';
+  const typed = task.drill.type === 'cloze' || correction;
 
   useEffect(() => {
     if (typed) input.current?.focus();
@@ -34,9 +39,22 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
       <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
         {copy.session.drill.heading}
       </p>
-      <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{task.category.label}</p>
+      <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{task.category.label}</p>
 
-      <p className="mt-5 text-xl leading-snug font-bold" data-testid="drill-prompt">
+      {/* SPEC §8's "perbaiki kalimat ini". The instruction has to come first:
+          a wrong sentence shown without it reads as something to copy. */}
+      {correction ? (
+        <p className="mt-4 text-sm text-stone-600 dark:text-slate-400">
+          {copy.session.drill.correctionInstruction}
+        </p>
+      ) : null}
+
+      <p
+        className={`mt-5 text-xl leading-snug font-bold ${
+          correction ? 'text-stone-500 line-through decoration-stone-400 dark:text-slate-400' : ''
+        }`}
+        data-testid="drill-prompt"
+      >
         {task.drill.prompt}
       </p>
 
@@ -63,8 +81,12 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
             ref={input}
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            aria-label={copy.session.drill.typePlaceholder}
-            placeholder={copy.session.drill.typePlaceholder}
+            aria-label={
+              correction ? copy.session.drill.correctionPlaceholder : copy.session.drill.typePlaceholder
+            }
+            placeholder={
+              correction ? copy.session.drill.correctionPlaceholder : copy.session.drill.typePlaceholder
+            }
             autoComplete="off"
             autoCapitalize="none"
             autoCorrect="off"
@@ -72,7 +94,7 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
             className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-lg focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
           />
           <div className="mt-4">
-            <Button type="submit" disabled={value.trim().length === 0}>
+            <Button type="submit" disabled={value.trim().length === 0 || busy === true}>
               {copy.session.drill.submit}
             </Button>
           </div>
@@ -84,6 +106,7 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio }: DrillProps) => {
               key={option}
               label={option}
               selected={false}
+              disabled={busy === true}
               onToggle={() => onAnswer(option)}
             />
           ))}
@@ -120,21 +143,21 @@ export const ContrastiveNote = ({
         {explain ?? category.summary}
       </p>
 
-      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-500">
+      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
         {copy.session.drill.l1Heading}
       </p>
       <p className="text-stone-700 dark:text-slate-300">{note.l1}</p>
 
-      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-500">
+      <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
         {copy.session.drill.targetHeading}
       </p>
       <p className="text-stone-700 dark:text-slate-300">{note.target}</p>
 
       <div className="mt-3 rounded-xl bg-white p-3 dark:bg-slate-950">
-        <p className="font-semibold text-stone-500 dark:text-slate-500">
+        <p className="font-semibold text-stone-500 dark:text-slate-400">
           {copy.session.drill.pairHeading}
         </p>
-        <p className="mt-1 text-stone-500 line-through dark:text-slate-500">
+        <p className="mt-1 text-stone-500 line-through dark:text-slate-400">
           {note.minimalPair.wrong}
         </p>
         <p className="font-semibold text-teal-800 dark:text-teal-300">{note.minimalPair.right}</p>
@@ -143,7 +166,7 @@ export const ContrastiveNote = ({
 
       {note.tip ? (
         <>
-          <p className="mt-3 font-semibold text-stone-500 dark:text-slate-500">
+          <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.drill.tipHeading}
           </p>
           <p className="text-stone-700 dark:text-slate-300">{note.tip}</p>

@@ -66,7 +66,7 @@ export const BarRow = ({ label, value, detail, tone = 'default', backdrop }: Bar
           />
         )}
       </div>
-      <p className="mt-1 text-sm text-stone-500 dark:text-slate-500">{detail}</p>
+      <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{detail}</p>
     </li>
   );
 };
@@ -83,7 +83,7 @@ export interface ColumnsProps {
 export const Columns = ({ values, labelFor, emptyLabel }: ColumnsProps) => {
   const peak = Math.max(1, ...values);
   if (values.every((value) => value === 0)) {
-    return <p className="text-sm text-stone-500 dark:text-slate-500">{emptyLabel}</p>;
+    return <p className="text-sm text-stone-500 dark:text-slate-400">{emptyLabel}</p>;
   }
 
   return (
@@ -95,7 +95,7 @@ export const Columns = ({ values, labelFor, emptyLabel }: ColumnsProps) => {
             className="w-full rounded-t bg-teal-700 motion-safe:transition-all dark:bg-teal-400"
             style={{ height: `${Math.max(2, (value / peak) * 56)}px` }}
           />
-          <span className="text-[10px] text-stone-500 tabular-nums dark:text-slate-500">
+          <span className="text-[10px] text-stone-500 tabular-nums dark:text-slate-400">
             {labelFor(index)}
           </span>
           <span className="sr-only">{value}</span>

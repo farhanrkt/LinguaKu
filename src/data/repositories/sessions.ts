@@ -1,12 +1,14 @@
 import Dexie from 'dexie';
 import { db } from '../db.ts';
-import { dueCards } from './reviews.ts';
+import { dueCardCount, dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { composeSession, type Candidate } from '../../core/sessionComposer.ts';
 import {
   dailyCapacityFor,
+  dailyNewWords,
   forecastLoad,
   newItemAllowance,
+  type DailyNewResult,
   type ThrottleResult,
 } from '../../core/forecast.ts';
 import { bandForAbility } from '../../core/placement.ts';
@@ -17,7 +19,8 @@ import { minedItemIds } from './mining.ts';
 import { deferredItemIds } from './deferrals.ts';
 import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { Profile, Session, TargetLang, Timestamp } from '../types.ts';
+import { peekTopics, type TopicPack } from '../topics.ts';
+import type { Item, Profile, Session, TargetLang, Timestamp } from '../types.ts';
 
 /**
  * SPEC §2.13: sessions are interruption-safe. The cursor is persisted after
@@ -39,6 +42,27 @@ const BASE_NEW_ITEMS = 40;
  * against the Japanese ability. Sessions written before v1.0.1 carry no `lang`
  * and are never resumed; the review logs they produced are untouched.
  */
+/**
+ * The item kind the composer interleaves on (SPEC §2.8).
+ *
+ * Kanji and chunks each count as their own type, so two of either cannot land
+ * back to back; everything else is a lexeme as far as spacing is concerned.
+ */
+const itemKindFor = (item: Item): 'lexeme' | 'kanji' | 'chunk' =>
+  item.kind === 'kanji' ? 'kanji' : item.kind === 'chunk' ? 'chunk' : 'lexeme';
+
+/**
+ * The cluster §2.8 spaces on.
+ *
+ * A topic where the item has one, and the frequency band otherwise. The band
+ * was the stand-in from M2 until topics existed, and it is still the right
+ * fallback: it groups like with like, which is all the spacing rule needs. The
+ * difference is that "three food words in a row" is now a thing the rule can
+ * see, and it could not before.
+ */
+const clusterFor = (item: Item, topics: TopicPack | null): string =>
+  topics?.byItem.get(item.id) ?? `b${item.band}`;
+
 export const findResumable = async (
   profileId: string,
   lang: TargetLang,
@@ -74,6 +98,7 @@ const newCandidates = async (
   const items = [
     ...(await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray()),
     ...(await db.items.where('[lang+kind]').equals([lang, 'kanji']).toArray()),
+    ...(await db.items.where('[lang+kind]').equals([lang, 'chunk']).toArray()),
   ].sort((a, b) => a.freqRank - b.freqRank);
   const started = new Set(
     (await db.cards.where('profileId').equals(profile.id).toArray()).map((card) => card.itemId),
@@ -96,11 +121,29 @@ const newCandidates = async (
       !started.has(item.id),
   );
 
-  // Mined words first, then nearest the frontier — which is where the learning
-  // is for everything the learner did not specifically ask for.
+  // SPEC §2.10: frequency order, *modulated by* the learner's chosen topics.
+  // Modulated, not filtered — someone who picks "food" still needs the function
+  // words that hold a sentence together, and restricting the queue to a topic
+  // would starve them of exactly the words that make the topic usable.
+  const topics = peekTopics(lang);
+  const chosen = new Set(profile.topics ?? []);
+  const inChosenTopic = (itemId: string): boolean => {
+    const topic = topics?.byItem.get(itemId);
+    return topic !== undefined && chosen.has(topic);
+  };
+
+  // Mined words first, then anything in a topic the learner asked for, then
+  // nearest the frontier — which is where the learning is for everything they
+  // did not specifically ask for.
   eligible.sort((a, b) => {
     const minedRank = (item: typeof a) => (mined.has(item.id) ? 0 : 1);
-    return minedRank(a) - minedRank(b) || b.band - a.band || a.freqRank - b.freqRank;
+    const topicRank = (item: typeof a) => (inChosenTopic(item.id) ? 0 : 1);
+    return (
+      minedRank(a) - minedRank(b) ||
+      topicRank(a) - topicRank(b) ||
+      b.band - a.band ||
+      a.freqRank - b.freqRank
+    );
   });
 
   return eligible.slice(0, limit).map((item) => ({
@@ -109,10 +152,10 @@ const newCandidates = async (
     cardId: null,
     slice: 'new' as const,
     ladderLevel: 0 as const,
-    clusterId: `b${item.band}`,
+    clusterId: clusterFor(item, topics),
     retrievability: 0,
     lapses: 0,
-    itemKind: item.kind === 'kanji' ? ('kanji' as const) : ('lexeme' as const),
+    itemKind: itemKindFor(item),
   }));
 };
 
@@ -187,8 +230,16 @@ const dueCandidates = async (
   now: Timestamp,
   deferred: Set<string>,
 ): Promise<Candidate[]> => {
-  const cards = await dueCards(profile.id, now);
+  // Scoped to the language being studied. `Session.lang` has recorded which
+  // language a queue was composed for since v1.0.1 — because resuming a session
+  // under a different target handed the learner the other language's content —
+  // but the queue itself was never actually built that way: due cards came from
+  // the whole profile, so a learner who had studied both could meet Japanese
+  // kanji inside an English session. New items and drills were already scoped.
+  const lang = profile.targets[0] ?? 'en';
+  const cards = await dueCards(profile.id, now, { lang });
   const items = await db.items.bulkGet(cards.map((card) => card.itemId));
+  const topics = peekTopics(lang);
 
   return cards.flatMap((card, index) => {
     const item = items[index];
@@ -203,19 +254,59 @@ const dueCandidates = async (
         cardId: card.id,
         slice: 'review' as const,
         ladderLevel: card.ladderLevel,
-        clusterId: `b${item.band}`,
+        clusterId: clusterFor(item, topics),
         retrievability: retrievability(card.fsrs, now),
         lapses: card.fsrs.lapses,
-        itemKind: item.kind === 'kanji' ? ('kanji' as const) : ('lexeme' as const),
+        itemKind: itemKindFor(item),
       },
     ];
   });
+};
+
+/** What today actually holds, for the home screen to state before committing. */
+export interface TodaySnapshot {
+  /** Reviews waiting right now. */
+  due: number;
+  /** Today's introduction budget (SPEC §7.2). */
+  daily: DailyNewResult;
+}
+
+/**
+ * A read-only look at today's load, for the home screen.
+ *
+ * Counted the same way `dueCandidates` counts — scoped to the language being
+ * studied — so the number on the home screen cannot disagree with what the
+ * session it launches actually contains.
+ *
+ * Writes nothing. §2.2's ban on browsing as a study activity is about advancing
+ * cards, and this advances none — it is the same class of read as the glossary
+ * (D67).
+ */
+export const todaySnapshot = async (
+  profile: Profile,
+  now: Timestamp,
+): Promise<TodaySnapshot> => {
+  const [due, introduced] = await Promise.all([
+    dueCardCount(profile.id, now, profile.targets[0] ?? 'en'),
+    introducedToday(profile.id, now),
+  ]);
+
+  return {
+    due,
+    daily: dailyNewWords({
+      cap: profile.dailyNewWords,
+      budgetMinutes: profile.dailyMinutes,
+      introducedToday: introduced,
+    }),
+  };
 };
 
 export interface SessionPlan {
   session: Session;
   /** What the throttle decided, so the UI can explain a quiet day honestly. */
   throttle: ThrottleResult;
+  /** Today's introduction budget, spent and remaining (SPEC §7.2). */
+  daily: DailyNewResult;
   frontier: FrequencyBand;
   /** How many contrastive drills the session carries (SPEC §7.2's ~5%). */
   drills: number;
@@ -250,10 +341,24 @@ export const planSession = async (
     baseNewItems: BASE_NEW_ITEMS,
   });
 
+  // SPEC §7.2's other half. The throttle above reacts to a backlog that already
+  // exists; this stops one forming. They are not redundant — the throttle is
+  // computed per *session* from a forecast that only moves days later, so five
+  // sessions in one evening passed it five times and introduced five doses of
+  // new material, which is the exact failure §7.2 calls the top cause of
+  // abandonment. The cap is the learner's own (§2.14), defaulting to what their
+  // session length can carry.
+  const daily = dailyNewWords({
+    cap: profile.dailyNewWords,
+    budgetMinutes: profile.dailyMinutes,
+    introducedToday: await introducedToday(profile.id, now),
+  });
+  const newAllowance = Math.min(throttle.allowed, daily.remaining);
+
   const deferred = await deferredItemIds(profile.id, now);
   const [due, fresh, drills] = await Promise.all([
     dueCandidates(profile, now, deferred),
-    newCandidates(profile, throttle.allowed, frontier, deferred),
+    newCandidates(profile, newAllowance, frontier, deferred),
     drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false),
   ]);
 
@@ -278,7 +383,7 @@ export const planSession = async (
     resumeCursor: 0,
   };
   await db.sessions.add(session);
-  return { session, throttle, frontier, drills: composed.allocation.drill };
+  return { session, throttle, daily, frontier, drills: composed.allocation.drill };
 };
 
 export const startSession = async (

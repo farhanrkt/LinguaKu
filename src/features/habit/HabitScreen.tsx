@@ -106,7 +106,7 @@ export const HabitScreen = ({ profile, onDone }: HabitScreenProps) => {
             type="button"
             onClick={onDone}
             data-testid="habit-skip"
-            className="mt-2 min-h-12 w-full text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+            className="mt-2 min-h-12 w-full text-sm text-stone-500 underline underline-offset-4 dark:text-slate-400"
           >
             {copy.habit.skip}
           </button>
@@ -158,17 +158,17 @@ export const HabitScreen = ({ profile, onDone }: HabitScreenProps) => {
       />
 
       {/* SPEC §2.6's rule, applied to notifications: name the capability. */}
-      <p className="mt-6 text-sm text-stone-500 dark:text-slate-500" data-testid="habit-support">
+      <p className="mt-6 text-sm text-stone-500 dark:text-slate-400" data-testid="habit-support">
         {denied ? copy.habit.permissionDenied : supportCopy[support]}
       </p>
-      <p className="mt-2 text-sm text-stone-500 dark:text-slate-500">{copy.habit.skipNote}</p>
+      <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{copy.habit.skipNote}</p>
 
       {existing ? (
         <button
           type="button"
           onClick={() => void handleOff()}
           data-testid="habit-off"
-          className="mt-6 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-500"
+          className="mt-6 min-h-12 w-full text-left text-sm text-stone-500 underline underline-offset-4 dark:text-slate-400"
         >
           {copy.habit.off}
         </button>

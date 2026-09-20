@@ -1,5 +1,6 @@
 import { db } from './db.ts';
 import type {
+  ReadingAttempt,
   Ability,
   Card,
   CategoryScore,
@@ -40,6 +41,11 @@ export interface ExportBundle {
   reviewLogs: ReviewLog[];
   categoryScores: CategoryScore[];
   drillAttempts: DrillAttempt[];
+  /**
+   * Optional so a bundle written before v1.4.0 still restores: an older export
+   * simply carries no reading evidence, which is not the same as carrying none.
+   */
+  readingAttempts?: ReadingAttempt[];
   sessions: Session[];
   mnemonics: Mnemonic[];
   habits: Habit[];
@@ -52,13 +58,24 @@ export const exportProfile = async (
   const profile = await db.profiles.get(profileId);
   if (!profile) throw new Error(`no such profile: ${profileId}`);
 
-  const [abilities, cards, reviewLogs, categoryScores, drillAttempts, sessions, mnemonics, habits] =
+  const [
+    abilities,
+    cards,
+    reviewLogs,
+    categoryScores,
+    drillAttempts,
+    readingAttempts,
+    sessions,
+    mnemonics,
+    habits,
+  ] =
     await Promise.all([
       db.abilities.where('profileId').equals(profileId).toArray(),
       db.cards.where('profileId').equals(profileId).toArray(),
       db.reviewLogs.where('profileId').equals(profileId).toArray(),
       db.categoryScores.where('profileId').equals(profileId).toArray(),
       db.drillAttempts.where('profileId').equals(profileId).toArray(),
+      db.readingAttempts.where('profileId').equals(profileId).toArray(),
       db.sessions.where('[profileId+startedAt]').between([profileId, -Infinity], [profileId, Infinity]).toArray(),
       db.mnemonics.filter((row) => row.profileId === profileId).toArray(),
       db.habits.where('profileId').equals(profileId).toArray(),
@@ -75,6 +92,7 @@ export const exportProfile = async (
     reviewLogs,
     categoryScores,
     drillAttempts,
+    readingAttempts,
     sessions,
     mnemonics,
     habits,
@@ -157,6 +175,7 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       db.reviewLogs,
       db.categoryScores,
       db.drillAttempts,
+      db.readingAttempts,
       db.sessions,
       db.mnemonics,
       db.habits,
@@ -204,6 +223,17 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       const newAttempts = attempts.filter((attempt) => !knownAttempts.has(attempt.id));
       if (newAttempts.length > 0) await db.drillAttempts.bulkAdd(newAttempts);
       addedAttempts = newAttempts.length;
+
+      // Same union rule (D37): UUID-keyed and append-only, so a restore adds
+      // what it lacks and can never destroy reading evidence.
+      const reading = bundle.readingAttempts ?? [];
+      const knownReading = new Set(
+        (await db.readingAttempts.bulkGet(reading.map((attempt) => attempt.id)))
+          .filter((row) => row !== undefined)
+          .map((row) => row.id),
+      );
+      const newReading = reading.filter((attempt) => !knownReading.has(attempt.id));
+      if (newReading.length > 0) await db.readingAttempts.bulkAdd(newReading);
     },
   );
 
