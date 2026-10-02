@@ -332,6 +332,26 @@ export interface DrillAttempt {
 }
 
 /**
+ * SPEC §3.1 `NP_WORD_ORDER`: one rebuild-the-sentence puzzle, answered.
+ *
+ * Its own append-only table for the reason `DrillAttempt` and `ReadingAttempt`
+ * have theirs (D32, invariant 31): a sentence has no FSRS card, so these can
+ * never be review logs without corrupting the retention rate §9 reports.
+ */
+export interface BuildAttempt {
+  id: string;
+  profileId: string;
+  lang: TargetLang;
+  /** The sentence that was rebuilt. */
+  sentenceId: string;
+  correct: Flag;
+  /** The order the learner actually assembled, for later forensics. */
+  answerRaw: string;
+  latencyMs: number;
+  answeredAt: Timestamp;
+}
+
+/**
  * SPEC §8: one-tap sentence mining from the reader.
  *
  * Deliberately **not** a card. Invariant 0 and SPEC §2.2 say a card is created

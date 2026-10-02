@@ -1,5 +1,92 @@
 # PROGRESS.md
 
+## v1.15.0 — the variety half (2026-10-02)
+
+v1.14.0 did the structure half of the brief and said plainly what it had not
+done: *"the variety half — more kinds of exercise so that not every card
+presents as 'a question' — is a larger piece of work and is not started."* This
+is that.
+
+### Picking one exercise rather than several
+
+The temptation was to add three or four activities and call it variety. The
+useful question turned out to be narrower: **what can the catalog not currently
+ask for?**
+
+Running down §8: recognition MCQ, meaning recall, cloze, dictation, listening
+MCQ, minimal pairs, production, shadowing, the reader, kanji component build,
+particle drills, error correction, free production. Thirteen exercises, all
+implemented, and every single one of them asks for **a word** — pick it, type
+it, recall it, hear it, use it.
+
+None asks the learner to put words in the right **order**. And §3.1 names
+exactly that as a *systematic* Indonesian-L1 error rather than a careless one:
+Indonesian is head-initial, so *mobil merah* arrives as "a car red". The
+authored contrastive drills cover `NP_WORD_ORDER` with a finite hand-written
+set; the corpus can generate practice for it without limit.
+
+So one exercise, chosen because it fills a real hole in the catalog rather than
+because other apps have it — and it happens to be the one whose *interaction* is
+also different, which is the surface complaint being answered.
+
+### Where the budget came from
+
+§7.2 reserves ~15% of a session for *"one input activity"*, and that reservation
+has spilled into reviews on **every session this app has ever composed** —
+because the input activity §7.2 names is the reader, which is a screen of its
+own that a learner opens deliberately. Sentence building is an in-session input
+activity, so it takes two thirds of that share and the rest keeps spilling.
+Nothing was taken from reviews, new items or drills.
+
+### The four decisions that stop it being word salad
+
+**Anchors, not the full sentence shards.** Anchors are precached with the
+starter bands, so this costs a learner nothing extra on a metered connection
+(D80) — and they are the sentences the band is already taught through.
+
+**80% of the sentence must already be known.** Reassembling words you have never
+met is a jigsaw puzzle, not a language exercise.
+
+**A decoy is never a word that is already in the sentence.** That one is a trap
+rather than a preference: a decoy appearing in the answer creates a second,
+equally correct arrangement, and the grader would then mark a right answer
+wrong — the §2.7 failure, manufactured by the exercise itself.
+
+**Case and punctuation are not graded.** The learner was handed the tiles. They
+never chose the capital letter, so they cannot be marked wrong for it.
+
+### The defect it introduced, and where it was caught
+
+`buildCandidates` runs inside `planSession` and loads a content shard.
+`loadAnchors` throws when the shard is absent — offline before that band was
+cached, or any fetch failure at all — and that took **the entire session plan**
+down with it. An optional extra that can stop a session being planned is worse
+than no extra.
+
+Caught by the unit suite, which has no base URL to fetch from, so every throttle
+test went red at once. It would have reached a learner as a session that simply
+refused to start, on the exact device §5.4 is written about.
+
+### A trap avoided twice now
+
+The a11y scan runs on a brand-new profile, and a build puzzle needs a learner
+with a vocabulary — so the card would have shipped **never having been scanned**,
+which is precisely the state the reader was in before v1.10.0. It has its own
+scan now. The first version of that scan also got stuck, because it could not
+drive past a typed card; the walk is shared with the session test rather than
+duplicated, since the duplicate is what diverged.
+
+### Still open
+
+The grammar axis now draws on both the authored drills and these attempts, which
+is what §4.2's third dimension is for. What has not been attempted is a
+*matching* activity, or anything that would make the app's **Japanese** side feel
+as varied — sentence building works there (particles and verb-final order are
+exactly the right thing to drill) but the Japanese corpus has no anchor coverage
+to speak of at the bands a beginner is in.
+
+---
+
 ## v1.14.0 — making the curriculum visible (2026-10-02)
 
 The brief was blunt and fair: *"just questions all the time is boring and

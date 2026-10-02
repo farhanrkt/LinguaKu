@@ -1,20 +1,21 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  ReadingAttempt,
   Ability,
+  BuildAttempt,
   Card,
   CategoryScore,
-  DrillAttempt,
+  ContentShard,
   DeferredItem,
+  DrillAttempt,
   Habit,
-  MinedItem,
   Item,
+  MinedItem,
   Mnemonic,
   Profile,
+  ReadingAttempt,
   ReviewLog,
   Sentence,
   Session,
-  ContentShard,
 } from './types.ts';
 
 export const DB_NAME = 'linguaku';
@@ -44,6 +45,7 @@ export class LinguaKuDb extends Dexie {
   habits!: Table<Habit, string>;
   contentShards!: Table<ContentShard, string>;
   drillAttempts!: Table<DrillAttempt, string>;
+  buildAttempts!: Table<BuildAttempt, string>;
   minedItems!: Table<MinedItem, [string, string]>;
   deferredItems!: Table<DeferredItem, [string, string]>;
   readingAttempts!: Table<ReadingAttempt, string>;
@@ -122,6 +124,13 @@ export class LinguaKuDb extends Dexie {
       readingAttempts: 'id, profileId, [profileId+answeredAt], passageId',
     });
 
+    // v7 (v1.15.0): sentence-building attempts (SPEC §3.1). Additive, and its
+    // own table for the third time and the same reason — a sentence has no
+    // card, so these are not review logs (invariant 31).
+    this.version(7).stores({
+      buildAttempts: 'id, profileId, [profileId+answeredAt], sentenceId',
+    });
+
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a
     // compound index (IndexedDB cannot index a nested path inside a compound
     // key). The mirror is derived here rather than at call sites so it cannot
@@ -155,6 +164,13 @@ export class LinguaKuDb extends Dexie {
     });
     this.readingAttempts.hook('deleting', () => {
       throw new AppendOnlyViolation('readingAttempts is append-only: delete rejected');
+    });
+
+    this.buildAttempts.hook('updating', () => {
+      throw new AppendOnlyViolation('buildAttempts is append-only: update rejected');
+    });
+    this.buildAttempts.hook('deleting', () => {
+      throw new AppendOnlyViolation('buildAttempts is append-only: delete rejected');
     });
   }
 }

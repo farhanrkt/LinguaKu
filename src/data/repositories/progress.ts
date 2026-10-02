@@ -24,6 +24,7 @@ import {
 } from '../../core/retention.ts';
 import { categoryStandings } from './contrastive.ts';
 import { readingAttempts } from './reading.ts';
+import { buildAttempts } from './builds.ts';
 import { vocabularyAbility } from './abilities.ts';
 import { rankForAbility } from '../../core/placement.ts';
 import { AUDIO_LEVEL, isMastered } from '../../core/ladder.ts';
@@ -180,8 +181,18 @@ export const buildProgressReport = async (
       (row) => row.categoryId,
     ),
   );
-  const grammarAnswers = standings.reduce((sum, standing) => sum + standing.attempts, 0);
-  const grammarCorrect = standings.reduce((sum, standing) => sum + standing.correct, 0);
+  // SPEC §4.2's grammar dimension, from both things that measure it: the
+  // authored contrastive drills, and rebuilding a sentence from its words —
+  // which is word order, and §3.1 calls that a systematic L1 error rather than
+  // a careless one. Counting only the drills would leave the newer evidence on
+  // the floor and understate a learner who is good at exactly the thing §3.1
+  // says they will find hard.
+  const builds = await buildAttempts(profile.id);
+  const grammarAnswers =
+    standings.reduce((sum, standing) => sum + standing.attempts, 0) + builds.length;
+  const grammarCorrect =
+    standings.reduce((sum, standing) => sum + standing.correct, 0) +
+    builds.filter((attempt) => attempt.correct === 1).length;
 
   // The rung the answer was given at, not the rung the card sits at now: one
   // card carries one FSRS state across the whole ladder (D18), so the log is the
@@ -223,7 +234,7 @@ export const buildProgressReport = async (
     {
       skill: 'grammar',
       score: rate(grammarCorrect, grammarAnswers),
-      basis: 'latihan pola',
+      basis: 'latihan pola dan susun kalimat',
       answers: grammarAnswers,
     },
     {

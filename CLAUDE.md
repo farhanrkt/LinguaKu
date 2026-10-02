@@ -255,6 +255,12 @@ needs React state to work, it is in the wrong place.
     because only the starter bands are imported (invariant 11). Nothing on it
     unlocks or gates: §1's "no fixed lesson order" stands.
 
+45. **Sentence building is its own attempt log, and it fails soft** (D83).
+    `BuildAttempt` is append-only for the third time and the same reason — a
+    sentence has no FSRS card (invariant 31). `buildCandidates` catches a failed
+    shard load and returns nothing: it runs inside `planSession`, and an
+    optional extra that can stop a session being planned is worse than no extra.
+
 
 ## Conventions
 

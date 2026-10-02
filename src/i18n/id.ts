@@ -167,6 +167,8 @@ export const copy = {
       strengthened: (count: number) => `${count} kata jadi lebih kuat.`,
       learned: (count: number) => `${count} kata baru kamu kenali.`,
       promoted: (count: number) => `${count} kata naik ke tugas yang lebih sulit.`,
+      built: (count: number) =>
+        count === 1 ? 'Satu kalimat kamu susun ulang.' : `${count} kalimat kamu susun ulang.`,
       drilled: (count: number) =>
         count === 1 ? 'Satu pola tata bahasa kamu latih.' : `${count} pola tata bahasa kamu latih.`,
       nothing: 'Belum ada yang dikerjakan.',
@@ -202,6 +204,25 @@ export const copy = {
       // prompt — so a learner could read the prompt correctly and still not know
       // what was being asked of them.
       oneWord: 'Satu kata saja, bukan seluruh kalimatnya.',
+    },
+
+    /**
+     * SPEC §3.1 `NP_WORD_ORDER`. The one exercise here that asks for an
+     * *order* rather than a word, and the one whose interaction is tapping
+     * rather than typing or choosing.
+     */
+    build: {
+      heading: 'Susun kalimatnya',
+      instruction: 'Ketuk katanya satu per satu sampai jadi kalimat yang benar.',
+      hint: 'Ketuk lagi kata yang sudah masuk kalau mau menariknya kembali.',
+      empty: 'Kalimatmu masih kosong.',
+      submit: 'Cek urutannya',
+      correct: 'Urutannya tepat.',
+      wrong: (answer: string) => `Urutan yang benar: “${answer}”.`,
+      // §2.9: feedback that says *why*, and a claim that is true of every
+      // sentence here rather than only of the adjective cases.
+      why: 'Urutan kata bahasa Inggris sering tidak sama dengan bahasa Indonesia — itu yang dilatih di sini.',
+      whyJa: 'Bahasa Jepang menaruh kata kerja di akhir, dan partikel menentukan peran tiap kata. Itu yang dilatih di sini.',
     },
 
     free: {

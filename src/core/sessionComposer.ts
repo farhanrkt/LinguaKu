@@ -21,6 +21,7 @@ export type CardType =
   | 'drill'
   | 'kanji'
   | 'chunk'
+  | 'build'
   | 'production';
 
 export const cardTypeForLevel = (level: LadderLevel): CardType => {
@@ -56,6 +57,8 @@ export const SECONDS_PER_CARD_TYPE: Record<CardType, number> = {
   // Listen, then write a whole sentence back: the slowest rung there is.
   dictation: 24,
   drill: 12,
+  // Reading the prompt, then tapping six or seven tiles into place.
+  build: 22,
   // Read the breakdown, then write or edit a mnemonic (SPEC §2.11).
   kanji: 20,
   // A multi-word formula: longer to read than a word, and longer to type back.
@@ -64,7 +67,7 @@ export const SECONDS_PER_CARD_TYPE: Record<CardType, number> = {
   production: 26,
 };
 
-export type SessionSlice = 'review' | 'new' | 'drill';
+export type SessionSlice = 'review' | 'new' | 'drill' | 'build';
 
 /**
  * SPEC §7.2 splits the budget ~60% reviews / ~20% new / ~15% one input
@@ -76,8 +79,19 @@ export const SLICE_SHARE: Record<SessionSlice, number> = {
   review: 0.6,
   new: 0.2,
   drill: 0.05,
+  /**
+   * SPEC §7.2 reserves ~15% for *"one input activity"*, and that reservation
+   * has spilled into reviews on every session ever composed, because the input
+   * activity it names is the M7 reader — which is a screen of its own that a
+   * learner opens deliberately, not something the session can schedule.
+   *
+   * Sentence building is an in-session input activity, so it takes two thirds
+   * of that share and the rest keeps spilling as before. Nothing is taken from
+   * reviews, new items or drills.
+   */
+  build: 0.1,
 };
-export const RESERVED_SHARE = 0.15;
+export const RESERVED_SHARE = 0.05;
 
 /** SPEC §2.8. */
 export const MAX_CONSECUTIVE_SAME_TYPE = 2;
@@ -119,6 +133,8 @@ export interface ComposeInput {
    * the share spills back into reviews.
    */
   drills?: readonly Candidate[];
+  /** SPEC §3.1 `NP_WORD_ORDER`: rebuild-the-sentence puzzles from the corpus. */
+  builds?: readonly Candidate[];
 }
 
 export interface ComposedSession {
@@ -140,7 +156,9 @@ export interface ComposedSession {
  * SPEC §2.8 exists to prevent.
  */
 export const cardTypeFor = (candidate: Candidate): CardType =>
-  candidate.slice === 'drill'
+  candidate.slice === 'build'
+    ? 'build'
+    : candidate.slice === 'drill'
     ? 'drill'
     : candidate.itemKind === 'kanji'
       ? 'kanji'
@@ -269,16 +287,18 @@ export const composeSession = (input: ComposeInput): ComposedSession => {
   const reviewBudget = budgetSeconds * SLICE_SHARE.review;
   const newBudget = budgetSeconds * SLICE_SHARE.new;
   const drillBudget = budgetSeconds * SLICE_SHARE.drill;
+  const buildBudget = budgetSeconds * SLICE_SHARE.build;
 
   const reviews = take(due, reviewBudget);
   const news = take(fresh, newBudget);
   const drills = take(drillPool, drillBudget);
+  const builds = take(input.builds ?? [], buildBudget);
 
   // The reserved share, plus anything a slice could not spend, goes back to
   // reviews and then to new items. Drills deliberately do not get the spare:
   // §7.2 asks for *one* contrastive drill, not for the session to fill up with
   // them when reviews run dry.
-  let spare = budgetSeconds - reviews.spent - news.spent - drills.spent;
+  let spare = budgetSeconds - reviews.spent - news.spent - drills.spent - builds.spent;
   const extraReviews = take(reviews.rest, spare);
   spare -= extraReviews.spent;
   const extraNew = take(news.rest, spare);
@@ -289,6 +309,7 @@ export const composeSession = (input: ComposeInput): ComposedSession => {
     ...news.taken,
     ...extraNew.taken,
     ...drills.taken,
+    ...builds.taken,
   ].sort(byRisk);
 
   const { entries, relaxed } = interleave(selected);
@@ -300,6 +321,7 @@ export const composeSession = (input: ComposeInput): ComposedSession => {
     allocation: {
       review: reviews.taken.length + extraReviews.taken.length,
       new: news.taken.length + extraNew.taken.length,
+      build: builds.taken.length,
       drill: drills.taken.length,
     },
     interleaveRelaxed: relaxed,

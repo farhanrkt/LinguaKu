@@ -5,6 +5,68 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.15.0 — 2026-10-02
+
+### Added — rebuild the sentence from its words
+
+The variety half of the brief. Every card in the §8 catalog asks for **a word**
+— pick it, type it, recall it, hear it. None of them asks the learner to put
+words in the right **order**.
+
+§3.1 names word order as a *systematic* Indonesian-L1 error rather than a
+careless one: Indonesian is head-initial, so *mobil merah* comes out as "a car
+red". The authored contrastive drills cover `NP_WORD_ORDER` with a finite
+hand-written set; the corpus can generate practice for it without limit.
+
+It is also the only card whose **interaction** is different — tapping tiles
+rather than typing or choosing — which is the actual complaint being answered.
+A session where every card presents identically reads as unstructured however
+varied the pedagogy underneath it is.
+
+> **Susun kalimatnya** — *Terima kasih banyak!*
+> `Thank` `the` `much` `very` `your` `you`
+
+Four decisions make it honest rather than a word-salad:
+
+- **Anchors, not the full sentence shards.** Costs nothing extra on a metered
+  connection (v1.13.0), and they are the sentences the band is already taught
+  through.
+- **Offered only when the learner already knows 80% of the sentence.**
+  Reassembling words you do not know is a jigsaw, not a language exercise.
+- **A decoy is never a word that is already in the sentence** — it would make a
+  second, equally correct arrangement and then mark a right answer wrong.
+- **Case and punctuation are not graded.** The learner was handed the tiles;
+  marking them wrong for a capital letter they never chose is what §2.7 exists
+  to prevent.
+
+It takes two thirds of §7.2's reserved 15% for *"one input activity"* — a share
+that had spilled into reviews on **every session ever composed**, because the
+activity §7.2 names is the reader, which is a screen of its own.
+
+Attempts land in their own append-only table for the third time and the same
+reason (a sentence has no FSRS card), and they feed §4.2's **grammar** axis
+alongside the contrastive drills, which is what word order is.
+
+### Fixed — an optional extra could stop a session being planned
+
+`buildCandidates` runs inside `planSession` and loads a content shard.
+`loadAnchors` throws when the shard is not there — offline before that band was
+cached, or any fetch failure — and that took the whole plan down with it. It
+catches now and returns nothing. Found by the unit suite, which has no base URL
+to fetch from; it would have reached a learner as a session that refused to
+start.
+
+### Measured on this build
+
+| | |
+|---|---|
+| unit tests | **832**, 61 files |
+| e2e | **65** |
+| initial JS / CSS gzipped | **144.1 KB** / **6.8 KB** (budgets 200 / 40) |
+| schema | **v7** — `buildAttempts`, additive, migration tested |
+
+---
+
 ## v1.14.0 — 2026-10-02
 
 ### Added — the learning path: where you are, from 1 to the end

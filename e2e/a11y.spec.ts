@@ -1,6 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun, seedKnownVocabulary } from './helpers.ts';
+import {
+  answerOne,
+  firstRun,
+  seedKnownVocabulary,
+  walkToBuildCard,
+} from './helpers.ts';
 
 /**
  * The accessibility promises SPEC §10 makes, gated for the first time.
@@ -183,6 +188,28 @@ test('every screen passes WCAG 2.1 AA in dark mode', async ({ page }) => {
   await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('topic-list')).toBeVisible({ timeout: 20_000 });
   await expectNoViolations(page, 'settings, dark');
+});
+
+/**
+ * The rebuild-the-sentence card, which the scan above never reaches.
+ *
+ * A build puzzle needs a learner with a vocabulary, so the session scan — which
+ * runs on a brand-new profile — has never seen one. That is the same trap the
+ * reader was in before v1.10.0: scanning a screen in the one state that has
+ * none of the markup worth scanning.
+ */
+test('the sentence-building card passes WCAG 2.1 AA', async ({ page }) => {
+  test.setTimeout(120_000);
+  await firstRun(page);
+  await seedKnownVocabulary(page, 600);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+
+  await walkToBuildCard(page);
+
+  await expectNoViolations(page, 'sentence building');
+  await page.getByTestId('build-tile').first().click();
+  await expectNoViolations(page, 'sentence building, mid-answer');
 });
 
 test('a session is answerable with no accessibility violations', async ({ page }) => {

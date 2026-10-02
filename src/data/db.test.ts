@@ -47,9 +47,10 @@ beforeEach(async () => {
 
 describe('schema', () => {
   it('opens at the current version with every SPEC §6 table', () => {
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       'abilities',
+      'buildAttempts',
       'cards',
       'categoryScores',
       'contentShards',
@@ -100,7 +101,7 @@ describe('schema', () => {
 
     // Upgrading must not lose a single review log.
     await db.open();
-    expect(db.verno).toBe(6);
+    expect(db.verno).toBe(7);
     expect((await db.profiles.get('p1'))?.dailyMinutes).toBe(4);
     expect(await db.cards.get('card-1')).toBeTruthy();
     expect(await db.reviewLogs.count()).toBe(1);
@@ -216,5 +217,35 @@ describe('reviewLogs are append-only (SPEC §6)', () => {
     await db.reviewLogs.add(makeLog());
     await expect(db.reviewLogs.clear()).rejects.toThrow(/append-only/i);
     expect(await db.reviewLogs.count()).toBe(1);
+  });
+});
+
+/**
+ * SPEC §3.1's sentence-building attempts, held to the same rule as every other
+ * attempt log (invariant 31, D32): evidence that can be edited is not evidence.
+ */
+describe('buildAttempts is append-only', () => {
+  const attempt = {
+    id: 'b1',
+    profileId: 'p1',
+    lang: 'en' as const,
+    sentenceId: 'tatoeba:eng:1',
+    correct: 1 as const,
+    answerRaw: 'she got an a today',
+    latencyMs: 4_000,
+    answeredAt: 1,
+  };
+
+  it('accepts an append', async () => {
+    await db.buildAttempts.add(attempt);
+    expect(await db.buildAttempts.count()).toBe(1);
+  });
+
+  it('refuses an update, a put over an existing row, and a delete', async () => {
+    await db.buildAttempts.add(attempt);
+    await expect(db.buildAttempts.update('b1', { correct: 0 })).rejects.toThrow();
+    await expect(db.buildAttempts.delete('b1')).rejects.toThrow();
+    // Still exactly what was written.
+    expect((await db.buildAttempts.get('b1'))?.correct).toBe(1);
   });
 });

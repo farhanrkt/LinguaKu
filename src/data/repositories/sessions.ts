@@ -2,6 +2,9 @@ import Dexie from 'dexie';
 import { db } from '../db.ts';
 import { dueCardCount, dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
+import { knownItemIds, coverageOf } from '../../core/coverage.ts';
+import { buildIdFor, isBuildable } from '../../core/sentenceBuild.ts';
+import { recentBuildIds } from './builds.ts';
 import { composeSession, type Candidate } from '../../core/sessionComposer.ts';
 import {
   dailyCapacityFor,
@@ -17,6 +20,7 @@ import { vocabularyAbility } from './abilities.ts';
 import { allCategoryScores, recentDrillIds, weakestCategories } from './contrastive.ts';
 import { minedItemIds } from './mining.ts';
 import { deferredItemIds } from './deferrals.ts';
+import { loadAnchors } from '../content.ts';
 import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import { peekTopics, type TopicPack } from '../topics.ts';
@@ -264,6 +268,72 @@ const dueCandidates = async (
 };
 
 /** What today actually holds, for the home screen to state before committing. */
+/**
+ * Rebuild-the-sentence puzzles (SPEC §3.1 `NP_WORD_ORDER`).
+ *
+ * Drawn from the **anchors**, not the full sentence shards: anchors are
+ * precached with the starter bands, so this costs a learner nothing extra on a
+ * metered connection (§5.4, D80), and they are the sentences the app already
+ * teaches this band's vocabulary through.
+ *
+ * A sentence is only worth rebuilding if the learner can already read most of
+ * it — reassembling words you do not know is a jigsaw, not a language exercise
+ * — so candidates are ranked by how much of each sentence is already known and
+ * the best are taken.
+ */
+const buildCandidates = async (
+  profile: Profile,
+  now: Timestamp,
+  frontier: FrequencyBand,
+  limit: number,
+): Promise<Candidate[]> => {
+  if (limit <= 0) return [];
+  const lang = profile.targets[0] ?? 'en';
+
+  const cards = await db.cards.where('profileId').equals(profile.id).toArray();
+  const known = knownItemIds(cards, now);
+  // Nothing to build from until the learner knows some words.
+  if (known.size < MIN_KNOWN_FOR_BUILDS) return [];
+
+  const recent = await recentBuildIds(profile.id, now - BUILD_COOLDOWN_MS);
+  const bands: FrequencyBand[] =
+    frontier > 1 ? [(frontier - 1) as FrequencyBand, frontier] : [frontier];
+
+  const scored: Array<{ candidate: Candidate; coverage: number }> = [];
+  for (const band of bands) {
+    // Fails soft, and that is load-bearing: `loadAnchors` throws when the shard
+    // is not there — offline before this band was cached, or any fetch failure
+    // — and this runs inside `planSession`. An optional extra that can stop a
+    // session being planned at all is worse than no extra.
+    const anchors = await loadAnchors(lang, band).catch(() => null);
+    if (!anchors) continue;
+    for (const sentence of anchors.values()) {
+      if (recent.has(sentence.id)) continue;
+      if (!isBuildable(sentence.text)) continue;
+      const report = coverageOf(sentence.text, known, lang);
+      if (report.coverage < BUILD_MIN_COVERAGE) continue;
+      scored.push({
+        coverage: report.coverage,
+        candidate: {
+          id: buildIdFor(band, sentence.id),
+          itemId: buildIdFor(band, sentence.id),
+          cardId: null,
+          slice: 'build',
+          ladderLevel: 0,
+          clusterId: `build:${band}`,
+          retrievability: 0,
+          lapses: 0,
+        },
+      });
+    }
+  }
+
+  return scored
+    .sort((a, b) => b.coverage - a.coverage)
+    .slice(0, limit)
+    .map((entry) => entry.candidate);
+};
+
 export interface TodaySnapshot {
   /** Reviews waiting right now. */
   due: number;
@@ -315,6 +385,14 @@ export interface SessionPlan {
 /** SPEC §7.2 asks for *one* contrastive drill; two on a longer session. */
 const MAX_DRILLS = 2;
 
+/** Rebuilding a sentence needs a vocabulary to rebuild it out of. */
+const MIN_KNOWN_FOR_BUILDS = 25;
+/** Most of the sentence already known, or it is a jigsaw rather than a lesson. */
+const BUILD_MIN_COVERAGE = 0.8;
+/** Long enough that a sentence is not served twice in the same week. */
+const BUILD_COOLDOWN_MS = 7 * 86_400_000;
+const MAX_BUILDS = 3;
+
 export interface PlanOptions {
   /**
    * SPEC §2.6: whether audio works on this device at all. Minimal-pair drills
@@ -356,10 +434,11 @@ export const planSession = async (
   const newAllowance = Math.min(throttle.allowed, daily.remaining);
 
   const deferred = await deferredItemIds(profile.id, now);
-  const [due, fresh, drills] = await Promise.all([
+  const [due, fresh, drills, builds] = await Promise.all([
     dueCandidates(profile, now, deferred),
     newCandidates(profile, newAllowance, frontier, deferred),
     drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false),
+    buildCandidates(profile, now, frontier, MAX_BUILDS),
   ]);
 
   const composed = composeSession({
@@ -369,6 +448,7 @@ export const planSession = async (
     due,
     fresh,
     drills,
+    builds,
   });
 
   const session: Session = {

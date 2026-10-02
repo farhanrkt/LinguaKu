@@ -25,6 +25,11 @@ import {
 } from '../../data/contrastive.ts';
 import { buildTask, type Task } from './task.ts';
 import { buildDrillTask, isDrillId, type DrillTask } from './drill.ts';
+import { buildBuildTask, type BuildTask } from './build.ts';
+import { BuildView } from './BuildView.tsx';
+import { gradeBuild } from '../../core/sentenceBuild.ts';
+import { isBuildId } from '../../core/sentenceBuild.ts';
+import { recordBuildAnswer } from '../../data/repositories/builds.ts';
 import { knownItemIds } from '../../core/coverage.ts';
 import { db } from '../../data/db.ts';
 import {
@@ -66,7 +71,14 @@ interface SessionScreenProps {
 
 type Entry =
   | { kind: 'item'; task: Task }
-  | { kind: 'drill'; task: DrillTask };
+  | { kind: 'drill'; task: DrillTask }
+  | { kind: 'build'; task: BuildTask };
+
+/** SPEC §3.1: a rebuilt sentence, graded on order alone. */
+interface BuildReveal {
+  correct: boolean;
+  task: BuildTask;
+}
 
 interface Reveal {
   result: GradeResult;
@@ -94,6 +106,7 @@ interface Tally {
   learned: number;
   promoted: number;
   drills: number;
+  builds: number;
 }
 
 export const SessionScreen = ({
@@ -107,11 +120,12 @@ export const SessionScreen = ({
   const [entry, setEntry] = useState<Entry | null>(null);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [drillReveal, setDrillReveal] = useState<DrillReveal | null>(null);
+  const [buildReveal, setBuildReveal] = useState<BuildReveal | null>(null);
   const [tally, setTally] = useState<Tally>({
     strengthened: 0,
     learned: 0,
     promoted: 0,
-    drills: 0,
+    drills: 0, builds: 0,
   });
   const [finished, setFinished] = useState(cursor >= session.itemIds.length);
   // Set when the task actually renders, not during render — `latencyMs` is a
@@ -155,13 +169,17 @@ export const SessionScreen = ({
         const id = session.itemIds[index];
         if (!id) continue;
         const seed = session.startedAt + index;
-        const built: Entry | null = isDrillId(id)
-          ? await buildDrillTask(lang, id, seed).then((task) =>
-              task ? ({ kind: 'drill', task } as const) : null,
+        const built: Entry | null = isBuildId(id)
+          ? await buildBuildTask(lang, id, seed).then((task) =>
+              task ? ({ kind: 'build', task } as const) : null,
             )
-          : await buildTask(profile.id, id, seed, { known, hasAudioFor }).then((task) =>
-              task ? ({ kind: 'item', task } as const) : null,
-            );
+          : isDrillId(id)
+            ? await buildDrillTask(lang, id, seed).then((task) =>
+                task ? ({ kind: 'drill', task } as const) : null,
+              )
+            : await buildTask(profile.id, id, seed, { known, hasAudioFor }).then((task) =>
+                task ? ({ kind: 'item', task } as const) : null,
+              );
         if (cancelled) return;
         if (built) {
           if (index !== cursor) setCursor(index);
@@ -226,7 +244,7 @@ export const SessionScreen = ({
     if (!entry) return;
     if (entry.kind === 'item') {
       void playSentence(clips, entry.task.sentence.id, entry.task.sentence.text, lang);
-    } else if (entry.task.drill.say) {
+    } else if (entry.kind === 'drill' && entry.task.drill.say) {
       // A minimal pair is synthesized, not pre-recorded: the point is the
       // contrast between two words, and it is only ever scheduled when the
       // device has been proven able to speak (SPEC §2.6).
@@ -243,6 +261,7 @@ export const SessionScreen = ({
     const next = cursor + 1;
     setReveal(null);
     setDrillReveal(null);
+    setBuildReveal(null);
     // Clear the card as well as the feedback. Without this the *previous* item
     // stays on screen and answerable for the moment it takes to build the next
     // one — the learner can answer a card that has already been graded, and a
@@ -258,6 +277,34 @@ export const SessionScreen = ({
     }
     setCursor(next);
   }, [cursor, session.id, session.itemIds.length]);
+
+  /**
+   * SPEC §3.1. Its own writer and its own table, for the third time and the
+   * same reason (invariant 31): a sentence has no FSRS card, so this can never
+   * be a review log without putting an unscheduled item into §9's retention
+   * rate.
+   */
+  const handleBuildAnswer = useCallback(
+    async (assembled: string[]) => {
+      if (entry?.kind !== 'build' || buildReveal !== null) return;
+      const task = entry.task;
+      const result = gradeBuild(assembled, task.puzzle.solution);
+
+      await recordBuildAnswer({
+        profileId: profile.id,
+        lang,
+        sentenceId: task.sentenceId,
+        correct: result.outcome === 'correct',
+        answerRaw: assembled.join(' '),
+        latencyMs: Date.now() - shownAt.current,
+        now: Date.now(),
+      });
+
+      setTally((current) => ({ ...current, builds: current.builds + 1 }));
+      setBuildReveal({ correct: result.outcome === 'correct', task });
+    },
+    [entry, profile.id, lang, buildReveal],
+  );
 
   const handleNext = useCallback(() => void once(advance), [advance]);
 
@@ -410,6 +457,15 @@ export const SessionScreen = ({
   }
 
   const view =
+    entry.kind === 'build' ? (
+      <BuildView
+        key={entry.task.sentenceId}
+        task={entry.task}
+        lang={lang}
+        busy={busy}
+        onAnswer={(assembled) => void once(() => handleBuildAnswer(assembled))}
+      />
+    ) :
     entry.kind === 'drill' ? (
       <DrillPrompt
         key={entry.task.drill.id}
@@ -496,7 +552,7 @@ export const SessionScreen = ({
         // `max-h-[60vh]` scroller — a scroll region nested in a scrolling page,
         // with `flex-1` on the main column pushing it to the bottom and leaving
         // a dead band between the card and its own verdict.
-        reveal || drillReveal ? (
+        reveal || drillReveal || buildReveal ? (
           <Button onClick={handleNext} data-testid="next">
             {copy.session.feedback.next}
           </Button>
@@ -539,7 +595,22 @@ export const SessionScreen = ({
           to it, the controls go because a card that has been answered is not a
           question any more (D75). */}
       <div className="mt-6 flex flex-col gap-3">
-        {reveal ? (
+        {buildReveal ? (
+          <SwipeCard right={{ label: copy.session.swipe.next, onCommit: handleNext }}>
+            <div
+              className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+              data-testid="answered-card"
+            >
+              <p className="text-xs tracking-wide text-stone-500 uppercase dark:text-slate-400">
+                {copy.session.answered.label}
+              </p>
+              <p className="mt-2 text-xl leading-snug font-semibold">
+                {buildReveal.task.answerText}
+              </p>
+              <p className="mt-1 text-stone-600 dark:text-slate-400">{buildReveal.task.prompt}</p>
+            </div>
+          </SwipeCard>
+        ) : reveal ? (
           <>
             <SwipeCard right={{ label: copy.session.swipe.next, onCommit: handleNext }}>
               <AnsweredCard task={reveal.task} raw={reveal.raw} />
@@ -556,6 +627,24 @@ export const SessionScreen = ({
         ) : (
           view
         )}
+
+        {buildReveal ? (
+          <div
+            className={`rounded-2xl p-4 ${
+              buildReveal.correct
+                ? 'bg-teal-50 text-teal-900 dark:bg-teal-950 dark:text-teal-100'
+                : 'bg-stone-100 text-stone-900 dark:bg-slate-900 dark:text-slate-100'
+            }`}
+            role="status"
+            data-testid="feedback"
+          >
+            <p className="font-semibold">
+              {buildReveal.correct
+                ? copy.session.build.correct
+                : copy.session.build.wrong(buildReveal.task.answerText)}
+            </p>
+          </div>
+        ) : null}
       </div>
     </Screen>
   );
@@ -742,6 +831,7 @@ const SessionSummary = ({ tally, onDone }: { tally: Tally; onDone: () => void })
     tally.learned > 0 ? copy.session.summary.learned(tally.learned) : null,
     tally.promoted > 0 ? copy.session.summary.promoted(tally.promoted) : null,
     tally.drills > 0 ? copy.session.summary.drilled(tally.drills) : null,
+    tally.builds > 0 ? copy.session.summary.built(tally.builds) : null,
   ].filter((line): line is string => line !== null);
 
   return (

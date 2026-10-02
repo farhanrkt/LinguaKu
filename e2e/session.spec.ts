@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun, seedDueCardsAtLevel, waitForOfflineReady } from './helpers.ts';
+import {
+  answerOne,
+  firstRun,
+  seedDueCardsAtLevel,
+  seedKnownVocabulary,
+  waitForOfflineReady,
+  walkToBuildCard,
+} from './helpers.ts';
 
 /**
  * M2 acceptance (SPEC §12):
@@ -397,4 +404,44 @@ test('swiping an exposure card right answers it once', async ({ page }) => {
     timeout: 10_000,
   });
   expect(await countRows(page, 'reviewLogs'), 'one swipe wrote more than one review').toBe(1);
+});
+
+/**
+ * SPEC §3.1 `NP_WORD_ORDER` — the one exercise that asks for an *order*.
+ *
+ * Every other card in the catalog asks for a word: pick it, type it, recall it.
+ * §3.1 names word order as a systematic Indonesian-L1 error rather than a
+ * careless one — Indonesian is head-initial, so *mobil merah* comes out as "a
+ * car red" — and the authored contrastive drills cover it with a finite set
+ * while the corpus can generate practice without limit.
+ */
+test('a sentence can be rebuilt from its words, and is graded on order', async ({ page }) => {
+  await firstRun(page);
+  await seedKnownVocabulary(page, 600);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
+
+  await walkToBuildCard(page);
+
+  // The prompt is the Indonesian; every word of the answer is on a tile, plus
+  // decoys that are not in the sentence.
+  await expect(page.getByTestId('build-prompt')).toBeVisible();
+  const tiles = page.getByTestId('build-tile');
+  expect(await tiles.count()).toBeGreaterThan(4);
+
+  // Submitting is impossible until something has been placed.
+  await expect(page.getByTestId('build-submit')).toBeDisabled();
+
+  // Tapping a tile moves it into the answer, and tapping it again takes it back.
+  await tiles.first().click();
+  await expect(page.getByTestId('build-placed')).toHaveCount(1);
+  await page.getByTestId('build-placed').first().click();
+  await expect(page.getByTestId('build-placed')).toHaveCount(0);
+
+  // Any order submits; the verdict names the right one either way.
+  const count = await tiles.count();
+  for (let index = 0; index < count; index++) await tiles.nth(0).click();
+  await page.getByTestId('build-submit').click();
+  await expect(page.getByTestId('feedback')).toBeVisible();
+  await expect(page.getByTestId('answered-card')).toBeVisible();
 });

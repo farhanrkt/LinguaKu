@@ -251,3 +251,39 @@ export const leaveSession = async (page: Page): Promise<void> => {
   }
   await page.getByRole('button', { name: 'Selesai dulu' }).click();
 };
+
+/**
+ * Walks the session forward until a rebuild card is on screen.
+ *
+ * A build puzzle needs a learner who can already read most of the sentence, so
+ * it never appears on the first card of a brand-new profile.
+ */
+export const walkToBuildCard = async (page: Page): Promise<void> => {
+  for (let step = 0; step < 16; step++) {
+    if (await page.getByTestId('build-prompt').isVisible().catch(() => false)) return;
+    const confirm = page.getByTestId('exposure-confirm');
+    if (await confirm.isVisible().catch(() => false)) {
+      await confirm.click();
+      await page.waitForTimeout(350);
+      continue;
+    }
+    const option = page.locator('button[aria-pressed]').first();
+    if (await option.isVisible().catch(() => false)) {
+      await option.click();
+      await page.getByTestId('next').click();
+      await page.waitForTimeout(350);
+      continue;
+    }
+    const input = page.getByRole('textbox').first();
+    if (await input.isVisible().catch(() => false)) {
+      await input.fill('x');
+      const submit = page.getByRole('button', { name: /Jawab|Yakin/ }).first();
+      await submit.click();
+      await page.getByTestId('next').click();
+      await page.waitForTimeout(350);
+      continue;
+    }
+    break;
+  }
+  await expect(page.getByTestId('build-prompt')).toBeVisible({ timeout: 10_000 });
+};
