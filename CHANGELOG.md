@@ -5,6 +5,42 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.13.1 — 2026-10-02
+
+### Fixed — free production counted "banana" as "an", and refused "took" for "take"
+
+§2.3's L6 rung grades the one thing §2.3 says is honestly checkable: whether the
+learner used the word. It did that with `sentence.includes(word)`.
+
+| sentence | word | before |
+|---|---|---|
+| I have a banana. | **an** | counted |
+| I want to educate people. | **cat** | counted |
+| She is honest. | **on** | counted |
+| I took the bus yesterday. | **take** | **rejected** |
+| He studies every night. | **study** | **rejected** |
+
+The false positives land on band-1 function words — the most-taught vocabulary
+in the app. The false negatives are worse: a learner who produced the word in
+the form their sentence needed was **blocked from submitting**, which is the
+unfair "wrong" §2.7 exists to prevent.
+
+`src/core/usage.ts` tokenizes, which fixes the first three outright, and knows
+regular inflections by rule plus the common irregulars by table.
+
+**And it asks rather than blocks.** The matcher is incomplete by construction,
+so a miss now says *"we did not find it"* rather than *"you did not write it"*,
+and saying it again sends the sentence. Something that is merely usually right
+must not have the last word over a learner reading their own sentence.
+
+Japanese keeps substring matching, and the module says why: the morphological
+analyser is build-time only, so there is no honest way to tokenize a learner's
+own Japanese sentence at runtime.
+
+809 unit · 61 e2e.
+
+---
+
 ## v1.13.0 — 2026-09-20
 
 ### Added — the reader says what it costs before spending your data

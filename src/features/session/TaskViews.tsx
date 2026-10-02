@@ -3,6 +3,7 @@ import { copy } from '../../i18n/id.ts';
 import { KanaInput } from '../../ui/KanaInput.tsx';
 import { Button } from '../../ui/Button.tsx';
 import { SwipeCard } from '../../ui/SwipeCard.tsx';
+import { usesWord } from '../../core/usage.ts';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import {
   isSpeechInputAvailable,
@@ -597,13 +598,29 @@ export const ProductionTask = ({ task, onAnswer, lang, busy }: TaskProps & { lan
  * yours, and the check is that the word is in it. That is still the generation
  * effect doing its work; inventing a quality score would not add to it.
  */
-export const FreeProductionTask = ({ task, onAnswer, busy }: TaskProps) => {
+export const FreeProductionTask = ({
+  task,
+  onAnswer,
+  busy,
+  lang,
+}: TaskProps & { lang: string }) => {
   const [value, setValue] = useState('');
   const [missing, setMissing] = useState(false);
 
+  /**
+   * SPEC §2.7. The check used to be `sentence.includes(word)` and it was wrong
+   * in both directions — "banana" counted as "an", and "I took the bus" did not
+   * count as "take", which **blocked a learner who had answered correctly**.
+   * `usesWord` tokenizes and knows regular inflections plus the common
+   * irregulars.
+   *
+   * It still cannot know everything, so a miss is a question rather than a wall:
+   * saying it again sends the sentence. A matcher that is merely usually right
+   * must not have the last word over a learner who is looking at their own
+   * sentence.
+   */
   const submit = () => {
-    const used = value.toLowerCase().includes(task.answer.toLowerCase());
-    if (!used) {
+    if (!missing && !usesWord({ sentence: value, word: task.answer, lang })) {
       setMissing(true);
       return;
     }
@@ -638,8 +655,12 @@ export const FreeProductionTask = ({ task, onAnswer, busy }: TaskProps) => {
       ) : null}
 
       <div className="mt-4">
-        <Button onClick={submit} disabled={value.trim().length === 0 || busy === true} data-testid="free-submit">
-          {copy.session.free.submit}
+        <Button
+          onClick={submit}
+          disabled={value.trim().length === 0 || busy === true}
+          data-testid="free-submit"
+        >
+          {missing ? copy.session.free.submitAnyway : copy.session.free.submit}
         </Button>
       </div>
     </div>

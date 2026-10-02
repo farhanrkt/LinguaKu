@@ -461,6 +461,7 @@ export const SessionScreen = ({
       <FreeProductionTask
         key={entry.task.itemId}
         task={entry.task}
+        lang={lang}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
         onPlayAudio={playAudio}

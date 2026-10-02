@@ -213,7 +213,12 @@ export const copy = {
       placeholder: 'Tulis kalimatmu di sini',
       // Honest about what is and is not being checked.
       graded: 'Kami cuma mengecek kamu benar-benar memakai katanya. Isinya milikmu.',
-      missing: (word: string) => `Belum ada kata “${word}” di kalimatmu.`,
+      // "We did not find it", not "you did not write it" — the matcher knows
+      // regular inflections and the common irregulars, and nothing beyond that,
+      // so it must not accuse a learner it may simply have failed to recognise.
+      missing: (word: string) =>
+        `Kami tidak menemukan kata “${word}” di kalimatmu. Kalau menurutmu sudah ada, kirim saja.`,
+      submitAnyway: 'Kirim saja',
       kept: 'Kalimatmu kami simpan.',
       submit: 'Kirim',
     },
