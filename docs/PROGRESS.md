@@ -1,5 +1,73 @@
 # PROGRESS.md
 
+## v1.14.0 — making the curriculum visible (2026-10-02)
+
+The brief was blunt and fair: *"just questions all the time is boring and
+unstructured"*, with Duolingo named as the reference.
+
+### The conflict, and what to do with it
+
+SPEC §1 lists among its non-goals *"not a course/curriculum player with fixed
+lesson order"* and *"not gamified with loss-aversion mechanics"*, and the product
+thesis is written explicitly against apps *"optimized for engagement metrics
+rather than retention curves"*. Duolingo is this spec's anti-reference, by name
+and by argument.
+
+But the complaint underneath it is correct, and it is not a complaint about
+ordering. **The app has had a curriculum since M1** — frequency order, strictly
+applied, and defensible — and a learner has never once been able to see it. An
+honest curriculum that is invisible is indistinguishable from no curriculum at
+all. "Unstructured" is an accurate description of the *experience*, even though
+it is a false description of the *system*.
+
+So: build the structure, skip the mechanics §1 bans. That turned out to be the
+better product anyway, because the honest version has a stronger number in it
+than any invented level would.
+
+### The number that made it work
+
+The pipeline has published this since M1 and nothing had ever shown it to a
+learner: **band 1 is 481 words, and those 481 words are 70.3% of all tokens in
+the corpus.** Through band 5 it is 87.3%, which is the teachable ceiling.
+
+That is a far better motivator than a level badge, and it has the property a
+level badge can never have: it is true. "Finish this stage and you will know
+seven words in every ten you meet" is a fact about English, not a claim about
+the learner — which is exactly the claim invariant 9 forbids and the reason
+there is no CEFR or JLPT label anywhere in this app.
+
+Nothing on the path unlocks, gates or expires. The composer still works across
+bands as it always has. A stage is a position, not a door, and §1's ban on fixed
+lesson order is untouched.
+
+### Two things that decide whether it is honest
+
+**Partial stages count toward the headline figure.** A learner three-quarters of
+the way through band 1 has not covered zero percent of English. Crediting only
+completed bands would be defensible arithmetic and would make a true number read
+as a lie, so each band is credited in proportion to how much of it is secured —
+the same way `estimateCoverage` reads the same data two sections further down
+the screen. Two figures for one learner, computed two ways, is how a progress
+screen stops being believed.
+
+**The scale comes from the manifest, not from IndexedDB.** Found by looking at
+the screen rather than by a test: the first version built its stages from local
+items, and only the starter bands are imported (invariant 11). So it showed a
+learner three stages out of five and told them the app tops out at 82% when it
+teaches 87.3% — understating both the journey and the ceiling, on the one screen
+whose whole job is to state the journey accurately.
+
+### What this is not, yet
+
+This is the *structure* half of the brief. The *variety* half — more kinds of
+exercise, the sentence-building and matching activities these apps use to stop
+every card feeling identical — is a larger piece of work with its own content
+requirements, and it is not started. The ladder already has seven rungs and the
+catalog is complete per §8; the problem is that they all present as "a question",
+which is a different problem from having too few of them.
+
+---
+
 ## v1.13.0 — the half of §5.4 that was never built (2026-09-20)
 
 Asked to develop the app further with no brief, so the work was choosing what

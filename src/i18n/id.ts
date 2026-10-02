@@ -496,6 +496,30 @@ export const copy = {
 
   /** SPEC §9: honest, capability-framed, all local. */
   progress: {
+    /**
+     * SPEC §2.10's frequency curriculum, made visible.
+     *
+     * The app has always had an order; a learner could never see it, which is
+     * what made an honest curriculum feel like an endless queue. Every figure
+     * here is measured from the shipped corpus — "481 words is 70% of
+     * everyday English" is a fact about the corpus, never a claim about the
+     * learner's level, which invariant 9 forbids.
+     */
+    path: {
+      heading: 'Jalur belajar',
+      intro: 'Kata diajarkan dari yang paling sering dipakai. Ini posisimu.',
+      reach: (percent: number) =>
+        `Kata yang sudah kamu kunci mencakup sekitar ${percent}% kata yang muncul sehari-hari.`,
+      reachNone:
+        'Belum ada kata yang terkunci. Satu sesi saja sudah cukup untuk mulai menaikkan angka ini.',
+      stage: (band: number) => `Tahap ${band}`,
+      count: (secured: number, total: number) => `${secured} dari ${total} kata`,
+      worth: (percent: number) => `Kalau tahap ini selesai: ${percent}% kata sehari-hari.`,
+      here: 'Kamu di sini',
+      done: 'Selesai',
+      ceiling: (percent: number) =>
+        `Semua tahap selesai berarti ${percent}% kata yang bisa kami ajarkan. Sisanya kata yang jarang muncul.`,
+    },
     open: 'Lihat kemajuanmu',
     heading: 'Kemajuanmu',
     back: 'Kembali',

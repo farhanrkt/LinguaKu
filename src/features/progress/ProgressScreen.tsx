@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
+import type { LearningPath, Stage } from '../../core/path.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { MIN_ATTEMPTS_TO_CLAIM, type CategoryStanding } from '../../core/elo.ts';
 import { loadContrastive, type Category } from '../../data/contrastive.ts';
 import { categoryStandings, drillAttemptCount } from '../../data/repositories/contrastive.ts';
-import { buildProgressReport, type ProgressReport } from '../../data/repositories/progress.ts';
+import {
+  buildLearningPath,
+  buildProgressReport,
+  type ProgressReport,
+} from '../../data/repositories/progress.ts';
 import { retuneTarget } from '../../core/retention.ts';
 import { updateProfile } from '../../data/repositories/profiles.ts';
 import { exportFilename, exportProfile, importProfile, parseBundle } from '../../data/export.ts';
@@ -39,9 +44,83 @@ interface HeatRow {
 
 const percent = (value: number): number => Math.round(value * 100);
 
+/**
+ * SPEC §2.10's curriculum, made visible.
+ *
+ * Ordered stages with numbers on them, which the craft rule against decorative
+ * numbering permits for exactly this reason: the sequence *is* the information.
+ * Frequency order is the curriculum, and a learner who cannot see it meets a
+ * queue that feels arbitrary.
+ *
+ * The bar is a `<div>` rather than a chart: invariant 20 bans a plotting
+ * dependency, and five proportions do not need one.
+ */
+const Path = ({ path }: { path: LearningPath }) => {
+  const pct = (share: number): number => Math.round(share * 100);
+  const ceiling = path.stages.at(-1)?.cumulativeShare ?? 0;
+
+  return (
+    <section className="mt-8" data-testid="learning-path">
+      <h2 className="text-lg font-bold">{copy.progress.path.heading}</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {copy.progress.path.intro}
+      </p>
+
+      <p className="mt-3 text-lg" data-testid="path-reach">
+        {path.securedTotal === 0
+          ? copy.progress.path.reachNone
+          : copy.progress.path.reach(pct(path.reach))}
+      </p>
+
+      <ol className="mt-4 flex flex-col gap-4">
+        {path.stages.map((stage: Stage) => (
+          <li key={stage.band} data-testid={`path-stage-${stage.band}`}>
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold">{copy.progress.path.stage(stage.band)}</span>
+              {stage.state === 'current' ? (
+                <span className="rounded-full bg-teal-700 px-2 py-0.5 text-xs font-semibold text-white dark:bg-teal-400 dark:text-slate-950">
+                  {copy.progress.path.here}
+                </span>
+              ) : stage.state === 'done' ? (
+                <span className="text-xs font-semibold text-teal-800 dark:text-teal-300">
+                  {copy.progress.path.done}
+                </span>
+              ) : null}
+              <span className="ml-auto text-sm text-stone-600 tabular-nums dark:text-slate-400">
+                {copy.progress.path.count(stage.secured, stage.total)}
+              </span>
+            </div>
+
+            <div
+              className="mt-1.5 h-2 rounded-full bg-stone-200 dark:bg-slate-800"
+              role="img"
+              aria-label={copy.progress.path.count(stage.secured, stage.total)}
+            >
+              <div
+                className="h-2 rounded-full bg-teal-700 motion-safe:transition-all dark:bg-teal-400"
+                style={{ width: `${Math.round(stage.progress * 100)}%` }}
+              />
+            </div>
+
+            <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+              {copy.progress.path.worth(pct(stage.cumulativeShare))}
+            </p>
+          </li>
+        ))}
+      </ol>
+
+      <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">
+        {copy.progress.path.ceiling(pct(ceiling))}
+      </p>
+    </section>
+  );
+};
+
 export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
   const [report, setReport] = useState<ProgressReport | null>(null);
+  /** SPEC §2.10's curriculum position. Null until read — never drawn as zero. */
+  const [path, setPath] = useState<LearningPath | null>(null);
   const [rows, setRows] = useState<HeatRow[] | null>(null);
   const [drills, setDrills] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
@@ -49,12 +128,14 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
 
   const load = useCallback(async () => {
     const pack = await loadContrastive(lang);
-    const [built, standings, count] = await Promise.all([
+    const [built, journey, standings, count] = await Promise.all([
       buildProgressReport(profile, Date.now()),
+      buildLearningPath(profile, Date.now()),
       categoryStandings(profile.id, lang, pack.categories.map((category) => category.id)),
       drillAttemptCount(profile.id),
     ]);
     setReport(built);
+    setPath(journey);
     setDrills(count);
     setRows(
       standings.flatMap((standing) => {
@@ -99,7 +180,7 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
     [load],
   );
 
-  return (
+    return (
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
       <h1 className="text-2xl font-bold">{copy.progress.heading}</h1>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.progress.localOnly}</p>
@@ -114,6 +195,8 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
       >
         {copy.glossary.open}
       </button>
+
+      {path === null ? null : <Path path={path} />}
 
       {report === null ? null : (
         <>

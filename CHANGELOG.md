@@ -5,6 +5,52 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.14.0 — 2026-10-02
+
+### Added — the learning path: where you are, from 1 to the end
+
+The app has had a curriculum since M1. Frequency order *is* one, and a strict
+one. A learner could never see it, so an honest ordering read as an endless
+queue of unrelated questions — which is a fair complaint about the app as it
+stood, not a misunderstanding of it.
+
+The progress screen now opens with the whole scale:
+
+> **Kata yang sudah kamu kunci mencakup sekitar 44% kata yang muncul sehari-hari.**
+>
+> Tahap 1 · *Kamu di sini* · 300 dari 481 kata — *Kalau tahap ini selesai: 70% kata sehari-hari.*
+
+**What makes this a path and not a level badge.** Every figure is measured from
+the shipped corpus. Band 1 is 481 words, and those 481 words really are 70.3% of
+all tokens — the pipeline has published that number since M1. "Finish this stage
+and you will know seven words in every ten you meet" is a fact about English,
+not a claim about the learner, which is precisely the claim invariant 9 forbids.
+
+**Nothing unlocks, gates or expires.** SPEC §1 rules out "a course player with
+fixed lesson order" and the loss-aversion mechanics that usually come with it;
+what it does not rule out is telling someone where they are. The composer still
+works across bands exactly as before. A stage is a position, not a door.
+
+Two details carry the honesty:
+
+- **Partial stages count.** A learner three-quarters through band 1 has not
+  covered 0% of English, and rounding down to the last finished stage would make
+  a true number read as a lie. Each band is credited in proportion.
+- **The scale comes from the manifest, not IndexedDB.** Only the starter bands
+  are imported (invariant 11), so building the stages from local items showed
+  three stages out of five and claimed the app tops out at 82% when it teaches
+  87.3%. Caught by looking at the screen, not by a test.
+
+### Measured on this build
+
+| | |
+|---|---|
+| unit tests | **817**, 60 files |
+| e2e | **63** |
+| initial JS / CSS gzipped | **142.6 KB** / **6.8 KB** (budgets 200 / 40) |
+
+---
+
 ## v1.13.1 — 2026-10-02
 
 ### Fixed — free production counted "banana" as "an", and refused "took" for "take"

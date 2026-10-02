@@ -1,6 +1,7 @@
 import { db } from '../db.ts';
 import { fetchManifest, type ContentManifest } from '../content.ts';
 import { knownItemIds } from '../../core/coverage.ts';
+import { buildPath, type LearningPath } from '../../core/path.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { FORECAST_DAYS, forecastLoad, type ForecastDay } from '../../core/forecast.ts';
 import {
@@ -76,6 +77,52 @@ export interface ProgressReport {
 
 const bandsOf = (manifest: ContentManifest | null): Map<FrequencyBand, number> =>
   new Map((manifest?.coverage?.bandShare ?? []).map((entry) => [entry.band, entry.share]));
+
+/**
+ * Where the learner is on the whole scale (SPEC §2.10, §9).
+ *
+ * "Secured" is `knownItemIds` — the same definition the vocabulary estimate and
+ * the reader's coverage check use. Three figures for the same learner computed
+ * three ways is how a progress screen stops being believed.
+ *
+ * Counts only `lexeme` items, so the denominator is the word list the manifest
+ * publishes a token share for. Kanji and chunks are taught and scheduled, but
+ * they are not what "70.3% of everyday English" is a share of.
+ */
+export const buildLearningPath = async (
+  profile: Profile,
+  now: Timestamp,
+): Promise<LearningPath> => {
+  const lang: TargetLang = profile.targets[0] ?? 'en';
+  const manifest = await fetchManifest(lang).catch(() => null);
+
+  const [items, cards] = await Promise.all([
+    db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray(),
+    db.cards.where('profileId').equals(profile.id).toArray(),
+  ]);
+  const known = knownItemIds(cards, now);
+
+  // Secured is counted from what the learner has; the *scale* comes from the
+  // manifest, not from IndexedDB. Only the starter bands are imported
+  // (invariant 11), so building the stages from local items showed a learner
+  // three stages out of five and told them the app tops out at 82% when it
+  // teaches 87.3% — understating both the journey and the ceiling.
+  const secured = new Map<FrequencyBand, number>();
+  for (const item of items) {
+    if (!known.has(item.id)) continue;
+    secured.set(item.band, (secured.get(item.band) ?? 0) + 1);
+  }
+
+  const bands = manifest?.coverage?.bandShare ?? [];
+  return buildPath(
+    bands.map((entry) => ({
+      band: entry.band,
+      total: entry.lexemes,
+      secured: secured.get(entry.band) ?? 0,
+      share: entry.share,
+    })),
+  );
+};
 
 export const buildProgressReport = async (
   profile: Profile,

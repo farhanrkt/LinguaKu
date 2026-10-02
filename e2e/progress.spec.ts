@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun, leaveSession } from './helpers.ts';
+import { answerOne, firstRun, leaveSession, seedKnownVocabulary } from './helpers.ts';
 
 /**
  * M5 acceptance (SPEC §12): *"every §9 item renders from real local data;
@@ -185,4 +185,46 @@ test('the glossary shows what was answered, and answers nothing', async ({ page 
   const first = (await list.locator('button[aria-expanded]').first().innerText()).split('\n')[0] ?? '';
   await page.getByTestId('glossary-search').fill(first.slice(0, 3));
   await expect(page.getByTestId('glossary-list')).toBeVisible();
+});
+
+/**
+ * SPEC §2.10's curriculum, made visible.
+ *
+ * The app has always had an order — frequency order, and a strict one — but a
+ * learner could never see it, so an honest curriculum read as an endless queue.
+ * What makes the path honest rather than a level badge is that every figure on
+ * it is measured from the shipped corpus: 481 words really are 70% of the
+ * tokens in everyday English. Invariant 9 bans the CEFR/JLPT claim; this is the
+ * number it says *is* allowed.
+ */
+test('the learning path shows the whole scale, not just what is downloaded', async ({ page }) => {
+  await firstRun(page);
+  await seedKnownVocabulary(page, 300);
+  await openProgress(page);
+
+  const path = page.getByTestId('learning-path');
+  await expect(path).toBeVisible({ timeout: 20_000 });
+
+  // All five stages, including the bands whose lexemes are not imported —
+  // only the starter bands go into IndexedDB (invariant 11), and building the
+  // scale from those showed three stages out of five and claimed the app tops
+  // out at 82% when it teaches 87%.
+  for (const band of [1, 2, 3, 4, 5]) {
+    await expect(page.getByTestId(`path-stage-${band}`)).toBeVisible();
+  }
+
+  // The learner is placed on it, and the figure is a real share of tokens.
+  await expect(path).toContainText('Kamu di sini');
+  await expect(page.getByTestId('path-reach')).toContainText('%');
+  await expect(path).toContainText('481');
+  // And it states the ceiling rather than implying the app teaches everything.
+  await expect(path).toContainText('87%');
+});
+
+test('the path says nothing has been secured rather than showing 0%', async ({ page }) => {
+  await firstRun(page);
+  await openProgress(page);
+
+  // Invariant 18: an unmeasured figure is never drawn as a zero.
+  await expect(page.getByTestId('path-reach')).toContainText('Belum ada kata yang terkunci');
 });

@@ -248,6 +248,13 @@ needs React state to work, it is in the wrong place.
     for the practice session, and `unknown` connectivity does not hold back —
     withholding on a guess is worse than the download.
 
+44. **The learning path is measured coverage, never a level** (D82). Stages are
+    frequency bands, and what finishing one is worth is the share of corpus
+    tokens it accounts for — a fact about the corpus, not a claim about the
+    learner (invariant 9). Its scale comes from the manifest, not IndexedDB,
+    because only the starter bands are imported (invariant 11). Nothing on it
+    unlocks or gates: §1's "no fixed lesson order" stands.
+
 
 ## Conventions
 
