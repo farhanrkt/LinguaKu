@@ -5,6 +5,37 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.18.0 — 2026-10-03
+
+### Fixed — a backup silently lost every sentence you had rebuilt
+
+`buildAttempts` arrived with sentence building in v1.15.0 and was never added to
+the export bundle. A learner who exported and restored lost the lot — and with
+it the share of §9's grammar axis those attempts carry, so the restored learner
+was also scored lower than they had earned.
+
+`drillAttempts` and `readingAttempts` were both already in. This one was simply
+forgotten, which is the point: the bundle is a hand-maintained list that has to
+be extended every time a table appears, and **nothing fails when it is not**.
+
+It merges the way invariant 19 requires — UUID-keyed and append-only, so a
+restore adds what it lacks and can never destroy evidence — and the field is
+optional, so a bundle written before this release still restores. Exactly what
+`readingAttempts` needed at v1.4.0, for the same reason.
+
+Three tests, and the first was checked against the unfixed code to be sure it
+failed.
+
+### Removed — `authoredMnemonics`
+
+Dead: it claimed to be "for the export bundle", and the export queries
+`db.mnemonics` directly. Reading it to confirm that is what turned up the gap
+above.
+
+840 unit · 67 e2e.
+
+---
+
 ## v1.17.0 — 2026-10-03
 
 ### Added — shadowing, which four documents already said existed

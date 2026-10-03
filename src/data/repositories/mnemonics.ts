@@ -50,7 +50,3 @@ export const saveMnemonic = async (
   await db.mnemonics.put(mnemonic);
   return mnemonic;
 };
-
-/** Every mnemonic this learner has written, for the export bundle (SPEC §9). */
-export const authoredMnemonics = async (profileId: string): Promise<Mnemonic[]> =>
-  db.mnemonics.filter((row) => row.profileId === profileId && row.authoredByUser === 1).toArray();

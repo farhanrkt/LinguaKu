@@ -1,13 +1,14 @@
 import { db } from './db.ts';
 import type {
-  ReadingAttempt,
   Ability,
+  BuildAttempt,
   Card,
   CategoryScore,
   DrillAttempt,
   Habit,
   Mnemonic,
   Profile,
+  ReadingAttempt,
   ReviewLog,
   Session,
 } from './types.ts';
@@ -46,6 +47,13 @@ export interface ExportBundle {
    * simply carries no reading evidence, which is not the same as carrying none.
    */
   readingAttempts?: ReadingAttempt[];
+  /**
+   * Optional for the same reason, one release later: a bundle written before
+   * v1.18.0 carries no sentence-building evidence, which is not the same as
+   * carrying none. §9's grammar axis draws on these, so leaving them out of the
+   * bundle silently understated a restored learner's grammar score.
+   */
+  buildAttempts?: BuildAttempt[];
   sessions: Session[];
   mnemonics: Mnemonic[];
   habits: Habit[];
@@ -65,6 +73,7 @@ export const exportProfile = async (
     categoryScores,
     drillAttempts,
     readingAttempts,
+    buildAttempts,
     sessions,
     mnemonics,
     habits,
@@ -76,6 +85,7 @@ export const exportProfile = async (
       db.categoryScores.where('profileId').equals(profileId).toArray(),
       db.drillAttempts.where('profileId').equals(profileId).toArray(),
       db.readingAttempts.where('profileId').equals(profileId).toArray(),
+      db.buildAttempts.where('profileId').equals(profileId).toArray(),
       db.sessions.where('[profileId+startedAt]').between([profileId, -Infinity], [profileId, Infinity]).toArray(),
       db.mnemonics.filter((row) => row.profileId === profileId).toArray(),
       db.habits.where('profileId').equals(profileId).toArray(),
@@ -93,6 +103,7 @@ export const exportProfile = async (
     categoryScores,
     drillAttempts,
     readingAttempts,
+    buildAttempts,
     sessions,
     mnemonics,
     habits,
@@ -176,6 +187,7 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       db.categoryScores,
       db.drillAttempts,
       db.readingAttempts,
+      db.buildAttempts,
       db.sessions,
       db.mnemonics,
       db.habits,
@@ -234,6 +246,17 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       );
       const newReading = reading.filter((attempt) => !knownReading.has(attempt.id));
       if (newReading.length > 0) await db.readingAttempts.bulkAdd(newReading);
+
+      // Same merge, same reason (invariant 19): UUID-keyed and append-only, so
+      // a restore adds what it lacks and can never destroy evidence.
+      const builds = bundle.buildAttempts ?? [];
+      const knownBuilds = new Set(
+        (await db.buildAttempts.bulkGet(builds.map((attempt) => attempt.id)))
+          .filter((row) => row !== undefined)
+          .map((row) => row.id),
+      );
+      const newBuilds = builds.filter((attempt) => !knownBuilds.has(attempt.id));
+      if (newBuilds.length > 0) await db.buildAttempts.bulkAdd(newBuilds);
     },
   );
 

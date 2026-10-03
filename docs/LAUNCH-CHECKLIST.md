@@ -17,7 +17,7 @@ Anything marked **manual** cannot be done in CI and needs a human with a phone.
 
 | | Check | Expected |
 |---|---|---|
-| 0.1 | `package.json` version | **`1.17.0`** |
+| 0.1 | `package.json` version | **`1.18.0`** |
 | 0.2 ✅ | Code licence | **MIT**, `LICENSE` committed (D12). Covers `src/`, `scripts/`, `workers/` and the authored content in `data/`. It does **not** reach `assets/content/`. |
 | 0.3 | `README.md` status section | Current for this version. |
 | 0.4 | Working tree clean | `git status --short` is empty. |
@@ -44,7 +44,7 @@ npm ci && npm run verify
 |---|---|---|
 | 1.1 | Typecheck | Clean. Strict, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. |
 | 1.2 | Lint | Clean. `no-explicit-any` is an error, not a warning. |
-| 1.3 | Unit tests | **837 passed, 61 files**, ~7 s. Zero skipped. |
+| 1.3 | Unit tests | **840 passed, 61 files**, ~7 s. Zero skipped. |
 | 1.4 | Licence gate | **8 datasets declared and attributed; 64 asset files traced.** Fails in *both* directions — an undeclared dataset, and a declared one nothing references. |
 | 1.5 | Audio gate | *"no pre-cached audio yet"* until R7 is answered. Once clips ship: budget and index checked in both directions. |
 | 1.6 | Build | Succeeds; `dist/` written. |

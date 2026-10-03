@@ -336,3 +336,62 @@ describe('user-authored mnemonics survive the round trip (SPEC §2.11)', () => {
     expect(kept?.text).toBe('versi baru yang lebih bagus');
   });
 });
+
+/**
+ * Invariant 19 applied to the newest attempt log.
+ *
+ * `buildAttempts` arrived in v1.15.0 and was not added to the bundle, so a
+ * learner who exported and restored lost every sentence they had rebuilt —
+ * silently, and with it the share of §9's grammar axis those attempts carry.
+ * `drillAttempts` and `readingAttempts` were both already in; this one was
+ * simply forgotten.
+ */
+describe('sentence-building attempts survive a round trip', () => {
+  const attempt = (id: string, profileId: string, at: number) => ({
+    id,
+    profileId,
+    lang: 'en' as const,
+    sentenceId: `tatoeba:eng:${id}`,
+    correct: 1 as const,
+    answerRaw: 'she got an a today',
+    latencyMs: 4_000,
+    answeredAt: at,
+  });
+
+  it('is carried out and merged back in', async () => {
+    const profile = await buildHistory();
+    await db.buildAttempts.bulkAdd([
+      attempt('b1', profile.id, 1),
+      attempt('b2', profile.id, 2),
+    ]);
+
+    const bundle = await exportProfile(profile.id, 10);
+    expect(bundle.buildAttempts).toHaveLength(2);
+
+    // A fresh device, restoring.
+    await db.delete();
+    await db.open();
+    await importProfile(bundle);
+    expect(await db.buildAttempts.count()).toBe(2);
+  });
+
+  it('adds what it lacks without duplicating what it has', async () => {
+    const profile = await buildHistory();
+    await db.buildAttempts.bulkAdd([attempt('b1', profile.id, 1)]);
+    const bundle = await exportProfile(profile.id, 10);
+
+    // The learner kept practising after the backup was taken.
+    await db.buildAttempts.add(attempt('b3', profile.id, 3));
+    await importProfile(bundle);
+
+    // Both survive: append-only means a restore can never destroy evidence.
+    expect((await db.buildAttempts.toArray()).map((row) => row.id).sort()).toEqual(['b1', 'b3']);
+  });
+
+  it('restores a bundle written before the field existed', async () => {
+    const profile = await buildHistory();
+    const bundle = await exportProfile(profile.id, 10);
+    delete (bundle as { buildAttempts?: unknown }).buildAttempts;
+    await expect(importProfile(bundle)).resolves.toBeDefined();
+  });
+});
