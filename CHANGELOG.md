@@ -5,6 +5,37 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.16.0 — 2026-10-03
+
+### Added — the memory model shows its working
+
+SPEC §1's thesis is that the item a learner meets is there *"because a memory
+model predicts they are about to forget it"*. That has been true since M2, and
+the app had never once shown it.
+
+`slippingSoon` — which returns the words closest to being forgotten, in the
+model's own order — was written, exported, and **called by nothing**. Dead by
+invariant 8, and the most interesting query in the repository.
+
+The progress screen now lists them, beside the forecast that says how many
+reviews are coming:
+
+> **Paling dekat terlupa**
+> `as` `ask` `does` `first` `morning`
+
+**No retrievability figure on screen.** It is a real number and tempting to
+print, but a percentage beside a word reads as a mark out of a hundred — the
+score §2.15 bans. The order carries the information.
+
+It reads and advances nothing, so §2.2's ban on browsing-as-study does not reach
+it, for the same reason the glossary does not (D67). And the empty state is the
+ordinary one for a new learner: a card answered moments ago has retrievability 1
+and is correctly not slipping, so it says so rather than showing a blank list.
+
+837 unit · 66 e2e.
+
+---
+
 ## v1.15.1 — 2026-10-03
 
 ### Fixed — sentence building was silently English-only

@@ -321,11 +321,18 @@ export const buildProgressReport = async (
 };
 
 /** Cards whose retrievability has fallen furthest — "what is slipping". */
+export interface SlippingWord {
+  itemId: string;
+  headword: string;
+  /** 0..1 — how likely the learner still has it. Ordered by this, never shown. */
+  retrievability: number;
+}
+
 export const slippingSoon = async (
   profileId: string,
   now: Timestamp,
   limit = 5,
-): Promise<Array<{ itemId: string; headword: string; retrievability: number }>> => {
+): Promise<SlippingWord[]> => {
   const cards = await db.cards.where('profileId').equals(profileId).toArray();
   const ranked = cards
     .map((card) => ({ card, r: retrievability(card.fsrs, now) }))

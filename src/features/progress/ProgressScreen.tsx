@@ -9,7 +9,9 @@ import { categoryStandings, drillAttemptCount } from '../../data/repositories/co
 import {
   buildLearningPath,
   buildProgressReport,
+  slippingSoon,
   type ProgressReport,
+  type SlippingWord,
 } from '../../data/repositories/progress.ts';
 import { retuneTarget } from '../../core/retention.ts';
 import { updateProfile } from '../../data/repositories/profiles.ts';
@@ -116,11 +118,53 @@ const Path = ({ path }: { path: LearningPath }) => {
   );
 };
 
+/**
+ * SPEC §1's premise, made visible.
+ *
+ * The thesis says the item a learner sees is chosen *"because a memory model
+ * predicts they are about to forget it"*, and the model has been doing exactly
+ * that since M2 without ever showing its working. This is the working: the
+ * words closest to slipping, in order, which are the ones the next session
+ * leads with.
+ *
+ * No retrievability figure on screen. It is a real number, but a percentage
+ * beside a word reads as a mark out of a hundred, and §2.15 bans a score
+ * divorced from measured ability. The *order* is the information.
+ */
+const Slipping = ({ words }: { words: SlippingWord[] }) => (
+  <section className="mt-8" data-testid="slipping">
+    <h2 className="text-lg font-bold">{copy.progress.slipping.heading}</h2>
+    {words.length === 0 ? (
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {copy.progress.slipping.empty}
+      </p>
+    ) : (
+      <>
+        <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+          {copy.progress.slipping.intro}
+        </p>
+        <ol className="mt-3 flex flex-wrap gap-2">
+          {words.map((word) => (
+            <li
+              key={word.itemId}
+              className="rounded-lg bg-stone-100 px-3 py-1.5 font-semibold dark:bg-slate-900"
+            >
+              {word.headword}
+            </li>
+          ))}
+        </ol>
+      </>
+    )}
+  </section>
+);
+
 export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
   const [report, setReport] = useState<ProgressReport | null>(null);
   /** SPEC §2.10's curriculum position. Null until read — never drawn as zero. */
   const [path, setPath] = useState<LearningPath | null>(null);
+  /** §1's premise made visible: what the model thinks is closest to slipping. */
+  const [slipping, setSlipping] = useState<SlippingWord[] | null>(null);
   const [rows, setRows] = useState<HeatRow[] | null>(null);
   const [drills, setDrills] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
@@ -128,14 +172,16 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
 
   const load = useCallback(async () => {
     const pack = await loadContrastive(lang);
-    const [built, journey, standings, count] = await Promise.all([
+    const [built, journey, fading, standings, count] = await Promise.all([
       buildProgressReport(profile, Date.now()),
       buildLearningPath(profile, Date.now()),
+      slippingSoon(profile.id, Date.now()),
       categoryStandings(profile.id, lang, pack.categories.map((category) => category.id)),
       drillAttemptCount(profile.id),
     ]);
     setReport(built);
     setPath(journey);
+    setSlipping(fading);
     setDrills(count);
     setRows(
       standings.flatMap((standing) => {
@@ -204,6 +250,7 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
           <CoverageCurve report={report} />
           <Retention report={report} profile={profile} onRetune={() => void load()} />
           <Forecast report={report} />
+          {slipping === null ? null : <Slipping words={slipping} />}
           <Skills report={report} />
           <Calibration report={report} />
           <Consistency report={report} />

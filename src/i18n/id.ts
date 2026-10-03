@@ -518,6 +518,18 @@ export const copy = {
   /** SPEC §9: honest, capability-framed, all local. */
   progress: {
     /**
+     * SPEC §1's premise, made visible: *"the item they see should be chosen
+     * because a memory model predicts they are about to forget it."* The model
+     * has decided that on every session since M2 and never once shown its
+     * working. No score and no scolding — an order, and what it means.
+     */
+    slipping: {
+      heading: 'Paling dekat terlupa',
+      intro:
+        'Menurut model ingatan, ini yang paling dekat dengan lupa — dan ini yang muncul duluan di sesi berikutnya.',
+      empty: 'Belum ada kata yang mulai memudar. Ini juga kabar baik.',
+    },
+    /**
      * SPEC §2.10's frequency curriculum, made visible.
      *
      * The app has always had an order; a learner could never see it, which is

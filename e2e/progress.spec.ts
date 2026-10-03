@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerOne, firstRun, leaveSession, seedKnownVocabulary } from './helpers.ts';
+import {
+  answerOne,
+  firstRun,
+  leaveSession,
+  seedDueCardsAtLevel,
+  seedKnownVocabulary,
+} from './helpers.ts';
 
 /**
  * M5 acceptance (SPEC §12): *"every §9 item renders from real local data;
@@ -227,4 +233,33 @@ test('the path says nothing has been secured rather than showing 0%', async ({ p
 
   // Invariant 18: an unmeasured figure is never drawn as a zero.
   await expect(page.getByTestId('path-reach')).toContainText('Belum ada kata yang terkunci');
+});
+
+/**
+ * SPEC §1's premise, made visible.
+ *
+ * The thesis says the item a learner meets is chosen *"because a memory model
+ * predicts they are about to forget it"*. The model has been deciding that on
+ * every session since M2 and never once shown its working — `slippingSoon` was
+ * written, exported, and called by nothing.
+ */
+test('the progress screen shows which words are closest to slipping', async ({ page }) => {
+  await firstRun(page);
+  await openProgress(page);
+  // Nothing learned yet, and that is said rather than shown as an empty list.
+  await expect(page.getByTestId('slipping')).toContainText('Belum ada kata');
+
+  // Cards the learner answered a day ago: retrievability has started to fall,
+  // which is the only state in which anything *is* slipping. A word answered
+  // moments ago is at 1 and correctly absent.
+  await page.getByRole('button', { name: 'Kembali' }).click();
+  await seedDueCardsAtLevel(page, 2, 8);
+  await openProgress(page);
+
+  // Real words from this learner's own deck, ordered by the model — and no
+  // percentage beside them, because a number next to a word reads as a mark.
+  const slipping = page.getByTestId('slipping');
+  await expect(slipping).toBeVisible();
+  await expect(slipping).not.toContainText('Belum ada kata');
+  await expect(slipping).not.toContainText('%');
 });
