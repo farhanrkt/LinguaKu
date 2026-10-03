@@ -15,7 +15,7 @@ import {
 } from '../../data/repositories/progress.ts';
 import { retuneTarget } from '../../core/retention.ts';
 import { updateProfile } from '../../data/repositories/profiles.ts';
-import { exportFilename, exportProfile, importProfile, parseBundle } from '../../data/export.ts';
+import { ImportError, exportFilename, exportProfile, importProfile, parseBundle } from '../../data/export.ts';
 import { BarRow, Columns, Radar, TargetMeter } from './charts.tsx';
 import type { Profile } from '../../data/types.ts';
 
@@ -158,6 +158,19 @@ const Slipping = ({ words }: { words: SlippingWord[] }) => (
   </section>
 );
 
+/** Turns a refused import into the one sentence that is true of it. */
+const importNotice = (error: unknown): string => {
+  if (!(error instanceof ImportError)) return copy.progress.data.importBroke;
+  switch (error.reason) {
+    case 'not-json':
+      return copy.progress.data.importNotJson;
+    case 'too-new':
+      return copy.progress.data.importTooNew(error.bundleVersion ?? 0);
+    case 'not-a-bundle':
+      return copy.progress.data.importFailed;
+  }
+};
+
 export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
   const [report, setReport] = useState<ProgressReport | null>(null);
@@ -219,8 +232,10 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
         const result = await importProfile(parseBundle(await file.text()));
         setNotice(copy.progress.data.imported(result.reviewLogs));
         await load();
-      } catch {
-        setNotice(copy.progress.data.importFailed);
+      } catch (error) {
+        // The app knows which failure this was; saying so is the difference
+        // between "find another file" and "update the app".
+        setNotice(importNotice(error));
       }
     },
     [load],

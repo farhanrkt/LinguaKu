@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, DB_NAME } from './db.ts';
 import {
+  ImportError,
   exportFilename,
   exportProfile,
   importProfile,
-  ImportError,
   parseBundle,
 } from './export.ts';
 import { createProfile } from './repositories/profiles.ts';
@@ -478,5 +478,56 @@ describe('every table is either exported or deliberately excluded', () => {
       unaccounted,
       `these tables are in the schema but neither exported nor listed as generated: ${unaccounted.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+/**
+ * A refused import says which refusal it was.
+ *
+ * The screen had one sentence for every failure — "that file is not a LinguaKu
+ * backup" — which is **false** for a bundle from a newer version. That file is
+ * a LinguaKu backup; telling someone otherwise sends them hunting for a
+ * different file when what they need is to update the app.
+ */
+describe('parseBundle names the reason it refused', () => {
+  it('distinguishes a file that is not JSON at all', () => {
+    try {
+      parseBundle('not json {');
+      throw new Error('should have refused');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ImportError);
+      expect((error as ImportError).reason).toBe('not-json');
+    }
+  });
+
+  it('distinguishes valid JSON that is not a bundle', () => {
+    try {
+      parseBundle(JSON.stringify({ hello: 'world' }));
+      throw new Error('should have refused');
+    } catch (error) {
+      expect((error as ImportError).reason).toBe('not-a-bundle');
+    }
+  });
+
+  it('distinguishes a bundle from a newer app, and carries its version', async () => {
+    const profile = await buildHistory();
+    const bundle = await exportProfile(profile.id, NOW);
+    const future = { ...bundle, version: bundle.version + 5 };
+    try {
+      parseBundle(JSON.stringify(future));
+      throw new Error('should have refused');
+    } catch (error) {
+      expect((error as ImportError).reason).toBe('too-new');
+      // So the message can name it rather than saying "some newer version".
+      expect((error as ImportError).bundleVersion).toBe(bundle.version + 5);
+    }
+  });
+
+  it('accepts a bundle from an older app', async () => {
+    // Backwards compatibility is the whole point of the version check having a
+    // direction: an older export is still readable.
+    const profile = await buildHistory();
+    const bundle = await exportProfile(profile.id, NOW);
+    expect(() => parseBundle(JSON.stringify({ ...bundle, version: 0 }))).not.toThrow();
   });
 });

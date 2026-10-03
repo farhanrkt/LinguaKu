@@ -5,6 +5,34 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.19.2 — 2026-10-03
+
+### Fixed — a failed import told you something untrue
+
+`parseBundle` has distinguished three failures since M5: not JSON, not a bundle,
+and **a bundle from a newer version of the app**. The screen collapsed all three
+into one sentence — *"File itu bukan salinan LinguaKu"*, that file is not a
+LinguaKu backup.
+
+For the third case that is simply false. It *is* a LinguaKu backup. Saying it is
+not sends the learner hunting for a different file when what they need is to
+update the app — and leaves them believing their backup is corrupt.
+
+Each reason has its own sentence now, and the newer-version one names the
+version it read and says the data is safe. An unexpected failure gets its own
+too, because "not a LinguaKu backup" is equally untrue of a database error.
+
+All four state that current data is unchanged, which is a promise the database
+keeps rather than a reassurance: `importProfile` runs inside one `rw`
+transaction, so a failure part-way rolls the whole thing back.
+
+This is the screen where someone hands over their entire history. It is the last
+place to be vague about what went wrong.
+
+849 unit · 67 e2e.
+
+---
+
 ## v1.19.1 — 2026-10-03
 
 ### Added — sync says what it is about to upload

@@ -130,8 +130,28 @@ export const exportProfile = async (
   };
 };
 
+/**
+ * Why an import was refused, as a code the UI can translate.
+ *
+ * The message alone was not enough, and worse than not enough: the screen had
+ * one sentence for every failure — *"File itu bukan salinan LinguaKu"* — which
+ * is **false** for a bundle from a newer version. That file *is* a LinguaKu
+ * backup, and telling someone otherwise sends them looking for a different file
+ * instead of updating the app.
+ */
+export type ImportFailure = 'not-json' | 'not-a-bundle' | 'too-new';
+
 export class ImportError extends Error {
   override readonly name = 'ImportError';
+  readonly reason: ImportFailure;
+  /** The version the bundle claims, where that is what went wrong. */
+  readonly bundleVersion: number | null;
+
+  constructor(reason: ImportFailure, message: string, bundleVersion: number | null = null) {
+    super(message);
+    this.reason = reason;
+    this.bundleVersion = bundleVersion;
+  }
 }
 
 const isBundle = (value: unknown): value is ExportBundle => {
@@ -152,12 +172,14 @@ export const parseBundle = (text: string): ExportBundle => {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new ImportError('not valid JSON');
+    throw new ImportError('not-json', 'not valid JSON');
   }
-  if (!isBundle(parsed)) throw new ImportError('not a LinguaKu export');
+  if (!isBundle(parsed)) throw new ImportError('not-a-bundle', 'not a LinguaKu export');
   if (parsed.version > EXPORT_VERSION) {
     throw new ImportError(
+      'too-new',
       `export is version ${parsed.version}; this app understands up to ${EXPORT_VERSION}`,
+      parsed.version,
     );
   }
   return parsed;

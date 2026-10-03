@@ -658,7 +658,22 @@ export const copy = {
         logs === 0
           ? 'Salinan itu sudah ada di HP ini — tidak ada yang berubah.'
           : `Dipulihkan: ${logs.toLocaleString('id-ID')} riwayat latihan ditambahkan.`,
-      importFailed: 'File itu bukan salinan LinguaKu.',
+      /**
+       * One sentence per reason, because the app knows which it was.
+       *
+       * The single message this replaces said *"that file is not a LinguaKu
+       * backup"* for every failure — false for a newer bundle, and it sent the
+       * learner looking for a different file instead of updating the app. The
+       * restore runs in one transaction, so "your data is unchanged" is a
+       * promise the database keeps rather than a reassurance.
+       */
+      importFailed: 'File itu bukan salinan LinguaKu. Datamu yang sekarang tidak berubah.',
+      importNotJson:
+        'File itu tidak bisa dibaca. Yang dibutuhkan file .json hasil ekspor dari LinguaKu.',
+      importTooNew: (version: number) =>
+        `Salinan ini dibuat LinguaKu versi ${version}, lebih baru dari aplikasi ini. Perbarui dulu aplikasinya — datanya aman, tidak ada yang hilang.`,
+      importBroke:
+        'Pemulihan gagal di tengah jalan. Datamu yang sekarang tidak berubah sama sekali.',
     },
 
     heatmap: {
