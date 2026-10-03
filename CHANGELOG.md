@@ -5,6 +5,34 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.18.1 — 2026-10-03
+
+### Fixed — two more tables were missing from the backup, and now a test says so
+
+Having found `buildAttempts` missing, I checked the rest of the schema against
+the bundle. Two more were absent, and both are the learner's own **intent**:
+
+- **`minedItems`** — a word they went looking for in the reader and asked to be
+  taught (invariant 26). A restore lost it, so the word never arrived.
+- **`deferredItems`** — a word they asked not to be shown yet (invariant 23). A
+  restore lost it, so declined words came straight back.
+
+Neither can be reconstructed from anything else. The bundle's own description is
+"everything the learner made", and these are exactly that.
+
+**The structural fix matters more than the two rows.** The bundle is a
+hand-maintained list, and nothing failed when it fell behind the schema — which
+is the only reason three tables could go missing without anyone noticing. A test
+now walks `db.tables` and requires every name to be either carried in the bundle
+or named as generated content (the shards: downloaded, identical for everyone,
+re-fetchable). Adding a table and doing neither fails the suite.
+
+Checked against the unfixed code to be sure it fails.
+
+842 unit · 67 e2e.
+
+---
+
 ## v1.18.0 — 2026-10-03
 
 ### Fixed — a backup silently lost every sentence you had rebuilt

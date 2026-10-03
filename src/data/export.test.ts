@@ -395,3 +395,88 @@ describe('sentence-building attempts survive a round trip', () => {
     await expect(importProfile(bundle)).resolves.toBeDefined();
   });
 });
+
+/**
+ * The learner's own *intent*, which the bundle promises to carry.
+ *
+ * The export's own doc says it holds "everything the learner made". Mining is a
+ * word they went looking for and asked to be taught (invariant 26); a deferral
+ * is one they asked not to be shown yet (invariant 23). Neither can be
+ * reconstructed from anything else, and a restore without them quietly undoes
+ * two decisions the learner made on purpose.
+ */
+describe('mined and deferred words survive a round trip', () => {
+  it('carries both out and puts both back', async () => {
+    const profile = await buildHistory();
+    await db.minedItems.put({
+      profileId: profile.id,
+      itemId: 'en:lex:among',
+      fromSentenceId: 'tatoeba:eng:1',
+      minedAt: NOW,
+    });
+    await db.deferredItems.put({
+      profileId: profile.id,
+      itemId: 'en:lex:whilst',
+      deferredAt: NOW,
+      until: NOW + 7 * DAY,
+      times: 1,
+    });
+
+    const bundle = await exportProfile(profile.id, NOW);
+    expect(bundle.minedItems).toHaveLength(1);
+    expect(bundle.deferredItems).toHaveLength(1);
+
+    await db.delete();
+    await db.open();
+    await importProfile(bundle);
+
+    // The mined word still arrives, and the declined one is still declined.
+    expect(await db.minedItems.count()).toBe(1);
+    expect((await db.deferredItems.toArray())[0]?.until).toBe(NOW + 7 * DAY);
+  });
+
+  it('restores a bundle written before either field existed', async () => {
+    const profile = await buildHistory();
+    const bundle = await exportProfile(profile.id, NOW);
+    delete (bundle as { minedItems?: unknown }).minedItems;
+    delete (bundle as { deferredItems?: unknown }).deferredItems;
+    await expect(importProfile(bundle)).resolves.toBeDefined();
+  });
+});
+
+/**
+ * The structural fix for the two bugs above.
+ *
+ * `buildAttempts` was missed when its table arrived, and `minedItems` and
+ * `deferredItems` had been missing since they were added. The bundle is a
+ * hand-maintained list, and nothing failed when it fell behind the schema —
+ * which is the only reason three tables could go missing without anyone
+ * noticing.
+ *
+ * So a new table now has to be *decided about*: carried in the bundle, or named
+ * here as generated content that a backup should not hold. Adding one and doing
+ * neither fails this test.
+ */
+describe('every table is either exported or deliberately excluded', () => {
+  /**
+   * Downloaded, identical for everyone, and re-fetched on demand. Shipping four
+   * megabytes of Tatoeba inside a personal backup would make the file unusable
+   * to carry and would preserve nothing that could be lost.
+   */
+  const GENERATED = new Set(['items', 'sentences', 'contentShards']);
+
+  it('leaves no table unaccounted for', async () => {
+    const profile = await buildHistory();
+    const bundle = await exportProfile(profile.id, NOW);
+    const carried = new Set(Object.keys(bundle));
+
+    const unaccounted = db.tables
+      .map((table) => table.name)
+      .filter((name) => name !== 'profiles' && !GENERATED.has(name) && !carried.has(name));
+
+    expect(
+      unaccounted,
+      `these tables are in the schema but neither exported nor listed as generated: ${unaccounted.join(', ')}`,
+    ).toEqual([]);
+  });
+});

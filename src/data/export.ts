@@ -4,8 +4,10 @@ import type {
   BuildAttempt,
   Card,
   CategoryScore,
+  DeferredItem,
   DrillAttempt,
   Habit,
+  MinedItem,
   Mnemonic,
   Profile,
   ReadingAttempt,
@@ -54,6 +56,18 @@ export interface ExportBundle {
    * bundle silently understated a restored learner's grammar score.
    */
   buildAttempts?: BuildAttempt[];
+  /**
+   * The learner's own intent, and both optional for backward compatibility.
+   *
+   * `minedItems` is a word they went looking for and asked to be taught
+   * (invariant 26); `deferredItems` is one they asked not to be shown yet
+   * (invariant 23). Neither is generated content and neither can be recovered
+   * from anything else, so a restore without them quietly undoes two decisions
+   * the learner made deliberately — mined words never arrive, and declined ones
+   * come straight back.
+   */
+  minedItems?: MinedItem[];
+  deferredItems?: DeferredItem[];
   sessions: Session[];
   mnemonics: Mnemonic[];
   habits: Habit[];
@@ -74,6 +88,8 @@ export const exportProfile = async (
     drillAttempts,
     readingAttempts,
     buildAttempts,
+    minedItems,
+    deferredItems,
     sessions,
     mnemonics,
     habits,
@@ -86,6 +102,8 @@ export const exportProfile = async (
       db.drillAttempts.where('profileId').equals(profileId).toArray(),
       db.readingAttempts.where('profileId').equals(profileId).toArray(),
       db.buildAttempts.where('profileId').equals(profileId).toArray(),
+      db.minedItems.where('profileId').equals(profileId).toArray(),
+      db.deferredItems.where('profileId').equals(profileId).toArray(),
       db.sessions.where('[profileId+startedAt]').between([profileId, -Infinity], [profileId, Infinity]).toArray(),
       db.mnemonics.filter((row) => row.profileId === profileId).toArray(),
       db.habits.where('profileId').equals(profileId).toArray(),
@@ -104,6 +122,8 @@ export const exportProfile = async (
     drillAttempts,
     readingAttempts,
     buildAttempts,
+    minedItems,
+    deferredItems,
     sessions,
     mnemonics,
     habits,
@@ -188,6 +208,8 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       db.drillAttempts,
       db.readingAttempts,
       db.buildAttempts,
+      db.minedItems,
+      db.deferredItems,
       db.sessions,
       db.mnemonics,
       db.habits,
@@ -199,6 +221,11 @@ export const importProfile = async (bundle: ExportBundle): Promise<ImportResult>
       await db.categoryScores.bulkPut(bundle.categoryScores ?? []);
       await db.sessions.bulkPut(bundle.sessions ?? []);
       await db.habits.bulkPut(bundle.habits ?? []);
+      // Current state rather than an append-only log (invariant 19): a mined
+      // word can be un-mined and a deferral lapses, so the bundle's version
+      // replaces whatever is here.
+      await db.minedItems.bulkPut(bundle.minedItems ?? []);
+      await db.deferredItems.bulkPut(bundle.deferredItems ?? []);
 
       // Mnemonics are last-write-wins **by timestamp**, not "the bundle wins".
       // SPEC §2.11 requires user-authored mnemonics to persist, and the finding
