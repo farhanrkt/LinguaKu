@@ -50,4 +50,3 @@ export const loadPassages = async (
   return passages;
 };
 
-export const clearPassageCache = (): void => cache.clear();

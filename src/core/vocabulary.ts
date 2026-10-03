@@ -1,4 +1,4 @@
-import { FREQUENCY_BANDS, type FrequencyBand } from './frequency.ts';
+import type { FrequencyBand } from './frequency.ts';
 
 /**
  * SCIENCE: vocabulary size and text coverage — SPEC §9 and §2.10.
@@ -186,8 +186,3 @@ export const estimateCoverage = (
   };
 };
 
-/** Band sizes, for a curve that shows the whole scale rather than only what is seen. */
-export const bandBounds = (band: FrequencyBand): { minRank: number; maxRank: number } => {
-  const found = FREQUENCY_BANDS.find((entry) => entry.band === band);
-  return found ?? { minRank: 0, maxRank: 0 };
-};

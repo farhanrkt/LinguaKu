@@ -5,6 +5,40 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.19.1 — 2026-10-03
+
+### Added — sync says what it is about to upload
+
+`deltaSize` has existed since M7 *"for the workload note in the settings
+screen"*, and the note was never written. Sync is the one thing in this app that
+**sends**, and the learner it is written for is on mobile data — the same
+argument v1.13.0 makes for the reader's download.
+
+> Sekitar 4 KB menunggu dikirim.
+
+Null while it is being read, never a flashed zero (invariant 18).
+
+### Removed — five exports nothing read
+
+Invariant 8 bans dead scaffolding; seven exports had accumulated behind it,
+found by the same scan that turned up shadowing and the audio that never
+stopped. Two became features. Five are gone.
+
+One is worth naming: **`RESERVED_SHARE`** declared §7.2's 15% reservation as a
+constant while `composeSession` has always let spare time spill back into
+reviews — it asserted a behaviour the code did not have. The fact now lives in
+the comment that explains the split, where it cannot drift out of agreement with
+a value nothing reads. **`LADDER_TASKS`** went the same way and took a stale
+claim with it: *"L4–L6 … not yet reachable"*, untrue since `MAX_ENABLED_LEVEL`
+became 6.
+
+The scan is clean: no export in `src/` or `scripts/` now appears only at its own
+declaration.
+
+845 unit · 67 e2e.
+
+---
+
 ## v1.19.0 — 2026-10-03
 
 ### Fixed — audio played over the top of the next card

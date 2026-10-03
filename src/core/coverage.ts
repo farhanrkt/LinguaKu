@@ -101,19 +101,6 @@ export const coverageOf = (
 export const inTargetBand = (coverage: number): boolean =>
   coverage >= COVERAGE_TARGET_MIN && coverage <= COVERAGE_TARGET_MAX;
 
-/**
- * Shortest text for which the target band is reachable at all.
- *
- * Coverage on an n-token text is quantized to multiples of 1/n, and the band
- * is 0.06 wide — so below ~17 tokens it can contain no achievable value, and
- * on a 10-token sentence the reachable coverages are 1.00, 0.90, 0.80: the band
- * is simply empty. SPEC §2.4's threshold is a **running-text** finding, and
- * applying it literally to single sentences would reject almost all of them.
- *
- * For shorter items the operative form of i+1 is its literal one: exactly one
- * new word inside a sentence the learner otherwise knows.
- */
-export const BAND_REACHABLE_TOKENS = Math.ceil(1 / (COVERAGE_TARGET_MAX - COVERAGE_TARGET_MIN));
 
 export interface GradedCandidate {
   id: string;

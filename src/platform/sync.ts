@@ -1,5 +1,5 @@
 import { db } from '../data/db.ts';
-import { buildDelta, isDelta, mergeDelta, type Delta } from '../core/delta.ts';
+import { buildDelta, deltaSize, isDelta, mergeDelta, type Delta } from '../core/delta.ts';
 import type { Timestamp } from '../data/types.ts';
 
 /**
@@ -131,6 +131,23 @@ const pendingDeltas = async (profileId: string, since: Timestamp): Promise<Delta
  * they never enabled. The local store is the source of truth and has lost
  * nothing.
  */
+/**
+ * Wire bytes waiting to be sent (SPEC §5.4).
+ *
+ * Sync is the one thing in this app that uploads, and the learner it is written
+ * for is on mobile data — the same reason the reader states its download cost
+ * before spending it (D80). `deltaSize` has existed since M7 for exactly this
+ * note and was never called by anything.
+ *
+ * Counted the way the reader counts: what actually travels, before it travels.
+ */
+export const pendingBytes = async (profileId: string): Promise<number> => {
+  const settings = readSyncSettings();
+  // Never synced means everything is pending, which is what `0` asks for.
+  const deltas = await pendingDeltas(profileId, settings.lastSyncedAt ?? 0);
+  return deltas.reduce((total, delta) => total + deltaSize(delta), 0);
+};
+
 export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
   const settings = readSyncSettings();
   if (!settings.enabled || settings.endpoint.length === 0) return { status: 'disabled' };

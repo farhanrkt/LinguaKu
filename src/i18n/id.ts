@@ -295,6 +295,11 @@ export const copy = {
    * the copy is careful to say what leaving the phone actually means.
    */
   sync: {
+    // SPEC §5.4: sync is the one thing here that uploads, and the learner this
+    // app is written for is on mobile data. Said before it is spent, the same
+    // way the reader states its download cost.
+    pending: (kb: number) => `Sekitar ${kb} KB menunggu dikirim.`,
+    pendingNone: 'Tidak ada yang menunggu dikirim.',
     open: 'Sinkronisasi antar perangkat',
     heading: 'Sinkronisasi',
     intro:

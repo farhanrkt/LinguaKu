@@ -14,16 +14,6 @@ import type { Grade, LadderLevel } from '../data/types.ts';
  * ladder's effect on accuracy stays measurable even though the state is shared.
  */
 
-/** SPEC §2.3. L4–L6 are defined here but not yet reachable; see `MAX_ENABLED_LEVEL`. */
-export const LADDER_TASKS: Record<LadderLevel, string> = {
-  0: 'first exposure — sentence, audio and gloss, learner confirms',
-  1: 'multiple choice ID → target',
-  2: 'target → meaning, produced',
-  3: 'cloze inside a known sentence',
-  4: 'audio-only cloze or dictation',
-  5: 'ID → target, produced',
-  6: 'open prompt — use it in a sentence about your own life',
-};
 
 /**
  * Stability (in days) a card must reach before its item graduates to the next

@@ -1,13 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import {
+  pendingBytes,
   readSyncSettings,
   syncNow,
-  writeSyncSettings,
   type SyncOutcome,
   type SyncSettings,
+  writeSyncSettings,
 } from '../../platform/sync.ts';
 import type { Profile } from '../../data/types.ts';
 
@@ -36,6 +37,13 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<SyncOutcome | null>(null);
+  /** Wire bytes waiting to go, or null until read. */
+  const [pending, setPending] = useState<number | null>(null);
+
+  // Re-read after a sync, because a successful one empties the queue.
+  useEffect(() => {
+    void pendingBytes(profile.id).then(setPending);
+  }, [profile.id, outcome]);
 
   const update = (changes: Partial<SyncSettings>) => {
     setSettings((current) => ({ ...current, ...changes }));
@@ -63,6 +71,16 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
       <h1 className="text-2xl font-bold">{copy.sync.heading}</h1>
       <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.sync.intro}</p>
       <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{copy.sync.noServer}</p>
+
+      {/* What this will cost to send, before it is sent (§5.4, D80). Null while
+          it is being read — never drawn as a zero (invariant 18). */}
+      {pending === null ? null : (
+        <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="sync-pending">
+          {pending === 0
+            ? copy.sync.pendingNone
+            : copy.sync.pending(Math.max(1, Math.round(pending / 1024)))}
+        </p>
+      )}
 
       <label className="mt-6 flex min-h-14 items-center gap-3">
         <input

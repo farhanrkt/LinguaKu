@@ -86,12 +86,15 @@ export const SLICE_SHARE: Record<SessionSlice, number> = {
    * learner opens deliberately, not something the session can schedule.
    *
    * Sentence building is an in-session input activity, so it takes two thirds
-   * of that share and the rest keeps spilling as before. Nothing is taken from
-   * reviews, new items or drills.
+   * of that share and the remaining 5% keeps spilling as before. Nothing is
+   * taken from reviews, new items or drills. (That 5% was a named constant
+   * declaring a reservation the composer never actually held — spare time has
+   * always gone back to reviews — so it is stated here rather than asserted
+   * by a value nothing reads.)
    */
   build: 0.1,
 };
-export const RESERVED_SHARE = 0.05;
+
 
 /** SPEC §2.8. */
 export const MAX_CONSECUTIVE_SAME_TYPE = 2;
