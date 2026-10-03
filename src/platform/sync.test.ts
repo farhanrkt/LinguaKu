@@ -87,7 +87,13 @@ describe('a failed sync costs the learner nothing', () => {
   it('reports an HTTP failure rather than throwing', async () => {
     enable();
     vi.stubGlobal('fetch', () => Promise.resolve(new Response('nope', { status: 401 })));
-    expect(await syncNow('p1')).toMatchObject({ status: 'failed', reason: 'HTTP 401' });
+    // The raw text moved to `detail` so the UI can say something a learner can
+    // act on; it is still carried, for anyone reporting a problem.
+    expect(await syncNow('p1')).toMatchObject({
+      status: 'failed',
+      reason: 'unauthorized',
+      detail: 'HTTP 401',
+    });
   });
 
   it('leaves local state untouched when the server is unreachable', async () => {
@@ -235,5 +241,59 @@ describe('applyDelta', () => {
 
     // Last-write-wins per card: a stale delta must not roll a schedule back.
     expect((await db.cards.get('p1::en:lex:x'))?.ladderLevel).toBe(3);
+  });
+});
+
+/**
+ * A failed sync says what to do about it.
+ *
+ * The outcome used to carry the raw string and the screen printed it: an
+ * Indonesian learner met *"Gagal: HTTP 401"* and was left to work out what that
+ * meant. 401 is the commonest failure there is — a token that does not match —
+ * and it is the one case where saying so is the entire remedy.
+ */
+describe('sync failures are classified, not printed raw', () => {
+  const enabled = {
+    enabled: true,
+    endpoint: 'https://example.test',
+    token: 'wrong',
+    lastSyncedAt: null,
+  };
+
+  beforeEach(() => {
+    writeSyncSettings(enabled);
+  });
+
+  it('calls a 401 what it is: the token', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 401 })));
+    const outcome = await syncNow('p1');
+    expect(outcome).toMatchObject({ status: 'failed', reason: 'unauthorized', detail: 'HTTP 401' });
+  });
+
+  it('distinguishes a 404 from a bad token', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 404 })));
+    expect(await syncNow('p1')).toMatchObject({ status: 'failed', reason: 'not-found' });
+  });
+
+  it('distinguishes a server fault from the learner’s settings', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 503 })));
+    expect(await syncNow('p1')).toMatchObject({ status: 'failed', reason: 'server' });
+  });
+
+  it('distinguishes no answer at all, which is a different fix', async () => {
+    // `fetch` rejects when it cannot reach the host: offline, wrong hostname,
+    // blocked. Telling that learner to check their token would be wrong.
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    expect(await syncNow('p1')).toMatchObject({
+      status: 'failed',
+      reason: 'unreachable',
+      detail: 'Failed to fetch',
+    });
+  });
+
+  it('keeps the raw text, for a learner reporting a problem', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 418 })));
+    const outcome = await syncNow('p1');
+    expect(outcome).toMatchObject({ reason: 'unknown', detail: 'HTTP 418' });
   });
 });

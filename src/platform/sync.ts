@@ -79,7 +79,37 @@ export const writeSyncSettings = (settings: SyncSettings): void => {
 export type SyncOutcome =
   | { status: 'disabled' }
   | { status: 'ok'; pushed: number; pulled: number; merged: number }
-  | { status: 'failed'; reason: string };
+  | { status: 'failed'; reason: SyncFailure; detail: string };
+
+/**
+ * Why a sync did not happen, as a code the UI can translate.
+ *
+ * The outcome used to carry the raw string — `HTTP 401`, `Failed to fetch` —
+ * and the screen printed it. An Indonesian learner was shown *"Gagal: HTTP
+ * 401"* and left to work out what to do about it, which for the commonest
+ * failure of all (a token that does not match) is the one thing worth saying.
+ *
+ * `detail` keeps the raw text, because a learner reporting a problem should be
+ * able to read it out; it is just not the sentence they are shown first.
+ */
+export type SyncFailure =
+  /** The token is wrong, or the server has none set. */
+  | 'unauthorized'
+  /** The endpoint answered, but not with a sync endpoint. */
+  | 'not-found'
+  /** No answer at all: offline, wrong host, blocked. */
+  | 'unreachable'
+  /** It answered with a failure of its own. */
+  | 'server'
+  | 'unknown';
+
+/** Classifies an HTTP status into something a learner can act on. */
+const failureFor = (status: number): SyncFailure => {
+  if (status === 401 || status === 403) return 'unauthorized';
+  if (status === 404) return 'not-found';
+  if (status >= 500) return 'server';
+  return 'unknown';
+};
 
 /** Deltas for finished sessions the server has not seen. */
 const pendingDeltas = async (profileId: string, since: Timestamp): Promise<Delta[]> => {
@@ -165,7 +195,13 @@ export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
       },
       body: JSON.stringify({ profileId, since, deltas }),
     });
-    if (!response.ok) return { status: 'failed', reason: `HTTP ${response.status}` };
+    if (!response.ok) {
+      return {
+        status: 'failed',
+        reason: failureFor(response.status),
+        detail: `HTTP ${response.status}`,
+      };
+    }
 
     const payload = (await response.json()) as { deltas?: unknown[] };
     const incoming = (payload.deltas ?? []).filter(isDelta);
@@ -178,7 +214,14 @@ export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
     writeSyncSettings({ ...settings, lastSyncedAt: Date.now() });
     return { status: 'ok', pushed: deltas.length, pulled: incoming.length, merged };
   } catch (error) {
-    return { status: 'failed', reason: error instanceof Error ? error.message : 'unknown' };
+    // `fetch` rejects rather than resolving when it cannot reach the host at
+    // all — offline, wrong hostname, blocked by the network. That is a
+    // different thing from a server that answered badly, and a different fix.
+    return {
+      status: 'failed',
+      reason: 'unreachable',
+      detail: error instanceof Error ? error.message : 'unknown',
+    };
   }
 };
 

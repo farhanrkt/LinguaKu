@@ -6,6 +6,7 @@ import {
   pendingBytes,
   readSyncSettings,
   syncNow,
+  type SyncFailure,
   type SyncOutcome,
   type SyncSettings,
   writeSyncSettings,
@@ -31,6 +32,22 @@ interface SyncScreenProps {
   profile: Profile;
   onBack: () => void;
 }
+
+/** The one sentence that is true of this failure, and says what to do. */
+const syncFailureNotice = (reason: SyncFailure): string => {
+  switch (reason) {
+    case 'unauthorized':
+      return copy.sync.failedUnauthorized;
+    case 'not-found':
+      return copy.sync.failedNotFound;
+    case 'unreachable':
+      return copy.sync.failedUnreachable;
+    case 'server':
+      return copy.sync.failedServer;
+    case 'unknown':
+      return copy.sync.failedUnknown;
+  }
+};
 
 export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
   const [settings, setSettings] = useState<SyncSettings>(() => readSyncSettings());
@@ -156,7 +173,7 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
           {outcome.status === 'ok'
             ? copy.sync.ok(outcome.pushed, outcome.merged)
             : outcome.status === 'failed'
-              ? copy.sync.failed(outcome.reason)
+              ? syncFailureNotice(outcome.reason)
               : copy.sync.disabled}
         </p>
       ) : null}

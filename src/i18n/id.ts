@@ -318,7 +318,25 @@ export const copy = {
     syncing: 'Menyinkronkan…',
     ok: (pushed: number, merged: number) =>
       `Selesai. ${pushed} sesi dikirim, ${merged} catatan baru diterima.`,
-    failed: (reason: string) => `Gagal: ${reason}. Datamu di HP ini tidak berubah.`,
+    /**
+     * One sentence per failure, each naming what to do about it.
+     *
+     * This used to print the raw reason — *"Gagal: HTTP 401"* — to a learner
+     * who has no way to act on that, and 401 is the commonest failure there is:
+     * a token that does not match. Every line ends the same way because it is
+     * always true: a failed sync changes nothing on this phone.
+     */
+    failedUnauthorized:
+      'Token-nya tidak cocok dengan server. Periksa lagi token di atas. Datamu di HP ini tidak berubah.',
+    failedNotFound:
+      'Alamat itu tidak punya layanan sinkron. Periksa lagi alamatnya. Datamu di HP ini tidak berubah.',
+    failedUnreachable:
+      'Server tidak bisa dihubungi. Periksa koneksimu, lalu coba lagi. Datamu di HP ini tidak berubah.',
+    failedServer:
+      'Servernya sedang bermasalah. Coba lagi nanti. Datamu di HP ini tidak berubah.',
+    failedUnknown: 'Gagal, dan kami belum tahu kenapa. Datamu di HP ini tidak berubah.',
+    /** The raw text, for a learner who needs to report what happened. */
+    failedDetail: (detail: string) => `Detail: ${detail}`,
     disabled: 'Sinkronisasi belum dinyalakan.',
     never: 'Belum pernah',
     lastSynced: (when: string) => `Terakhir: ${when}`,

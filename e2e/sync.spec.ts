@@ -58,7 +58,10 @@ test('a failed sync leaves the learner’s data alone', async ({ page }) => {
   await page.getByTestId('sync-save').click();
   await page.getByTestId('sync-now').click();
 
-  // It reports the failure and says the local data is untouched — which it is.
-  await expect(page.getByTestId('sync-outcome')).toContainText(/Gagal/, { timeout: 20_000 });
-  await expect(page.getByTestId('sync-outcome')).toContainText(/tidak berubah/);
+  // It names the failure it actually hit — an unreachable host is a different
+  // problem, and a different fix, from a token that does not match — and says
+  // the local data is untouched, which it is.
+  const outcome = page.getByTestId('sync-outcome');
+  await expect(outcome).toContainText(/tidak bisa dihubungi/, { timeout: 20_000 });
+  await expect(outcome).toContainText(/tidak berubah/);
 });

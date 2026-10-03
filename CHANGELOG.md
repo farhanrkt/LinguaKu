@@ -5,6 +5,39 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.20.0 — 2026-10-03
+
+### Changed — a failed sync says what to do about it
+
+`SyncOutcome` carried the raw string and the screen printed it. An Indonesian
+learner met **"Gagal: HTTP 401"** and was left to work out what that meant.
+
+401 is the commonest failure there is — a token that does not match — and it is
+the one case where naming it *is* the remedy. It also became the likely case the
+moment the Worker went live with `SYNC_TOKEN` unset, which answers 401 to
+everything.
+
+| was | is |
+|---|---|
+| Gagal: HTTP 401 | Token-nya tidak cocok dengan server. Periksa lagi token di atas. |
+| Gagal: HTTP 404 | Alamat itu tidak punya layanan sinkron. Periksa lagi alamatnya. |
+| Gagal: Failed to fetch | Server tidak bisa dihubungi. Periksa koneksimu, lalu coba lagi. |
+| Gagal: HTTP 503 | Servernya sedang bermasalah. Coba lagi nanti. |
+
+The distinction that matters most is the last pair: `fetch` **rejects** when it
+cannot reach the host at all — offline, wrong hostname, blocked — rather than
+resolving with a status. Telling that learner to check their token would send
+them to fix something that is not broken.
+
+`detail` keeps the raw text for anyone reporting a problem; it is just not the
+sentence they are shown first. Every message still ends by saying the data on
+this phone is unchanged, which is always true and is what a learner actually
+wants to know.
+
+854 unit · 67 e2e.
+
+---
+
 ## v1.19.2 — 2026-10-03
 
 ### Fixed — a failed import told you something untrue
