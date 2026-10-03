@@ -4,6 +4,7 @@ import { dueCardCount, dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { knownItemIds, coverageOf } from '../../core/coverage.ts';
 import { buildIdFor, isBuildable } from '../../core/sentenceBuild.ts';
+import { tokensOf } from '../../core/reader.ts';
 import { recentBuildIds } from './builds.ts';
 import { composeSession, type Candidate } from '../../core/sessionComposer.ts';
 import {
@@ -299,6 +300,8 @@ const buildCandidates = async (
   const bands: FrequencyBand[] =
     frontier > 1 ? [(frontier - 1) as FrequencyBand, frontier] : [frontier];
 
+  /** Japanese ships morphological tokens that do not match its lexeme ids. */
+  const measurable = lang !== 'ja';
   const scored: Array<{ candidate: Candidate; coverage: number }> = [];
   for (const band of bands) {
     // Fails soft, and that is load-bearing: `loadAnchors` throws when the shard
@@ -309,11 +312,23 @@ const buildCandidates = async (
     if (!anchors) continue;
     for (const sentence of anchors.values()) {
       if (recent.has(sentence.id)) continue;
-      if (!isBuildable(sentence.text)) continue;
-      const report = coverageOf(sentence.text, known, lang);
-      if (report.coverage < BUILD_MIN_COVERAGE) continue;
+      if (!isBuildable(tokensOf(sentence))) continue;
+
+      // Coverage is only a real number where the tokenizer and the lexeme ids
+      // agree about what a word is. For Japanese they do not: ids are
+      // dictionary forms (`ja:lex:する`) and the shipped tokens are surface
+      // forms (`読み`, `ます`), so the ratio comes out near zero for almost
+      // every sentence and would reject the whole language. Measured: 294 of
+      // 300 band-1 anchors score exactly 0.
+      //
+      // Anchors are already the curated set a band's vocabulary is taught
+      // through (D19), so band membership carries the level guarantee on its
+      // own. Where coverage is measurable it refines that; where it is not, it
+      // is left out rather than faked.
+      const report = measurable ? coverageOf(sentence.text, known, lang) : null;
+      if (report !== null && report.coverage < BUILD_MIN_COVERAGE) continue;
       scored.push({
-        coverage: report.coverage,
+        coverage: report?.coverage ?? 0,
         candidate: {
           id: buildIdFor(band, sentence.id),
           itemId: buildIdFor(band, sentence.id),
@@ -328,10 +343,10 @@ const buildCandidates = async (
     }
   }
 
-  return scored
-    .sort((a, b) => b.coverage - a.coverage)
-    .slice(0, limit)
-    .map((entry) => entry.candidate);
+  // Best-understood first where that is knowable; otherwise the band's own
+  // order, which is already frequency order.
+  const ordered = measurable ? [...scored].sort((a, b) => b.coverage - a.coverage) : scored;
+  return ordered.slice(0, limit).map((entry) => entry.candidate);
 };
 
 export interface TodaySnapshot {

@@ -1,5 +1,5 @@
 import { mulberry32, shuffle } from './rng.ts';
-import { tokenizeLatin, tokenizeLatinPreservingCase } from './tokenize.ts';
+import { isLexemeCandidate } from './tokenize.ts';
 
 /**
  * Rebuild the sentence from its words (SPEC §3.1 `NP_WORD_ORDER`).
@@ -62,21 +62,42 @@ export interface BuildPuzzle {
 }
 
 export interface BuildInput {
-  /** The sentence to rebuild, in the target language. */
-  text: string;
+  /**
+   * The sentence's tokens. For Japanese these are the shipped morphological
+   * ones (D10); for English the caller tokenizes. Never raw text — see
+   * `wordsOf`.
+   */
+  tokens: readonly string[];
   /** Same-band words to draw decoys from. Words already in the sentence are skipped. */
   distractorPool: readonly string[];
   seed: number;
 }
 
+/**
+ * The words a learner is asked to place.
+ *
+ * Takes **tokens, not text**, and that is the whole difference between this
+ * working in one language and in two. `tokenizeLatin` returns a Japanese
+ * sentence as a single token — it is one unbroken run of letters — so building
+ * the puzzle from text silently rejected every Japanese sentence and made the
+ * exercise English-only without saying so. Japanese anchors ship build-time
+ * morphological tokens (D10) and every one of them has them; the caller passes
+ * those.
+ *
+ * Punctuation is dropped: the tokenizer emits 。and ！as tokens of their own,
+ * and making someone place a full stop is not word-order practice.
+ */
+export const wordsOf = (tokens: readonly string[]): string[] =>
+  tokens.filter((token) => isLexemeCandidate(token));
+
 /** Whether a sentence is the right shape to be worth rebuilding. */
-export const isBuildable = (text: string): boolean => {
-  const count = tokenizeLatin(text).length;
+export const isBuildable = (tokens: readonly string[]): boolean => {
+  const count = wordsOf(tokens).length;
   return count >= MIN_TOKENS && count <= MAX_TOKENS;
 };
 
 export const makePuzzle = (input: BuildInput): BuildPuzzle | null => {
-  const words = tokenizeLatinPreservingCase(input.text);
+  const words = wordsOf(input.tokens);
   if (words.length < MIN_TOKENS || words.length > MAX_TOKENS) return null;
 
   const solution = words.map((word) => word.toLowerCase());
@@ -86,7 +107,9 @@ export const makePuzzle = (input: BuildInput): BuildPuzzle | null => {
   // A decoy that is already in the sentence is not a decoy — it would make a
   // second, equally correct arrangement and mark a right answer wrong.
   const decoys = shuffle(
-    input.distractorPool.filter((word) => !present.has(word.toLowerCase())),
+    input.distractorPool.filter(
+      (word) => isLexemeCandidate(word) && !present.has(word.toLowerCase()),
+    ),
     rng,
   ).slice(0, DISTRACTORS);
 

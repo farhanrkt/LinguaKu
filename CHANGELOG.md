@@ -5,6 +5,51 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.15.1 — 2026-10-03
+
+### Fixed — sentence building was silently English-only
+
+v1.15.0 shipped the new exercise with a Japanese explanation string that could
+never render, because a Japanese learner never met the exercise at all.
+
+`makePuzzle` took the sentence **text** and tokenized it with `tokenizeLatin`,
+which returns a Japanese sentence as **one token** — it is one unbroken run of
+letters. So `isBuildable` rejected every Japanese sentence, `buildCandidates`
+filtered them all out, and the feature was absent for half the app's learners.
+Nothing crashed. No test failed.
+
+Japanese anchors ship build-time morphological tokens (D10) and all **2,152** of
+them have them. The API takes tokens now, and the caller passes `tokensOf`,
+which already knew the difference.
+
+**Measured: 1,521 buildable sentences at Japanese band 1, against 0 before.**
+
+Punctuation is dropped from tiles and decoys — the morphological tokenizer emits
+。and ！as tokens of their own, and placing a full stop is not word-order
+practice.
+
+### Fixed — and the coverage gate would have rejected Japanese a second time
+
+`coverageOf` carries the same Latin assumption, and it is worse than that:
+Japanese lexeme ids are dictionary forms (`ja:lex:する`) while the shipped tokens
+are surface forms (`読み`, `ます`). The ratio reads near zero — **294 of 300
+band-1 anchors score exactly 0**.
+
+Anchors are already the curated set a band's vocabulary is taught through (D19),
+so band membership carries the level guarantee on its own. Coverage refines it
+where it is measurable and is left out where it is not, rather than faked.
+
+### Known, and not fixed here
+
+The same mismatch degrades the **Japanese reader**: with 500 known lexemes it
+returns 10 items where English returns 20. The real fix is shipping lemma ids
+alongside the morphological tokens, which is a content-pipeline change and a
+re-run of the Japanese ingest.
+
+837 unit · 65 e2e.
+
+---
+
 ## v1.15.0 — 2026-10-02
 
 ### Added — rebuild the sentence from its words

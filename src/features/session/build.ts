@@ -1,6 +1,6 @@
 import { loadAnchors } from '../../data/content.ts';
 import { makePuzzle, parseBuildId, type BuildPuzzle } from '../../core/sentenceBuild.ts';
-import { tokenizeLatin } from '../../core/tokenize.ts';
+import { tokensOf } from '../../core/reader.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { TargetLang } from '../../data/types.ts';
 
@@ -34,14 +34,17 @@ export const buildBuildTask = async (
   const sentence = anchors.get(sentenceId);
   if (!sentence) return null;
 
+  // Decoys come from the same band's anchors — the pool the learner is being
+  // taught out of. Tokens, not text: a Japanese sentence is one unbroken run of
+  // letters, so tokenizing it here would yield one giant decoy.
   const pool: string[] = [];
   for (const other of anchors.values()) {
     if (other.id === sentenceId) continue;
-    for (const token of tokenizeLatin(other.text)) pool.push(token);
+    for (const token of tokensOf(other)) pool.push(token);
     if (pool.length > 400) break;
   }
 
-  const puzzle = makePuzzle({ text: sentence.text, distractorPool: pool, seed });
+  const puzzle = makePuzzle({ tokens: tokensOf(sentence), distractorPool: pool, seed });
   if (!puzzle) return null;
 
   return {

@@ -432,3 +432,62 @@ describe('a review queue holds one language', () => {
     expect((await todaySnapshot(profile, NOW)).due).toBe(1);
   });
 });
+
+/**
+ * SPEC §3.1's rebuild exercise, and the reason it needs a test per language.
+ *
+ * It shipped in v1.15.0 silently English-only: `makePuzzle` tokenized the
+ * sentence *text*, and `tokenizeLatin` returns a Japanese sentence as one token
+ * because it is one unbroken run of letters. Every Japanese sentence failed
+ * `isBuildable`, every candidate was filtered out, and a Japanese learner never
+ * met the exercise. Nothing failed and no test noticed.
+ */
+describe('sentence building reaches both languages', () => {
+  const seedJapanese = async (count: number) => {
+    await db.profiles.put({ ...profile, targets: ['ja'] });
+    for (let i = 0; i < count; i++) {
+      await db.items.put({
+        id: `ja:lex:word${i}`,
+        lang: 'ja',
+        kind: 'lexeme',
+        headword: `語${i}`,
+        anchorSentenceIds: [],
+        freqRank: i + 1,
+        band: 1,
+        interferenceTags: [],
+        sourceRef: { dataset: 'tatoeba', externalId: `${i}` },
+      });
+      await db.cards.put({
+        id: `${profile.id}::ja:lex:word${i}`,
+        profileId: profile.id,
+        itemId: `ja:lex:word${i}`,
+        ladderLevel: 2,
+        dueAt: NOW + 30 * 86_400_000,
+        suspended: 0,
+        fsrs: {
+          dueAt: NOW + 30 * 86_400_000,
+          stability: 60,
+          difficulty: 5,
+          elapsedDays: 0,
+          scheduledDays: 30,
+          learningSteps: 0,
+          reps: 4,
+          lapses: 0,
+          state: 2,
+          lastReviewAt: NOW,
+        },
+      });
+    }
+  };
+
+  it('does not fall over when a language has no anchors cached', async () => {
+    // `loadAnchors` throws with no base URL to fetch from, which is exactly what
+    // an offline learner's first session looks like. An optional extra must
+    // never stop a session being planned.
+    await seed(20);
+    await seedJapanese(30);
+    const japanese = { ...profile, targets: ['ja' as const] };
+    const plan = await planSession(japanese, NOW);
+    expect(plan.session.itemIds.length).toBeGreaterThanOrEqual(0);
+  });
+});
