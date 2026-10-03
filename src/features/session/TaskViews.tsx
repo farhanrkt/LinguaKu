@@ -3,6 +3,7 @@ import { copy } from '../../i18n/id.ts';
 import { KanaInput } from '../../ui/KanaInput.tsx';
 import { Button } from '../../ui/Button.tsx';
 import { SwipeCard } from '../../ui/SwipeCard.tsx';
+import { Shadowing } from './Shadowing.tsx';
 import { usesWord } from '../../core/usage.ts';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import {
@@ -129,6 +130,11 @@ export const ExposureTask = ({
     ) : null}
 
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
+    {/* SPEC §8's shadowing exercise, where the device can actually do it: hear
+        the model, say it back, compare the two by ear. Offered at first
+        exposure because that is when "listen and repeat" belongs, and withheld
+        on a silent device exactly as L4 is (§2.6). */}
+    {audioAvailable ? <Shadowing onPlayModel={onPlayAudio} /> : null}
     </SwipeCard>
 
     <div className="mt-6">

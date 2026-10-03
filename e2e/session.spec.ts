@@ -445,3 +445,26 @@ test('a sentence can be rebuilt from its words, and is graded on order', async (
   await expect(page.getByTestId('feedback')).toBeVisible();
   await expect(page.getByTestId('answered-card')).toBeVisible();
 });
+
+/**
+ * SPEC §8's shadowing exercise — play → record → compare.
+ *
+ * The platform half and every line of its Indonesian have existed since M7 and
+ * nothing ever called either: `docs/PROGRESS.md` recorded shadowing as shipped,
+ * the launch checklist has a manual step for it, and the catalog was described
+ * as finished, while the component that would have made it exist was never
+ * written.
+ *
+ * It is withheld on a device that cannot speak, exactly as L4 is (§2.6), which
+ * is what this asserts — the emulated browser has no speech engine.
+ */
+test('shadowing is withheld where the device cannot speak', async ({ page }) => {
+  await firstRun(page);
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('exposure-confirm')).toBeVisible({ timeout: 20_000 });
+
+  // The card says audio is unavailable, and offers no recorder to shadow with.
+  await expect(page.getByTestId('shadowing')).toBeHidden();
+  // §5.1: and nothing about progression is blocked by its absence.
+  await expect(page.getByTestId('exposure-confirm')).toBeEnabled();
+});

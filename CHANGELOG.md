@@ -5,6 +5,39 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.17.0 — 2026-10-03
+
+### Added — shadowing, which four documents already said existed
+
+§8 lists *"shadowing (play → record → compare)"*. `docs/PROGRESS.md` recorded it
+as shipped in M7, with a deviation row explaining why it has no score. The
+launch checklist has a manual step for it. The README called the §8 catalog
+finished.
+
+It was not in the app.
+
+The platform half was real and complete — `startRecording` samples a peak
+envelope while recording and hands back a playable URL. So was every line of its
+Indonesian: `Rekam suaramu`, `Merekam… ketuk untuk berhenti`, `Dengar
+rekamanmu`, `Dengar contohnya`, `Bandingkan sendiri: mana yang beda?`.
+
+**Nothing called either.** The component was the one layer missing, and the dead
+export was the evidence — found by scanning for exports that nothing references.
+
+It is offered at first exposure, because "listen and repeat" belongs where a
+learner first meets a sentence, and **withheld on a device that cannot speak**
+exactly as L4 is: there is nothing to shadow without a model. No score — M7's
+recorded deviation, and the better tool anyway. A recognizer tells you whether a
+*machine* understood you; your own ear tells you how far you are from the model,
+and it works on every device with a microphone, which recognition does not.
+
+It grades nothing and writes nothing, so §5.1's "never block progression on
+speech" holds by construction.
+
+837 unit · 67 e2e.
+
+---
+
 ## v1.16.0 — 2026-10-03
 
 ### Added — the memory model shows its working

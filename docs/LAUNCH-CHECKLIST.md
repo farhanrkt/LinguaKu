@@ -17,7 +17,7 @@ Anything marked **manual** cannot be done in CI and needs a human with a phone.
 
 | | Check | Expected |
 |---|---|---|
-| 0.1 | `package.json` version | **`1.16.0`** |
+| 0.1 | `package.json` version | **`1.17.0`** |
 | 0.2 ✅ | Code licence | **MIT**, `LICENSE` committed (D12). Covers `src/`, `scripts/`, `workers/` and the authored content in `data/`. It does **not** reach `assets/content/`. |
 | 0.3 | `README.md` status section | Current for this version. |
 | 0.4 | Working tree clean | `git status --short` is empty. |
@@ -66,7 +66,7 @@ npm run test:e2e
 
 | | Check | Expected |
 |---|---|---|
-| 2.1 | Full suite | **66 passed**, emulated Pixel 5 / android-chrome, ~96 s. |
+| 2.1 | Full suite | **67 passed**, emulated Pixel 5 / android-chrome, ~96 s. |
 | 2.2 | Cold start | `coldstart.spec.ts` — icon tap → first answerable question **under 3 s** on a warm cache. This run: **108 ms**. Invariant 12. |
 | 2.3 | Installability | Manifest validity, icon resolution, maskable icon, service-worker control, offline `start_url` (D23). |
 | 2.4 | Offline session | `session.spec.ts` runs a session with the network cut. |
