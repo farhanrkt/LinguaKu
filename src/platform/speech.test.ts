@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  TTS_ONEND_DEADLINE_MS,
   adoptVerdict,
+  cancelSpeech,
   isTtsLive,
   listVoices,
   pickVoice,
@@ -8,7 +10,6 @@ import {
   probeVoice,
   resetTtsVerdict,
   speak,
-  TTS_ONEND_DEADLINE_MS,
   ttsReport,
   type VoiceReport,
 } from './speech.ts';
@@ -356,5 +357,29 @@ describe('probeVoice timing', () => {
   it('reports no elapsed time when the engine never finished', async () => {
     stubSpeech({ voices: [voice('Liar', 'en-US')], utterance: 'start' });
     expect((await probeVoice('en', FAST)).onendMs).toBeNull();
+  });
+});
+
+/**
+ * SPEC §2.6's audio, stopped when the card it belonged to is left.
+ *
+ * `cancelSpeech` existed from M4 and was called by nothing, and `playClip`
+ * pauses the previous element only when starting a *new* clip — so a learner who
+ * tapped "Dengarkan" and then advanced had the sentence read over the top of the
+ * next card. Invisible in CI, because the browser the tests run in has no speech
+ * engine to play anything in the first place.
+ */
+describe('cancelSpeech', () => {
+  it('cancels the engine where there is one', () => {
+    const cancel = vi.fn();
+    vi.stubGlobal('speechSynthesis', { cancel, getVoices: () => [], speak: vi.fn() });
+    cancelSpeech();
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op where there is no engine, rather than throwing', () => {
+    // The ordinary case on the device §2.6 is written about.
+    vi.stubGlobal('speechSynthesis', undefined);
+    expect(() => cancelSpeech()).not.toThrow();
   });
 });

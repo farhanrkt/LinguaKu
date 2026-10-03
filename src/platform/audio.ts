@@ -1,4 +1,4 @@
-import { isTtsLive, speak } from './speech.ts';
+import { cancelSpeech, isTtsLive, speak } from './speech.ts';
 import type { TargetLang } from '../data/types.ts';
 
 /**
@@ -89,6 +89,20 @@ const playClip = async (url: string): Promise<void> => {
     element?.addEventListener('error', done, { once: true });
     void element?.play().catch(done);
   });
+};
+
+/**
+ * Stops whatever is playing, by either route.
+ *
+ * Both routes needed covering and neither was: `playClip` pauses the previous
+ * element only when starting a *new* clip, and `cancelSpeech` existed and was
+ * called by nothing. So a learner who tapped "Dengarkan" and then moved on had
+ * the sentence read over the next card — invisible on a browser with no speech
+ * engine, which is every browser the tests run in.
+ */
+export const stopAudio = (): void => {
+  element?.pause();
+  cancelSpeech();
 };
 
 /** Plays a sentence: the pre-cached clip if there is one, otherwise synthesis. */

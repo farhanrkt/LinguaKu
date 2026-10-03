@@ -5,13 +5,7 @@ import { Screen } from '../../ui/Screen.tsx';
 import { SwipeCard } from '../../ui/SwipeCard.tsx';
 import { gradeAnswer, gradeForOutcome, type GradeResult } from '../../core/grader.ts';
 import { detectInterference } from '../../core/interference.ts';
-import {
-  EMPTY_CLIP_INDEX,
-  hasAudio,
-  loadClipIndex,
-  playSentence,
-  type ClipIndex,
-} from '../../platform/audio.ts';
+import { EMPTY_CLIP_INDEX, hasAudio, loadClipIndex, playSentence, stopAudio, type ClipIndex } from '../../platform/audio.ts';
 import { speak } from '../../platform/speech.ts';
 import { recordReview } from '../../data/repositories/reviews.ts';
 import { recordCategoryAttempt, recordDrillAnswer } from '../../data/repositories/contrastive.ts';
@@ -240,6 +234,10 @@ export const SessionScreen = ({
     }
   };
 
+  // Leaving the session entirely — finished, quit, or navigated away — stops it
+  // for the same reason.
+  useEffect(() => () => stopAudio(), []);
+
   const playAudio = useCallback(() => {
     if (!entry) return;
     if (entry.kind === 'item') {
@@ -258,6 +256,10 @@ export const SessionScreen = ({
    * feedback button, which takes it via `once`.
    */
   const advance = useCallback(async () => {
+    // Whatever was playing belongs to the card being left. Without this a
+    // sentence reads over the top of the next one — and it is invisible in CI,
+    // because the browser the tests run in has no speech engine at all.
+    stopAudio();
     const next = cursor + 1;
     setReveal(null);
     setDrillReveal(null);

@@ -40,11 +40,22 @@ export const Shadowing = ({ onPlayModel }: ShadowingProps) => {
   const [level, setLevel] = useState(0);
   const [mine, setMine] = useState<Recording | null>(null);
   const stopper = useRef<(() => Promise<Recording | null>) | null>(null);
+  /** The learner's own playback, which `stopAudio` does not reach. */
+  const playback = useRef<HTMLAudioElement | null>(null);
 
   // A recording outlives the card unless it is released: the object URL holds
   // the blob, and a learner shadowing a whole session would accumulate every
   // take until the tab closed.
-  useEffect(() => () => mine?.stop(), [mine]);
+  useEffect(
+    () => () => {
+      mine?.stop();
+      // Their own recording is a plain `Audio` element and belongs to this
+      // card: advancing mid-playback must not leave it talking over the next.
+      playback.current?.pause();
+      playback.current = null;
+    },
+    [mine],
+  );
 
   if (!isRecordingAvailable()) {
     return (
@@ -95,7 +106,11 @@ export const Shadowing = ({ onPlayModel }: ShadowingProps) => {
           <>
             <button
               type="button"
-              onClick={() => void new Audio(mine.url).play().catch(() => undefined)}
+              onClick={() => {
+                playback.current?.pause();
+                playback.current = new Audio(mine.url);
+                void playback.current.play().catch(() => undefined);
+              }}
               className={button}
               data-testid="shadow-play-mine"
             >

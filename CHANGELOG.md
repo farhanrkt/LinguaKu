@@ -5,6 +5,34 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.19.0 — 2026-10-03
+
+### Fixed — audio played over the top of the next card
+
+Tap "Dengarkan", then advance. The sentence kept reading, over the card that
+replaced it.
+
+`cancelSpeech` was written at M4 and **called by nothing**. `playClip` pauses
+its element only when starting a *new* clip, so neither route was covered.
+`stopAudio` now handles both, and runs when a card is left and when the session
+unmounts.
+
+**No test could have caught this.** The browser the suite runs in has no speech
+engine, so nothing ever plays. It was found by scanning for exports that appear
+only at their own declaration — the single trace a capability that was built and
+never wired leaves behind, and the same scan that turned up shadowing.
+
+v1.17.0's shadowing made it much easier to hit by accident: the model plays on
+demand, right next to the button that advances.
+
+The learner's own recording is a plain `Audio` element that `stopAudio` does not
+reach, so `Shadowing` pauses its own playback on unmount — the same bug by a
+different route.
+
+845 unit · 67 e2e.
+
+---
+
 ## v1.18.1 — 2026-10-03
 
 ### Fixed — two more tables were missing from the backup, and now a test says so
