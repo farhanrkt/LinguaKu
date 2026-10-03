@@ -5,6 +5,34 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.20.1 — 2026-10-03
+
+### Fixed — the app claimed a reminder it had not set
+
+Invariant 24 says a reminder is local or the screen says it is not one, and
+`scheduleReminder` returns whether anything was **actually** scheduled for
+exactly that purpose. Its own comment calls the failure *"the speech-probe
+failure again: report not-scheduled rather than assume it worked"*.
+
+**Both callers discarded the boolean.**
+
+`reminderSupport()` only says the API exists. A browser can advertise it, grant
+permission, and then refuse the call — and the learner was shown *"HP ini bisa
+mengingatkan walau aplikasinya tertutup"*, navigated away, and got nothing.
+
+The habit screen stays put now and says the reminder could not be set and that
+the in-app cue will carry it instead, which is true and is what §2.13's fallback
+exists for.
+
+The e2e drives it with a browser that claims the capability and throws on use,
+and was checked against the unfixed screen to be sure it failed. The lesson is
+the one M4 already learned about speech and wrote down: **a capability check is
+not a result.**
+
+854 unit · 68 e2e.
+
+---
+
 ## v1.20.0 — 2026-10-03
 
 ### Changed — a failed sync says what to do about it

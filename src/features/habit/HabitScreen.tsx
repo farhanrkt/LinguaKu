@@ -42,6 +42,13 @@ export const HabitScreen = ({ profile, onDone }: HabitScreenProps) => {
   const [existing, setExisting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [denied, setDenied] = useState(false);
+  /**
+   * Invariant 24. `reminderSupport()` says only that the API exists; the call
+   * can still be refused, and `scheduleReminder` returns whether anything was
+   * actually scheduled for exactly this reason. Nothing read it, so a learner
+   * on such a browser was told reminders were set and got none.
+   */
+  const [scheduleFailed, setScheduleFailed] = useState(false);
 
   const support = reminderSupport();
 
@@ -74,11 +81,17 @@ export const HabitScreen = ({ profile, onDone }: HabitScreenProps) => {
         const permission = await requestNotificationPermission();
         setDenied(permission === 'denied');
         if (permission === 'granted') {
-          await scheduleReminder({
+          const armed = await scheduleReminder({
             time,
             title: copy.session.start(profile.dailyMinutes),
             body: copy.habit.summary(cue, place, time),
           });
+          // Stay on the screen to say so: leaving would be the app claiming a
+          // reminder it does not have.
+          if (!armed) {
+            setScheduleFailed(true);
+            return;
+          }
         }
       }
       onDone();
@@ -159,7 +172,11 @@ export const HabitScreen = ({ profile, onDone }: HabitScreenProps) => {
 
       {/* SPEC §2.6's rule, applied to notifications: name the capability. */}
       <p className="mt-6 text-sm text-stone-500 dark:text-slate-400" data-testid="habit-support">
-        {denied ? copy.habit.permissionDenied : supportCopy[support]}
+        {scheduleFailed
+          ? copy.habit.scheduleFailed
+          : denied
+            ? copy.habit.permissionDenied
+            : supportCopy[support]}
       </p>
       <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{copy.habit.skipNote}</p>
 

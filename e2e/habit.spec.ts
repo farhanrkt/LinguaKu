@@ -102,3 +102,41 @@ test('the in-app cue appears once the time has passed, and never accuses', async
   await page.getByTestId('habit-cue-dismiss').click();
   await expect(page.getByTestId('habit-cue-dismiss')).toHaveCount(0);
 });
+
+/**
+ * Invariant 24: *"A reminder is local, or the screen says it is not one."*
+ *
+ * `reminderSupport()` says only that the API exists. A browser can advertise it
+ * and then refuse the actual call — which is the speech-probe failure again —
+ * and `scheduleReminder` returns whether anything was *actually* scheduled for
+ * exactly that reason. Nothing read it, so a learner on such a browser was told
+ * reminders were set, walked away, and got none.
+ */
+test('a reminder that could not be scheduled says so, and does not navigate away', async ({
+  page,
+}) => {
+  await firstRun(page);
+
+  // A browser that claims the capability, grants permission, and then refuses.
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
+    (Notification as unknown as { requestPermission: () => Promise<string> }).requestPermission =
+      () => Promise.resolve('granted');
+    (globalThis as { TimestampTrigger?: unknown }).TimestampTrigger = class {
+      constructor() {
+        throw new Error('refused');
+      }
+    };
+  });
+  await page.reload();
+
+  await openFromSettings(page, 'habit-open');
+  await page.getByTestId('habit-cue').fill('habis makan malam');
+  await page.getByTestId('habit-place').fill('di meja dapur');
+  await page.getByTestId('habit-save').click();
+
+  // Still here, and saying what actually happened.
+  await expect(page.getByTestId('habit-support')).toContainText(/tidak bisa dipasang/, {
+    timeout: 10_000,
+  });
+});

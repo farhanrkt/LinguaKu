@@ -802,6 +802,15 @@ export const copy = {
     supportInApp:
       'HP ini belum bisa mengingatkan kalau aplikasinya tertutup, jadi pengingatnya kami tampilkan pas kamu buka aplikasi.',
     supportNone: 'Peramban ini tidak punya pengingat, jadi catatan ini cuma buat kamu sendiri.',
+    /**
+     * Invariant 24: a reminder is local, or the screen says it is not one.
+     *
+     * `reminderSupport()` only says the API *exists*. A browser can advertise
+     * it and then refuse the actual call — the speech-probe failure again — and
+     * the learner would otherwise walk away believing a reminder is set.
+     */
+    scheduleFailed:
+      'Pengingat tidak bisa dipasang di peramban ini, walau sudah diizinkan. Kami ingatkan lewat aplikasi saja waktu kamu buka.',
     permissionDenied:
       'Izin notifikasi ditolak, jadi pengingatnya kami tampilkan di dalam aplikasi saja.',
 
