@@ -21,7 +21,7 @@ production verification procedure.
 |---|---|
 | icon tap → first answerable question | **108 ms** (budget 3 s) |
 | initial JS / CSS, gzipped | **144.1 KB** / **6.8 KB** (budgets 200 / 40) |
-| tests | **842** unit · **67** e2e |
+| tests | **843** unit · **67** e2e |
 | WCAG 2.1 AA violations | **0**, gated in CI in **both themes** |
 | recurring cost | **zero** |
 

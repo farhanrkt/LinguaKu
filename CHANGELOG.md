@@ -29,7 +29,7 @@ re-fetchable). Adding a table and doing neither fails the suite.
 
 Checked against the unfixed code to be sure it fails.
 
-842 unit · 67 e2e.
+843 unit · 67 e2e.
 
 ---
 
