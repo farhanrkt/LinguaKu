@@ -316,6 +316,59 @@ rewrites, but if the total becomes unmanageable the decision to record is where
 clips live instead — and whatever the answer is, it may not introduce a
 recurring cost (invariant 4).
 
+### R9 — Token coverage is an English metric, and Japanese pays for it
+
+**Status: open, measured 2026-10-03, and it is a §2.4 semantics question rather
+than a bug to patch.**
+
+§2.4 selects reading material by known-token coverage, with the finding that
+~95–98% lexical coverage is needed for unassisted comprehension. That machinery
+assumes what is true of English and false of Japanese: **that function words are
+vocabulary**. *the*, *a*, *is* and *of* are English lexemes and sit in the
+inventory; は, を, が, に, です and ます are Japanese grammar, taught by the
+contrastive drills, and are correctly absent from a lexeme list of content
+words.
+
+So the denominator counts tokens that can never be "known", and Japanese
+coverage is capped far below 1 by construction.
+
+**Measured against the shipped corpus.** Of band-1 anchor tokens, English
+resolves to a shipped lexeme **95.8%** of the time; Japanese **53.0%**. The 526
+distinct unresolved Japanese tokens are led by は (725), です (315), を (268),
+た (265), が (249) — particles and inflectional endings, every one.
+
+The consequence is not theoretical. For a learner who knows **every single
+Japanese word the app ships**:
+
+| | |
+|---|---|
+| mean token coverage of a band-1 sentence | **53.9%** |
+| sentences clearing `MIN_KNOWN_SHARE` (0.6) | **966 of 2,152 — 44.9%** |
+
+A perfect Japanese learner is told they can read fewer than half the sentences
+in their own band, and §9's coverage figure understates them by roughly the same
+margin.
+
+**Why this is not fixed here.** The repair is to measure coverage over
+*vocabulary* tokens rather than all tokens, and that redefines a §2 acceptance
+criterion for one language — the kind of change this register exists to surface
+rather than something to decide inside a patch. The options, with their costs:
+
+1. **Ship a lemma/part-of-speech field** from the Japanese pipeline, so a
+   particle is identifiable as such. Most correct, and the most expensive: a
+   re-run of `ingest:ja` and new content hashes, meaning every learner
+   re-downloads (invariant 10).
+2. **Pass the shipped inventory into `coverageOf`** and take the denominator from
+   it. No pipeline change, but only imported bands are in IndexedDB
+   (invariant 11), so the set is partial and the figure would move as a learner
+   downloads more — a metric that changes without the learner changing.
+3. **A separate threshold for Japanese.** Cheapest, and a magic number standing
+   in for an understood problem.
+
+`buildCandidates` already routes around this: it applies the coverage gate only
+where coverage is measurable and leans on band membership otherwise (D84). That
+is a local workaround, not an answer to the question above.
+
 ### R4 — The 8 MB beginner shard is an audio budget, not a text budget
 
 **Status:** **confirmed by measurement** (M1).
