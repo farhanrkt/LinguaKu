@@ -320,3 +320,50 @@ describe('a kanji card says what it means and how it sounds (SPEC §2.11)', () =
     expect(face?.romaji).toBeNull();
   });
 });
+
+/**
+ * SPEC §4.3's romaji rung, and what makes it a rung rather than a setting.
+ *
+ * `furiganaFor` shows a token in kana once every character in it is readable,
+ * so the script arrives as the syllabary is earned. That decision is covered in
+ * `furigana.test.ts`; what is covered here is the half that feeds it — the task
+ * carrying *which* characters this learner can read.
+ *
+ * A browser test for this was written and deleted. It asserted that hiragana
+ * appeared somewhere on the page, which a kana card satisfies on its own: it
+ * passed with the fade switched off. Narrowing it to the sentence element meant
+ * walking past whatever the composer put first, and the walk was slower and
+ * flakier than the thing it was guarding.
+ */
+describe('a task carries the characters the learner can read (SPEC §4.3)', () => {
+  // Uses the shared `anchor` fixture: 私はねこがすきです。 with katakana readings.
+  const taskFor = async (knownKana: readonly string[]) => {
+    await db.items.put(item({ reading: 'わたし' }));
+    await db.cards.put(card('ja:lex:私', 0));
+    return buildTask(PROFILE, 'ja:lex:私', 1, {
+      known: new Set(knownKana.map((character) => `ja:kana:${character}`)),
+    });
+  };
+
+  it('carries nothing for a learner who has met no characters', async () => {
+    expect((await taskFor([]))?.readableKana).toEqual([]);
+  });
+
+  it('carries the ones they have learned, and only those', async () => {
+    const task = await taskFor(['ね', 'こ', 'ざ']);
+    // ざ is not in this sentence; ね and こ are.
+    expect(new Set(task?.readableKana)).toEqual(new Set(['ね', 'こ']));
+  });
+
+  it('reads a kanji token’s kana out of its reading, not its surface', async () => {
+    // わ, た and し appear nowhere in 私はねこ… — only in the reading ワタシ.
+    const task = await taskFor(['わ', 'た', 'し']);
+    expect(new Set(task?.readableKana)).toEqual(new Set(['わ', 'た', 'し']));
+  });
+
+  it('counts a katakana character as its hiragana self', async () => {
+    // The syllabary teaches ネ and ね as separate items, but a reading written
+    // in katakana is the same sound: a learner who knows ね can read ネコ.
+    expect((await taskFor(['ね']))?.readableKana).toContain('ね');
+  });
+});

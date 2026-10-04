@@ -1,5 +1,44 @@
 # PROGRESS.md
 
+## v1.32.1 — the rung that climbs itself (2026-10-04)
+
+v1.32.0 taught the syllabary and started a Japanese beginner at romaji, which is
+where §4.3 starts them. This is the other half: **leaving** that rung.
+
+> romaji → kana → kanji, with romaji **actively deprecated after kana fluency**
+
+Before this, deprecating it meant finding a control on the home screen and
+knowing what it was for. Now it happens on its own: the romaji rung draws a word
+**in kana as soon as the learner can read every character in it**, so the script
+arrives character by character as the syllabary is earned, and the latin is left
+only where it is still doing work.
+
+A learner three days in sees `neko ga suki` become `ねこ が suki` and then
+`ねこ が すき`, without touching a setting.
+
+"Can read" is §2.4's existing definition — a card above the known threshold —
+not a new one. The task carries which characters qualify, computed over the
+readings as well as the surface, because a kanji token's kana only exists in its
+reading and that is exactly what the romaji rung falls back to.
+
+### A test that passed with the feature switched off
+
+The first browser gate asserted that hiragana appeared somewhere on the page.
+A kana card is hiragana by definition, so it passed with the fade disabled —
+caught by falsifying it, which is the only reason it was caught at all.
+
+Narrowing it to the sentence element meant walking past whatever the composer
+had put first, and the walk turned out slower and flakier than the thing it was
+guarding: two minutes, hanging on clicks, for a claim that is pure.
+
+So it is covered where it is deterministic. `furigana.test.ts` owns the
+rendering decision — all latin at zero characters, `が` alone once が is known,
+plain kana once the sentence is readable — and `task.test.ts` owns the wiring,
+including that a katakana reading counts as its hiragana self: the syllabary
+teaches ネ and ね separately, but a learner who knows ね can read ネコ.
+
+947 unit · 77 e2e.
+
 ## v1.32.0 — the alphabet (2026-10-04)
 
 The user asked how a complete beginner is supposed to rewrite a sentence in

@@ -194,3 +194,62 @@ describe('headwordIn', () => {
     expect(headwordIn('kana', 'ねこ', 'ねこ')).toBe('ねこ');
   });
 });
+
+/**
+ * SPEC §4.3: *"romaji → kana → kanji, with romaji actively deprecated after
+ * kana fluency."*
+ *
+ * The deprecation used to be a setting nobody could reach, then a setting
+ * nobody would think to change. It happens by itself now: the romaji rung shows
+ * a token in kana as soon as the learner can read every character in it, so the
+ * script arrives as the syllabary is earned rather than on the day they notice
+ * a control. The latin is left exactly where it is still doing work.
+ */
+describe('romaji is a rung that climbs itself (SPEC §4.3)', () => {
+  const tokens = ['ねこ', 'が', 'すき'];
+  const readings = ['ネコ', 'ガ', 'スキ'];
+  const romajiFor = (knows: ReadonlySet<string>) =>
+    furiganaFor({
+      tokens,
+      readings,
+      stabilityOf: () => null,
+      readsKana: (character) => knows.has(character),
+      scriptMode: 'romaji',
+    }).map((segment) => segment.text);
+
+  it('is all latin for a learner who has met no characters', () => {
+    expect(romajiFor(new Set())).toEqual(['neko', 'ga', 'suki']);
+  });
+
+  it('shows a word in kana once every character in it is known', () => {
+    // が is one character and already learned; ねこ needs both.
+    expect(romajiFor(new Set(['が', 'ね']))).toEqual(['neko', 'が', 'suki']);
+    expect(romajiFor(new Set(['が', 'ね', 'こ']))).toEqual(['ねこ', 'が', 'suki']);
+  });
+
+  it('reaches plain kana once the whole sentence is readable', () => {
+    expect(romajiFor(new Set(['ね', 'こ', 'が', 'す', 'き']))).toEqual(['ねこ', 'が', 'すき']);
+  });
+
+  it('treats an absent reader as a learner who knows nothing', () => {
+    const segments = furiganaFor({
+      tokens,
+      readings,
+      stabilityOf: () => null,
+      scriptMode: 'romaji',
+    });
+    expect(segments.map((s) => s.text)).toEqual(['neko', 'ga', 'suki']);
+  });
+
+  it('leaves the other two rungs alone', () => {
+    const knows = new Set(['ね', 'こ']);
+    const kana = furiganaFor({
+      tokens,
+      readings,
+      stabilityOf: () => null,
+      readsKana: (c) => knows.has(c),
+      scriptMode: 'kana',
+    });
+    expect(kana.map((s) => s.text)).toEqual(['ねこ', 'が', 'すき']);
+  });
+});

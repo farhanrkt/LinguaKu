@@ -12,6 +12,7 @@ import {
 } from '../../platform/speechRecognition.ts';
 import { Furigana } from '../../ui/Furigana.tsx';
 import { furiganaFor, headwordIn } from '../../core/furigana.ts';
+import { toHiragana } from '../../core/kana.ts';
 import type { Confidence, ScriptMode } from '../../data/types.ts';
 import type { Task } from './task.ts';
 
@@ -86,6 +87,7 @@ export const SentenceText = ({
   if (tokens === undefined || readings === undefined) return <>{task.sentence.text}</>;
 
   const stability = task.kanjiStability ?? {};
+  const readable = new Set(task.readableKana ?? []);
   return (
     <Furigana
       // Romaji is written with spaces between words. Kana and kanji are not.
@@ -96,6 +98,9 @@ export const SentenceText = ({
         // `?? null` catches a character with no entry, not one with a stability
         // of zero — zero is a real measurement and null means never studied.
         stabilityOf: (kanji) => stability[kanji] ?? null,
+        // §4.3's fade: a word is drawn in kana once the learner can read every
+        // character in it, so the romaji rung empties itself.
+        readsKana: (character) => readable.has(toHiragana(character)),
         scriptMode,
       })}
     />
@@ -277,7 +282,7 @@ export const ExposureTask = ({
       {copy.session.exposure.instruction}
     </p>
 
-    <p className="mt-6 text-2xl leading-snug font-bold">
+    <p className="mt-6 text-2xl leading-snug font-bold" data-testid="task-sentence">
       <SentenceText task={task} scriptMode={scriptMode} />
     </p>
     <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
@@ -333,7 +338,7 @@ export const RecognitionTask = ({
       {copy.session.recognition.heading}
     </p>
 
-    <p className="mt-4 text-2xl leading-snug font-bold">
+    <p className="mt-4 text-2xl leading-snug font-bold" data-testid="task-sentence">
       <SentenceText task={task} scriptMode={scriptMode} />
     </p>
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />

@@ -1,4 +1,4 @@
-import { hasKanji, isKanji, toHiragana, toRomaji } from './kana.ts';
+import { hasKanji, isKana, isKanji, toHiragana, toRomaji } from './kana.ts';
 import type { ScriptMode } from '../data/types.ts';
 
 /**
@@ -50,6 +50,20 @@ export interface FuriganaInput {
    * it. Null means "never studied", which is exactly when furigana is needed.
    */
   stabilityOf: (kanji: string) => number | null;
+  /**
+   * Whether the learner can read this kana character yet (SPEC §4.3).
+   *
+   * This is what makes romaji a **rung** rather than a setting. The romaji
+   * branch does not transliterate everything forever: a token whose kana the
+   * learner has all learned is shown in kana, and one with a character they
+   * have not met is shown in latin. So the script fades in as the syllabary is
+   * earned, character by character, and §4.3's "actively deprecated after kana
+   * fluency" happens on its own instead of waiting for someone to notice a
+   * setting.
+   *
+   * Defaults to "no" when absent, which is the state every learner starts in.
+   */
+  readsKana?: (character: string) => boolean;
   scriptMode: ScriptMode;
 }
 
@@ -68,11 +82,21 @@ export const furiganaFor = (input: FuriganaInput): RubySegment[] =>
     const katakana = input.readings[index] ?? token;
     const reading = toHiragana(katakana);
 
-    // Romaji: the whole sentence is transliterated, so there is nothing for a
-    // reading to sit above. This rung exists to get an Indonesian speaker
-    // producing sound on day one, and §4.3 deprecates it as soon as kana lands.
+    // Romaji: the bottom rung, and the one that climbs itself.
+    //
+    // It exists to get an Indonesian speaker producing sound on day one —
+    // §3.2's positive transfer, since Japanese /a i u e o/ map cleanly onto
+    // Indonesian vowels. But it is not a wall of latin forever: a token whose
+    // kana the learner has already learned is shown **in kana**, so the script
+    // arrives character by character as the syllabary is earned, and the latin
+    // is left only where it is still doing work.
     if (input.scriptMode === 'romaji') {
-      return { text: toRomaji(reading), ruby: null };
+      const asKana = hasKanji(token) ? reading : token;
+      const readsKana = input.readsKana ?? (() => false);
+      const readable = [...asKana].every(
+        (character) => !isKana(character) || readsKana(character),
+      );
+      return { text: readable ? asKana : toRomaji(reading), ruby: null };
     }
 
     // Kana: kanji are replaced by their readings outright rather than annotated.

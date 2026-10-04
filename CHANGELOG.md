@@ -5,6 +5,27 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.32.1 — 2026-10-04
+
+### Added — the script fades in as the characters are learned
+
+SPEC §4.3 calls romaji *"actively deprecated after kana fluency"*, and until now
+deprecating it meant finding a setting and knowing what it was for.
+
+The romaji rung now draws a word **in kana as soon as the learner can read every
+character in it**, so the script arrives character by character as the syllabary
+is earned: `neko ga suki` becomes `ねこ が suki`, then `ねこ が すき`, without
+touching a control.
+
+"Can read" is §2.4's existing known threshold, not a new one. The characters are
+read off the token readings as well as the surface, because a kanji token's kana
+only exists in its reading — and a katakana reading counts as its hiragana self,
+since a learner who knows ね can read ネコ.
+
+947 unit · 77 e2e.
+
+---
+
 ## v1.32.0 — 2026-10-04
 
 ### Added — the app teaches hiragana and katakana

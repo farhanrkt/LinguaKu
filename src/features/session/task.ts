@@ -1,7 +1,14 @@
 import { db } from '../../data/db.ts';
 import { makeCloze, type Cloze } from '../../core/cloze.ts';
 import { acceptedAnswers } from '../../core/grader.ts';
-import { isKatakana, splitKanjiReading, toHiragana, toKatakana, toRomaji } from '../../core/kana.ts';
+import {
+  isKana,
+  isKatakana,
+  splitKanjiReading,
+  toHiragana,
+  toKatakana,
+  toRomaji,
+} from '../../core/kana.ts';
 import { mulberry32, shuffle } from '../../core/rng.ts';
 import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
@@ -74,6 +81,13 @@ export interface Task {
    * segments are built in the view rather than here.
    */
   kanjiStability?: Record<string, number | null>;
+  /**
+   * The kana characters in this sentence the learner can already read
+   * (SPEC §4.3). The romaji rung shows a word in kana once every character in
+   * it is here, so the script fades in as the syllabary is earned rather than
+   * when someone changes a setting.
+   */
+  readableKana?: string[];
   translation: string;
   /** Recognition only: the correct translation plus distractors, shuffled. */
   options?: string[];
@@ -213,6 +227,24 @@ export interface BuildTaskOptions {
    */
   hasAudioFor?: (sentenceId: string) => boolean;
 }
+
+/**
+ * The kana of a sentence the learner has already learned to read.
+ *
+ * Over the readings as well as the surface, because a kanji token's kana only
+ * exists in its reading — and the romaji rung falls back to that reading when
+ * it cannot show the kanji.
+ */
+const readableKanaIn = (
+  sentence: { text: string; tokens?: readonly string[]; readings?: readonly string[] },
+  known: ReadonlySet<string>,
+): string[] => {
+  const source = [sentence.text, ...(sentence.readings ?? [])].join('');
+  const characters = new Set(
+    [...source].filter((character) => isKana(character)).map(toHiragana),
+  );
+  return [...characters].filter((character) => known.has(`ja:kana:${character}`));
+};
 
 /**
  * A kanji's parts, which do not include the kanji.
@@ -448,7 +480,10 @@ export const buildTask = async (
       ...(japanese ? { tokens, readings } : {}),
     },
     ...(japanese
-      ? { kanjiStability: await kanjiStability(profileId, sentence.text) }
+      ? {
+          kanjiStability: await kanjiStability(profileId, sentence.text),
+          readableKana: readableKanaIn(sentence, options.known ?? new Set()),
+        }
       : {}),
     translation: sentence.tr.text,
   };
