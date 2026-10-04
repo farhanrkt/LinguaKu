@@ -47,7 +47,7 @@ beforeEach(async () => {
 
 describe('schema', () => {
   it('opens at the current version with every SPEC §6 table', () => {
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(8);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       'abilities',
       'buildAttempts',
@@ -101,7 +101,7 @@ describe('schema', () => {
 
     // Upgrading must not lose a single review log.
     await db.open();
-    expect(db.verno).toBe(7);
+    expect(db.verno).toBe(8);
     expect((await db.profiles.get('p1'))?.dailyMinutes).toBe(4);
     expect(await db.cards.get('card-1')).toBeTruthy();
     expect(await db.reviewLogs.count()).toBe(1);
@@ -247,5 +247,53 @@ describe('buildAttempts is append-only', () => {
     await expect(db.buildAttempts.delete('b1')).rejects.toThrow();
     // Still exactly what was written.
     expect((await db.buildAttempts.get('b1'))?.correct).toBe(1);
+  });
+});
+
+/**
+ * `items.*interferenceTags` was a multi-entry index declared in v1, documented
+ * as *"so the contrastive engine can pull drills by category (SPEC §3.3)"*.
+ *
+ * The contrastive engine was built in M4 and pulls drills from the compiled
+ * `contrastive.json`, not from the item table; the error tagger analyses the
+ * learner's answer text (D34). Nothing ever queried the index, and nothing ever
+ * wrote a tag: measured over the shipped shards, **0 of 5,245 English and 0 of
+ * 6,904 Japanese lexemes** carry one. The field was required on `Item` and set
+ * to `[]` at all three of its writers.
+ *
+ * Invariant 8's "do not build a seam for a feature two milestones out", caught
+ * two milestones later. What matters here is that dropping it costs no data.
+ */
+describe('v8 drops an index nothing ever wrote to', () => {
+  it('keeps every item across the upgrade', async () => {
+    db.close();
+    await db.delete();
+
+    const old = new Dexie(DB_NAME);
+    old.version(7).stores({
+      items: 'id, [lang+band], [lang+kind], freqRank, *interferenceTags, *anchorSentenceIds',
+    });
+    await old.open();
+    await old.table('items').bulkAdd([
+      { id: 'en:lex:the', lang: 'en', kind: 'lexeme', headword: 'the', band: 1, freqRank: 1,
+        anchorSentenceIds: ['s1'], sourceRef: { dataset: 't', externalId: '1' } },
+      { id: 'ja:lex:私', lang: 'ja', kind: 'lexeme', headword: '私', band: 1, freqRank: 3,
+        anchorSentenceIds: ['s2'], sourceRef: { dataset: 't', externalId: '2' } },
+    ]);
+    old.close();
+
+    await db.open();
+    expect(await db.items.count()).toBe(2);
+    expect((await db.items.get('ja:lex:私'))?.headword).toBe('私');
+    // The indexes the app actually queries still work.
+    expect(await db.items.where('[lang+band]').equals(['ja', 1]).count()).toBe(1);
+    expect(await db.items.where('anchorSentenceIds').equals('s1').count()).toBe(1);
+  });
+
+  it('no longer indexes the tags', async () => {
+    await db.open();
+    const schema = db.items.schema.indexes.map((index) => index.name);
+    expect(schema).not.toContain('interferenceTags');
+    expect(schema).toContain('anchorSentenceIds');
   });
 });

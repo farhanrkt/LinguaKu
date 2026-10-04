@@ -16,7 +16,6 @@ const item = (id: string, headword: string, lang: TargetLang = 'en'): Item => ({
   anchorSentenceIds: [],
   freqRank: 100,
   band: 1,
-  interferenceTags: [],
   sourceRef: { dataset: 'tatoeba', externalId: headword },
 });
 

@@ -122,7 +122,6 @@ describe('the words a learner has set aside (SPEC §2.14)', () => {
     anchorSentenceIds: [],
     freqRank: 1,
     band: 1,
-    interferenceTags: [],
     sourceRef: { dataset: 'tatoeba', externalId: id },
   });
 

@@ -29,8 +29,8 @@ export const DB_NAME = 'linguaku';
  *    "cards for this profile, not suspended, due before now" (SPEC §7.2).
  *  - `reviewLogs.[profileId+reviewedAt]` backs retention, forecast and
  *    calibration analytics (SPEC §9) without a table scan.
- *  - `items.*interferenceTags` is a multi-entry index so the contrastive
- *    engine can pull drills by category (SPEC §3.3).
+ *  - `items.*anchorSentenceIds` answers "which sentences teach this lexeme"
+ *    without a scan, which is what `buildTask` needs on every card.
  */
 export class LinguaKuDb extends Dexie {
   profiles!: Table<Profile, string>;
@@ -129,6 +129,22 @@ export class LinguaKuDb extends Dexie {
     // card, so these are not review logs (invariant 31).
     this.version(7).stores({
       buildAttempts: 'id, profileId, [profileId+answeredAt], sentenceId',
+    });
+
+    // v8 (v1.28.0): drop `items.*interferenceTags`.
+    //
+    // Declared in v1 and documented as "a multi-entry index so the contrastive
+    // engine can pull drills by category (SPEC §3.3)". M4 built that engine and
+    // it pulls drills from the compiled `contrastive.json`; the error tagger
+    // reads the learner's answer text (D34). Nothing ever queried the index,
+    // and nothing ever wrote a tag — 0 of 5,245 English and 0 of 6,904 Japanese
+    // shipped lexemes carry one, measured. Invariant 8's "do not build a seam
+    // for a feature two milestones out", found two milestones later.
+    //
+    // Index-only, so no data moves: Dexie rebuilds the store's indexes and the
+    // rows are untouched. `db.test.ts` upgrades a v7 store and counts them.
+    this.version(8).stores({
+      items: 'id, [lang+band], [lang+kind], freqRank, *anchorSentenceIds',
     });
 
     // `Card.dueAt` mirrors `Card.fsrs.dueAt` so the composer can use a

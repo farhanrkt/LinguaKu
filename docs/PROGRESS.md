@@ -1,5 +1,65 @@
 # PROGRESS.md
 
+## v1.28.0 — a seam the feature did not use (2026-10-04)
+
+Started from the same thread as v1.27.0: which parts of this app are English
+only without saying so. `detectInterference` is one.
+
+### §2.9's error-triggered note never fires for Japanese
+
+The detector can emit seven category ids — `ARTICLES`, `COPULA_BE`,
+`MODAL_BISA`, `PLURAL_S`, `PREPOSITIONS`, `PRONOUN_GENDER`, `TENSE_ASPECT`.
+The Japanese pack's ids are `PARTICLES_WA_GA`, `PARTICLES_NI_DE`,
+`WORD_ORDER_SOV`, `POLITENESS_REGISTERS`, `MORA_TIMING`, `SCRIPT_KANA` and
+eight more. **Zero overlap.**
+
+No wrong data results — the session filters detector hits against the active
+language's pack before recording them — so a Japanese wrong answer is simply
+tagged with nothing, and §2.9's *"where the error matches a known Indonesian-L1
+interference pattern, show the contrastive note"* never happens.
+
+This is **not** fixed here. Writing は/が and に/で heuristics against a
+learner's typed answer is exactly the wrong-tag risk D34 refuses — *"a wrong tag
+is worse than no tag — it shows the learner an explanation of a mistake they did
+not make"* — in a language whose output needs a native speaker to check. It is
+recorded in `docs/SCIENCE.md` §2.9 with the measurement, beside R7 and R10.
+
+The drills themselves are unaffected: `ja.yaml` compiles 14 categories, the
+composer schedules them, and the §3.3 heatmap reports all of them.
+
+### What the trace did turn up
+
+`Item.interferenceTags` — a **required** field, with a Dexie multi-entry index
+over it since schema v1, documented in `db.ts` as:
+
+> `items.*interferenceTags` is a multi-entry index so the contrastive engine
+> can pull drills by category (SPEC §3.3).
+
+The contrastive engine was built in M4 and pulls drills from the compiled
+`contrastive.json`. The error tagger reads the answer text. **Nothing ever
+queried the index.** And nothing ever wrote a tag: 0 of 5,245 English and 0 of
+6,904 Japanese shipped lexemes carry one, with the field set to `[]` at all
+three of its writers.
+
+Invariant 8 names this exactly — *"no dead scaffolding… do not build a seam for
+a feature two milestones out"* — and it was found two milestones out.
+
+Schema v8 drops it. Index-only, so no row moves: Dexie rebuilds the store's
+indexes and leaves the data alone, and `items` is generated content that is not
+in the export bundle, so no backup carries the field forward either. The
+migration test opens a real v7 store, writes items into it, upgrades, and counts
+them — plus asserts the indexes the app actually queries still answer.
+
+### The shape of these two
+
+Both are the same mistake at different distances. One built an index for a query
+nobody wrote; the other left a detector that matches nothing for half the
+learners. Neither was wrong when it was written — the index was v1 planning for
+M4, the detector was M4 shipping English first — and both stopped being true
+without anything saying so.
+
+915 unit · 74 e2e.
+
 ## v1.27.0 — a test with nothing to catch you (2026-10-04)
 
 Found by grepping the copy for hardcoded language names after v1.26.1, and

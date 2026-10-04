@@ -61,7 +61,6 @@ const seed = async (count: number) => {
       anchorSentenceIds: [`tatoeba:eng:${i}`],
       freqRank: i + 1,
       band,
-      interferenceTags: [],
       sourceRef: { dataset: 'tatoeba', externalId: `word${i}` },
     });
   }
@@ -370,7 +369,6 @@ describe('a review queue holds one language', () => {
       anchorSentenceIds: [],
       freqRank: 1,
       band: 1,
-      interferenceTags: [],
       sourceRef: { dataset: 'tatoeba', externalId: itemId },
     });
     await db.cards.put({
@@ -454,7 +452,6 @@ describe('sentence building reaches both languages', () => {
         anchorSentenceIds: [],
         freqRank: i + 1,
         band: 1,
-        interferenceTags: [],
         sourceRef: { dataset: 'tatoeba', externalId: `${i}` },
       });
       await db.cards.put({

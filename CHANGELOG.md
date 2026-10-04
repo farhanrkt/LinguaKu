@@ -5,6 +5,41 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.28.0 — 2026-10-04
+
+### Removed — an index nothing ever wrote to
+
+`items.*interferenceTags` was declared in schema v1 and documented as *"a
+multi-entry index so the contrastive engine can pull drills by category"*. M4
+built that engine and it pulls drills from the compiled `contrastive.json`; the
+error tagger reads the learner's answer text instead.
+
+Nothing ever queried the index, and nothing ever wrote a tag: 0 of 5,245 English
+and 0 of 6,904 Japanese shipped lexemes carry one, and the required `Item` field
+was set to `[]` at all three of its writers. Invariant 8's *"do not build a seam
+for a feature two milestones out"*, found two milestones out.
+
+Dropped in schema v8. Index-only, so no row moves, and `items` is generated
+content that is not in the export bundle — the migration test upgrades a real v7
+store and counts them.
+
+### Documented — §2.9's error-triggered note is English only
+
+`detectInterference` can emit seven category ids and the Japanese pack shares
+none of them, so a Japanese wrong answer is tagged with nothing. No wrong data
+results — the session filters hits against the active language's pack — but the
+contrastive note never appears.
+
+Not fixed: writing は/が and に/で heuristics against a typed answer is the
+wrong-tag risk D34 refuses, in a language that needs a native speaker to check
+the output. Recorded in `docs/SCIENCE.md` §2.9 with the measurement, and §2.9's
+status no longer says "Japanese waits for M6" — the content shipped in M6 and
+compiles 14 categories.
+
+915 unit · 74 e2e.
+
+---
+
 ## v1.27.0 — 2026-10-04
 
 ### Fixed — the Japanese placement check had nothing to catch over-claiming

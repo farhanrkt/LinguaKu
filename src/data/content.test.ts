@@ -115,7 +115,6 @@ describe('ensureBands', () => {
       freqRank: 263,
       band: 1,
       anchorSentenceIds: ['tatoeba:eng:1276'],
-      interferenceTags: [],
       sourceRef: { dataset: 'tatoeba', externalId: 'try' },
     });
   });

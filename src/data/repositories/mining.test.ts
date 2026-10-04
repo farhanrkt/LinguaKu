@@ -38,7 +38,6 @@ const seedCorpus = async () => {
       anchorSentenceIds: [`tatoeba:eng:${i}`],
       freqRank,
       band: bandForRank(freqRank),
-      interferenceTags: [],
       sourceRef: { dataset: 'tatoeba', externalId: `w${i}` },
     });
   }

@@ -169,7 +169,6 @@ const toItem = (wire: WireLexeme, lang: TargetLang): Item => ({
   freqRank: wire.freqRank,
   band: wire.band,
   ...(wire.share !== undefined ? { share: wire.share } : {}),
-  interferenceTags: [],
   // Derived from the corpus rather than lifted from one sentence, so the
   // external id is the surface form itself.
   sourceRef: { dataset: 'tatoeba', externalId: wire.headword },
@@ -199,7 +198,6 @@ const toChunkItem = (wire: WireChunk, lang: TargetLang): Item => ({
   ...(wire.examples !== undefined ? { examples: wire.examples } : {}),
   freqRank: wire.freqRank,
   band: wire.band,
-  interferenceTags: [],
   sourceRef: { dataset: 'linguaku-authored', externalId: wire.headword },
 });
 
@@ -221,7 +219,6 @@ const toKanjiItem = (wire: WireKanji, lang: TargetLang): Item => ({
   // KANJIDIC2's newspaper frequency where it has one; otherwise the tail.
   freqRank: wire.freq ?? UNKNOWN_KANJI_RANK,
   band: bandForRank(wire.freq ?? UNKNOWN_KANJI_RANK),
-  interferenceTags: [],
   sourceRef: { dataset: 'kanjidic2', externalId: wire.literal },
 });
 

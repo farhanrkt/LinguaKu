@@ -218,7 +218,23 @@ pattern first, then why English differs, then one minimal pair.
 **Acceptance:** ≥80% of grammar items and 100% of interference-tagged items
 have an authored contrastive note.
 
-**Status:** **shipped for English** (M4); Japanese waits for M6. 100%, not 80%:
+**Status:** **content shipped for both** — English in M4, Japanese in M6:
+`data/contrastive/ja.yaml` compiles 14 categories (は/が, に/で, SOV order,
+politeness registers, mora timing, kana script and the rest), and the §3.3
+heatmap reports all of them.
+
+The **error-triggered** half is English only, and that is measured rather than
+assumed: `detectInterference` can emit seven category ids — `ARTICLES`,
+`COPULA_BE`, `MODAL_BISA`, `PLURAL_S`, `PREPOSITIONS`, `PRONOUN_GENDER`,
+`TENSE_ASPECT` — and the Japanese pack shares **none** of them, so a Japanese
+wrong answer is tagged with nothing. No wrong data results: the session filters
+detector hits against the active language's pack before recording them. What is
+missing is the note itself.
+
+Writing は/が and に/で heuristics against a learner's typed answer is precisely
+the wrong-tag risk D34 refuses — *"a wrong tag is worse than no tag"* — in a
+language whose output needs a native speaker to check. Recorded rather than
+guessed at; it sits with R7 and R10. 100%, not 80%:
 the build fails on any drill without an explanation or any category missing a
 minimal pair, so the figure is enforced rather than measured. The detector emits
 nothing where context cannot disambiguate the error, because a wrong tag would

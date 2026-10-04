@@ -173,7 +173,6 @@ export interface Item {
     readings?: string[];
   }>;
   /** SPEC §3: contrastive category IDs this item exercises. */
-  interferenceTags: string[];
   sourceRef: SourceRef;
 }
 

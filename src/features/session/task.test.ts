@@ -50,7 +50,6 @@ const item = (over: ItemOver = {}): Item => {
     anchorSentenceIds: [anchor.id],
     freqRank: over.freqRank ?? 3,
     band: 1,
-    interferenceTags: [],
     sourceRef: { dataset: 'tatoeba', externalId: over.id ?? 'ja:lex:私' },
   };
   return over.reading === undefined ? row : { ...row, reading: over.reading };
