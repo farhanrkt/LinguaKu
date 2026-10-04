@@ -5,6 +5,50 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.26.0 — 2026-10-04
+
+### Fixed — the Japanese capability figure was a percentage of itself
+
+`build-en.ts` states the rule where it computes the English number: *"a learner
+who mastered every word we ship would still not reach 100%… reporting a
+percentage without saying what it is a percentage of would overstate it."*
+English comes out at 0.873. Japanese came out at **1**.
+
+Its `counts` map was built over `pair.lemmas` — the tokens that had already
+passed `TEACHABLE_POS` — and divided by the sum of that same map, so every share
+was a fraction of what the app already covers and they summed to exactly 1 by
+construction. §9's copy rendered it as *"kalau semua kata yang kami punya kamu
+kuasai, angkanya sampai 100%"*: master our inventory and you understand
+everything you read, for a language where particles alone are a large share of
+running text.
+
+The denominator is now every word-like token — particles and auxiliaries in,
+punctuation out, because English's tokenizer strips punctuation and counting it
+on one side only would make the two figures mean different things.
+
+**63,065 teachable words of 117,729 running ones: 53.6%.** Band 1 falls from
+69.6% to 37.3%. R9 independently measured Japanese token resolution at 53.0%
+from a different direction, which corroborates it.
+
+### Changed
+
+- Both capability sentences take the language. *"Sisanya nama orang dan kata
+  yang sangat jarang"* is true of English's missing 12.7% and false of
+  Japanese's missing 46.4%, which is grammar the app teaches through sentences
+  and drills rather than as vocabulary. Correcting the number without the
+  sentence would have swapped one false statement for another.
+- The five Japanese lexeme shards and the manifest change hash, so Japanese
+  learners re-download them. Invariant 10's documented price for a content
+  change.
+- `CLAUDE.md` now lists `ingest:ja`, and warns that it rewrites `manifest.json`
+  from scratch: `ingest:chunks`, `ingest:glosses` and `ingest:topics` have to
+  re-run after it. `chunks.test.ts` catches the omission and the build goes red,
+  but its message does not say what to do about it.
+
+908 unit · 74 e2e.
+
+---
+
 ## v1.25.1 — 2026-10-04
 
 ### Removed — three exports that claimed a caller they did not have

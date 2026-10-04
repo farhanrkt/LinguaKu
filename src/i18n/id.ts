@@ -1,3 +1,4 @@
+import type { TargetLang } from '../data/types.ts';
 /**
  * All learner-facing copy lives here (SPEC §10: Indonesian-first, warm, plain,
  * no exam-anxiety framing). A second locale is a second module of the same
@@ -629,8 +630,21 @@ export const copy = {
       worth: (percent: number) => `Kalau tahap ini selesai: ${percent}% kata sehari-hari.`,
       here: 'Kamu di sini',
       done: 'Selesai',
-      ceiling: (percent: number) =>
-        `Semua tahap selesai berarti ${percent}% kata yang bisa kami ajarkan. Sisanya kata yang jarang muncul.`,
+      /**
+       * What the remaining share actually is, which is not the same in both
+       * languages.
+       *
+       * English stops at 87.3% because proper nouns are filtered from the
+       * inventory (D14) and band 6 is not shipped — so "rare words" is true.
+       * Japanese stops at 53.6% because particles and auxiliaries are not
+       * vocabulary and are not taught as words at all. Telling that learner the
+       * rest is rare words would be a new false statement in place of the one
+       * v1.26.0 removed.
+       */
+      ceiling: (percent: number, lang: TargetLang) =>
+        lang === 'ja'
+          ? `Semua tahap selesai berarti ${percent}% kata yang muncul sehari-hari. Sisanya partikel dan kata bantu — itu tata bahasa, dan kami ajarkan lewat kalimat, bukan lewat hafalan kata.`
+          : `Semua tahap selesai berarti ${percent}% kata yang bisa kami ajarkan. Sisanya kata yang jarang muncul.`,
     },
     open: 'Lihat kemajuanmu',
     heading: 'Kemajuanmu',
@@ -650,8 +664,11 @@ export const copy = {
       // The capability sentence — and it says what the percentage is *of*.
       capability: (percent: number) =>
         `Itu kira-kira ${percent}% dari kata yang muncul di kalimat yang kami ajarkan.`,
-      ceiling: (percent: number) =>
-        `Kalau semua kata yang kami punya kamu kuasai, angkanya sampai ${percent}%. Sisanya nama orang dan kata yang sangat jarang.`,
+      /** See `path.ceiling`: the remainder is a different thing per language. */
+      ceiling: (percent: number, lang: TargetLang) =>
+        lang === 'ja'
+          ? `Kalau semua kata yang kami punya kamu kuasai, angkanya sampai ${percent}%. Sisanya partikel dan kata bantu, yang kamu pelajari lewat kalimat dan latihan pola.`
+          : `Kalau semua kata yang kami punya kamu kuasai, angkanya sampai ${percent}%. Sisanya nama orang dan kata yang sangat jarang.`,
       empty:
         'Latihan dulu beberapa sesi. Setelah itu kami bisa memperkirakan berapa kata yang kamu kenali.',
       wide: 'Rentangnya masih lebar karena banyak tingkat yang belum pernah kamu temui.',

@@ -17,7 +17,7 @@ import { retuneTarget } from '../../core/retention.ts';
 import { updateProfile } from '../../data/repositories/profiles.ts';
 import { ImportError, exportFilename, exportProfile, importProfile, parseBundle } from '../../data/export.ts';
 import { BarRow, Columns, Radar, TargetMeter } from './charts.tsx';
-import type { Profile } from '../../data/types.ts';
+import type { Profile, TargetLang } from '../../data/types.ts';
 
 /**
  * SPEC §9: honest, capability-framed, all local.
@@ -57,7 +57,7 @@ const percent = (value: number): number => Math.round(value * 100);
  * The bar is a `<div>` rather than a chart: invariant 20 bans a plotting
  * dependency, and five proportions do not need one.
  */
-const Path = ({ path }: { path: LearningPath }) => {
+const Path = ({ path, lang }: { path: LearningPath; lang: TargetLang }) => {
   const pct = (share: number): number => Math.round(share * 100);
   const ceiling = path.stages.at(-1)?.cumulativeShare ?? 0;
 
@@ -112,7 +112,7 @@ const Path = ({ path }: { path: LearningPath }) => {
       </ol>
 
       <p className="mt-3 text-sm text-stone-500 dark:text-slate-400">
-        {copy.progress.path.ceiling(pct(ceiling))}
+        {copy.progress.path.ceiling(pct(ceiling), lang)}
       </p>
     </section>
   );
@@ -257,11 +257,11 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
         {copy.glossary.open}
       </button>
 
-      {path === null ? null : <Path path={path} />}
+      {path === null ? null : <Path path={path} lang={lang} />}
 
       {report === null ? null : (
         <>
-          <Vocabulary report={report} />
+          <Vocabulary report={report} lang={lang} />
           <CoverageCurve report={report} />
           <Retention report={report} profile={profile} onRetune={() => void load()} />
           <Forecast report={report} />
@@ -318,7 +318,7 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
 
 // --------------------------------------------------------------- vocabulary
 
-const Vocabulary = ({ report }: { report: ProgressReport }) => {
+const Vocabulary = ({ report, lang }: { report: ProgressReport; lang: TargetLang }) => {
   const { vocabulary, coverage } = report;
 
   return (
@@ -340,7 +340,7 @@ const Vocabulary = ({ report }: { report: ProgressReport }) => {
             <>
               <p className="mt-3">{copy.progress.vocab.capability(percent(coverage.share))}</p>
               <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
-                {copy.progress.vocab.ceiling(percent(coverage.teachableShare))}
+                {copy.progress.vocab.ceiling(percent(coverage.teachableShare), lang)}
               </p>
             </>
           ) : null}

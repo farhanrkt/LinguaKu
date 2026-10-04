@@ -17,6 +17,12 @@ npm run icons        # regenerate public/icons/ (committed; run only on redesign
 
 npm run ingest:fetch # download Tatoeba exports into .cache/ (needs bunzip2)
 npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
+npm run ingest:ja    # rebuild assets/content/ja/ — needs JMdict, KANJIDIC2 and
+                     # KRADFILE in .cache/ as well. It rewrites manifest.json
+                     # from scratch, so it DROPS the shard entries the other
+                     # compilers added: re-run ingest:chunks, ingest:glosses and
+                     # ingest:topics after it or the build goes red
+                     # (chunks.test.ts catches it).
 npm run ingest:contrastive  # compile data/contrastive/*.yaml → contrastive.json
 npm run ingest:chunks       # compile data/chunks/*.yaml, validated against the corpus
 npm run ingest:topics       # compile data/topics/*.yaml → topics.json
@@ -312,6 +318,13 @@ needs React state to work, it is in the wrong place.
     what the tap means and `text` carries what is shown; the lookup and the §2.4
     highlight both key off the token. Ruby goes inside the button, so the roving
     tabindex (invariant 35) is untouched.
+
+53. **A share is a share of everything** (D102). A capability percentage's
+    denominator includes the tokens the app does not teach, or it reports that
+    mastering the inventory means understanding everything. English is 87.3%
+    and Japanese 53.6%; both are measured. The sentence that renders it names
+    what the remainder *is*, and that differs per language — rare words and
+    proper nouns for English, particles and auxiliaries for Japanese.
 
 ## Conventions
 

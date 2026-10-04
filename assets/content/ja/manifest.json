@@ -15,38 +15,39 @@
     "triangulatedPairs": 9405,
     "pairs": 15324,
     "distinctLemmas": 6904,
-    "tokenTotal": 63065,
+    "tokenTotal": 117729,
+    "teachableTokens": 63065,
     "lexemes": 6904,
     "kanji": 1748,
     "kanjiWithComponents": 1748,
     "maxLexemeRank": 8000
   },
   "coverage": {
-    "teachableShare": 1,
+    "teachableShare": 0.535679,
     "bandShare": [
       {
         "band": 1,
-        "share": 0.696345,
+        "share": 0.373018,
         "lexemes": 500
       },
       {
         "band": 2,
-        "share": 0.101879,
+        "share": 0.0545745,
         "lexemes": 500
       },
       {
         "band": 3,
-        "share": 0.0884802,
+        "share": 0.047397,
         "lexemes": 1000
       },
       {
         "band": 4,
-        "share": 0.0672481,
+        "share": 0.0360235,
         "lexemes": 2000
       },
       {
         "band": 5,
-        "share": 0.0460479,
+        "share": 0.0246668,
         "lexemes": 2904
       }
     ]
@@ -192,45 +193,45 @@
       "band": 1,
       "path": "lexemes.b1.json",
       "count": 500,
-      "bytes": 112214,
-      "gzipBytes": 20111,
-      "sha256": "16c32f9cc71a00587e24932669d5468bba739494605a24280efe0e65281aef83"
+      "bytes": 112349,
+      "gzipBytes": 20131,
+      "sha256": "ae2698cce6c994f756540e881e69f295612a58d9773d11fd97651e9ee8b65b83"
     },
     {
       "kind": "lexemes",
       "band": 2,
       "path": "lexemes.b2.json",
       "count": 500,
-      "bytes": 113976,
-      "gzipBytes": 20094,
-      "sha256": "4ed42de777a6e07c1002cc06d442053162f268ddd8c2c4d8c5cf15b34d686070"
+      "bytes": 114378,
+      "gzipBytes": 20110,
+      "sha256": "8d1bcb2d4fbdbfec7a0a2bc0c3e7f0cdb8286bf00f27087e220b76dafcc4a5b5"
     },
     {
       "kind": "lexemes",
       "band": 3,
       "path": "lexemes.b3.json",
       "count": 1000,
-      "bytes": 222754,
-      "gzipBytes": 37855,
-      "sha256": "e4da1054385888f4a4eb263a4d88a87eb921d26f728444d8cfa1b034d0458b71"
+      "bytes": 223054,
+      "gzipBytes": 37872,
+      "sha256": "0715bc2d59bb502eb19ed7114869ce107fac03ea7870adad9831cb01d1b4e4c9"
     },
     {
       "kind": "lexemes",
       "band": 4,
       "path": "lexemes.b4.json",
       "count": 2000,
-      "bytes": 338983,
-      "gzipBytes": 52519,
-      "sha256": "93ef39e8d1f589dad0d17abb2ef471a5b82cffa879484233fd4c1dff9732df5b"
+      "bytes": 340455,
+      "gzipBytes": 52576,
+      "sha256": "c135aa57f0bc745182578dc0510a1db5e24549948bffb3aa085e2c97168a8a0f"
     },
     {
       "kind": "lexemes",
       "band": 5,
       "path": "lexemes.b5.json",
       "count": 2904,
-      "bytes": 428563,
-      "gzipBytes": 60358,
-      "sha256": "d5576a70bc0e2a9cb74eb193ff869b29acc0ec49be73ecee1f2c893720b5d750"
+      "bytes": 431467,
+      "gzipBytes": 60544,
+      "sha256": "19420f6f856fb7543632b926d2b3b693f7020e80d134cd70f690967b508a5b1d"
     },
     {
       "kind": "sentences",

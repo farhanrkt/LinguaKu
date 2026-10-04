@@ -69,6 +69,7 @@ const manifest = read<{
   lang: string;
   corpus: Record<string, number>;
   shards: ShardRecord[];
+  coverage: { teachableShare: number; bandShare: { band: number; share: number }[] };
 }>('manifest.json');
 
 const shardsOf = (kind: ShardRecord['kind']) => manifest.shards.filter((s) => s.kind === kind);
@@ -319,5 +320,44 @@ describe('provenance and licence (SPEC §5.2)', () => {
 
   it('traces every sentence id back to Tatoeba', () => {
     for (const sentence of allSentences) expect(sentence.id).toMatch(/^tatoeba:jpn:\d+$/);
+  });
+});
+
+/**
+ * SPEC §9's ceiling, and what it is a percentage *of*.
+ *
+ * `build-en.ts` states the rule where it computes the English figure:
+ *
+ * > A learner who mastered every word we ship would still not reach 100%:
+ * > proper nouns are filtered from the inventory (D14) and band 6 is not
+ * > shipped at all, and both still turn up in real sentences. Reporting a
+ * > percentage without saying what it is a percentage *of* would overstate it.
+ *
+ * The Japanese pipeline overstated it, and by the maximum possible amount. Its
+ * `counts` map was built over `pair.lemmas` — the tokens that passed
+ * `TEACHABLE_POS` — and `totalTokens` was the sum of that same map, so every
+ * share was a fraction of the teachable set and they summed to exactly 1.
+ * `teachableShare: 1` was a tautology, not a measurement, and §9's copy turned
+ * it into *"if you master every word we have, that figure reaches 100%"* for a
+ * language where particles alone are around a third of running text.
+ */
+describe('the capability ceiling is measured, not assumed (SPEC §9)', () => {
+  const coverage = manifest.coverage;
+
+  it('is a share of all running words, so mastering everything is not 100%', () => {
+    expect(coverage.teachableShare).toBeGreaterThan(0);
+    expect(coverage.teachableShare).toBeLessThan(1);
+  });
+
+  it('counts the words the app cannot teach in the denominator', () => {
+    // Particles, auxiliaries and conjunctions are excluded from the inventory
+    // on purpose — "particles and punctuation are grammar, not vocabulary" —
+    // and they are most of what is left, so the gap below 1 is large.
+    expect(coverage.teachableShare).toBeLessThan(0.8);
+  });
+
+  it('agrees with the bands it is made of', () => {
+    const summed = coverage.bandShare.reduce((total, entry) => total + entry.share, 0);
+    expect(summed).toBeCloseTo(coverage.teachableShare, 4);
   });
 });

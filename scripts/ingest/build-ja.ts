@@ -170,6 +170,24 @@ const tokenizer = await new Promise<Tokenizer>((resolve, reject) => {
 
 /** Content words only: particles and punctuation are grammar, not vocabulary. */
 const TEACHABLE_POS = new Set(['名詞', '動詞', '形容詞', '副詞', '連体詞', '感動詞']);
+/**
+ * Every token that is a *word* — which is not the same set.
+ *
+ * This is the denominator for SPEC §9's capability figure, and it has to
+ * include what the app does not teach. `build-en.ts` states the rule where it
+ * computes the English number: "a learner who mastered every word we ship would
+ * still not reach 100%... reporting a percentage without saying what it is a
+ * percentage *of* would overstate it."
+ *
+ * Dividing by the teachable tokens alone makes the figure exactly 1 by
+ * construction, which is what this pipeline used to do. Particles and
+ * auxiliaries are a large share of running Japanese and the app teaches none of
+ * them, so they belong in the denominator and not in the inventory.
+ *
+ * Punctuation does not: English's `tokenizeLatin` strips it, so counting it
+ * here would make the two languages' figures mean different things.
+ */
+const isWordlike = (pos: string): boolean => pos !== '記号';
 /** Anything that is only punctuation or latin is not a Japanese lexeme. */
 const isJapanese = (text: string): boolean =>
   /[぀-ゟ゠-ヿ一-龯]/.test(text);
@@ -187,6 +205,8 @@ interface Pair {
 console.log('tokenizing…');
 const pairs: Pair[] = [];
 const seenText = new Set<string>();
+/** Running words across the whole corpus — the denominator for §9 (see above). */
+let wordlikeTokens = 0;
 for (const [jpnId, tr] of [...translation].sort(([a], [b]) => Number(a) - Number(b))) {
   const text = japanese.get(jpnId)!;
   if (seenText.has(text)) continue;
@@ -194,6 +214,7 @@ for (const [jpnId, tr] of [...translation].sort(([a], [b]) => Number(a) - Number
 
   const analysed = tokenizer.tokenize(text);
   const tokens = analysed.map((token) => token.surface_form);
+  wordlikeTokens += analysed.filter((token) => isWordlike(token.pos)).length;
   const lemmas = analysed
     .filter((token) => TEACHABLE_POS.has(token.pos) && isJapanese(token.basic_form))
     .map((token) => (token.basic_form === '*' ? token.surface_form : token.basic_form));
@@ -222,10 +243,20 @@ for (const pair of pairs) {
   for (const lemma of pair.lemmas) counts.set(lemma, (counts.get(lemma) ?? 0) + 1);
 }
 const ranks = rankTokens(counts);
-const totalTokens = [...counts.values()].reduce((sum, count) => sum + count, 0);
+const teachableTokens = [...counts.values()].reduce((sum, count) => sum + count, 0);
+/**
+ * Share of all running words this lemma accounts for.
+ *
+ * Over `wordlikeTokens`, **not** over the teachable ones. Dividing by the
+ * teachable set makes every share a fraction of what the app already covers, so
+ * they sum to exactly 1 and §9 tells the learner that mastering the inventory
+ * reaches 100% of what they will read. It does not.
+ */
 const shareOf = (lemma: string): number =>
-  Number(((counts.get(lemma) ?? 0) / totalTokens).toPrecision(6));
-console.log(`  ${ranks.size.toLocaleString()} distinct lemmas over ${totalTokens.toLocaleString()} tokens`);
+  Number(((counts.get(lemma) ?? 0) / wordlikeTokens).toPrecision(6));
+console.log(
+  `  ${ranks.size.toLocaleString()} distinct lemmas, ${teachableTokens.toLocaleString()} teachable of ${wordlikeTokens.toLocaleString()} running words (${((teachableTokens / wordlikeTokens) * 100).toFixed(1)}%)`,
+);
 
 // --------------------------------------------------------------- 5. dictionaries
 
@@ -552,7 +583,11 @@ const manifest = {
     triangulatedPairs: translation.size - directCount,
     pairs: pairs.length,
     distinctLemmas: ranks.size,
-    tokenTotal: totalTokens,
+    // Both numbers, because their ratio is the §9 ceiling: 63,065 teachable
+    // words out of 117,729 running ones. Reporting only one of them is how the
+    // capability figure came to claim 100%.
+    tokenTotal: wordlikeTokens,
+    teachableTokens,
     lexemes: lexemes.length,
     kanji: kanji.length,
     kanjiWithComponents: withComponents,

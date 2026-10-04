@@ -1,5 +1,96 @@
 # PROGRESS.md
 
+## v1.26.0 — a percentage of itself (2026-10-04)
+
+`build-en.ts` writes the rule down, right where it computes the English number:
+
+> A learner who mastered every word we ship would still not reach 100%: proper
+> nouns are filtered from the inventory (D14) and band 6 is not shipped at all,
+> and both still turn up in real sentences. **Reporting a percentage without
+> saying what it is a percentage *of* would overstate it.**
+
+English comes out at **0.873**. Japanese came out at **1**.
+
+### Why it was exactly 1
+
+```ts
+const lemmas = analysed.filter((t) => TEACHABLE_POS.has(t.pos) && isJapanese(t.basic_form));
+...
+for (const lemma of pair.lemmas) counts.set(lemma, (counts.get(lemma) ?? 0) + 1);
+const totalTokens = [...counts.values()].reduce((sum, count) => sum + count, 0);
+const shareOf = (lemma) => (counts.get(lemma) ?? 0) / totalTokens;
+```
+
+The denominator **is** the teachable set. Every share was a fraction of what the
+app already covers, so they summed to exactly 1 by construction. `teachableShare`
+was not a measurement at all — it was the share of the teachable tokens that are
+teachable.
+
+And the pipeline knew better in the line above it: *"Content words only:
+particles and punctuation are grammar, not vocabulary."* It excluded them from
+the inventory and from the denominator in the same breath.
+
+### What the learner was told
+
+§9's copy renders that figure directly:
+
+> Kalau semua kata yang kami punya kamu kuasai, angkanya sampai **100%**.
+> Sisanya nama orang dan kata yang sangat jarang.
+
+Master our inventory and you understand everything you read — for a language
+where particles alone are a large share of running text. There was no remainder
+for the second sentence to describe, because the first one had claimed all of it.
+
+### The corrected number, corroborated
+
+The denominator is now every **word-like** token — `pos !== '記号'`, so particles
+and auxiliaries in, punctuation out. Punctuation stays out because English's
+`tokenizeLatin` strips it, and counting it on one side only would make the two
+languages' figures mean different things.
+
+    6,904 distinct lemmas, 63,065 teachable of 117,729 running words (53.6%)
+
+**53.6%**, against English's 87.3%. Band 1 falls from 69.6% to 37.3%.
+
+What makes this trustworthy rather than merely different: R9 measured, from a
+completely different direction — resolving shipped anchor tokens against the
+lexeme inventory — that Japanese tokens resolve **53.0%** of the time. Two
+independent measurements landing within half a point of each other.
+
+### The copy had to move with it
+
+Correcting the number alone would have left a false explanation attached to it.
+*"Sisanya nama orang dan kata yang sangat jarang"* is true of English's missing
+12.7%. It is false of Japanese's missing 46.4%, which is grammar — and grammar
+this app does teach, through sentences and contrastive drills, just not as
+vocabulary. Both ceiling strings take the language now and say what the
+remainder actually is.
+
+### Proving the pipeline before changing it
+
+Before touching `build-ja.ts` I ran it unchanged and diffed. Two things came out
+of that:
+
+- The content **is** deterministic — a full re-run reproduces every Japanese
+  shard byte for byte, which is invariant 10 holding rather than being assumed.
+- `ingest:ja` rewrites `manifest.json` from scratch, so it **drops every shard
+  entry the other compilers added** — chunks and glosses. `chunks.test.ts`
+  catches it and the build goes red, so nothing can ship that way, but the
+  failure says "ships no shard for a band the pipeline no longer assigns", which
+  does not tell you to re-run the chunk compiler. `CLAUDE.md` did not list
+  `ingest:ja` at all. It does now, with the ordering.
+
+The corrected pipeline was then run twice more and reproduces exactly.
+
+### Cost
+
+Five Japanese lexeme shards and the manifest change hash, so every Japanese
+learner re-downloads them. That is invariant 10's documented price for a content
+change, and it is worth paying for a figure that was telling them something
+untrue about their own progress.
+
+908 unit · 74 e2e.
+
 ## v1.25.1 — a seam, or a lie (2026-10-04)
 
 Finishing the list D96 opened. Rerunning the dead-export scan over **non-test
