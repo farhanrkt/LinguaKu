@@ -1,5 +1,54 @@
 # PROGRESS.md
 
+## v1.33.0 — an unanswerable question is not a hard one (2026-10-04)
+
+The user's report, verbatim:
+
+> there is fixing sentence in hiragana, how can a complete beginner do that even
+> though the skill level is really from 0
+
+They could not. `drillCandidates` picked by Elo difficulty alone — the drill
+nearest the learner's rating — and a fresh profile sits at the median. So
+session one offered
+
+> きのうのえいがは おもしろいでした。
+> *Ada satu yang keliru di kalimat ini. Tulis ulang yang benar.*
+
+to someone who had not been taught one character.
+
+D33 already contains the reasoning, written about a different case: a wrong tag
+is worse than no tag, because it shows the learner an explanation of a mistake
+they did not make. This is worse again — a wrong answer they had **no way** to
+get right teaches them the app is unfair, and it poisons the §3.3 heatmap, which
+reads those answers as evidence about the category.
+
+### What the gate reads
+
+The whole drill: prompt, options and answer. A prompt in Indonesian with
+Japanese options is just as unanswerable, and splitting the check would have let
+those through.
+
+Latin and punctuation are always readable, so the drills that need no Japanese
+to answer — *"Kata serapan seperti 'kopi' biasanya ditulis dengan?"* — stay
+available from the first session. Those are exactly where a beginner should
+start, and §2.9 is most of the app's early teaching.
+
+It unlocks character by character off §2.4's known-set, the same signal the
+romaji fade uses, so the drills arrive as the script does.
+
+### Two vacuous tests, both caught by falsifying
+
+The first filtered the session queue on a `drill:` prefix. Drill candidates
+carry the raw drill id, so the filter matched nothing and the test asserted that
+an empty list contained nothing unreadable — it passed with the gate removed.
+The second looked ids up in the pack instead, and fails with the gate removed,
+which is the only evidence that it guards anything.
+
+Neither would have been noticed without disabling the feature and re-running.
+That is twice in two days a green test turned out to be testing nothing.
+
+952 unit · 78 e2e.
+
 ## v1.32.1 — the rung that climbs itself (2026-10-04)
 
 v1.32.0 taught the syllabary and started a Japanese beginner at romaji, which is

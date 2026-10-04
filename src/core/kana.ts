@@ -398,3 +398,22 @@ export const kanaSyllabary = (): KanaSyllable[] => {
   }
   return out;
 };
+
+/**
+ * Whether the learner can read every Japanese character in a piece of text.
+ *
+ * SPEC §2.9's drills are written in Japanese, and the composer picked them by
+ * Elo difficulty alone — so a learner on day one was handed
+ * `きのうのえいがは おもしろいでした。` and asked to rewrite it correctly. They
+ * had not been taught a single character. That is not a hard question; it is an
+ * unanswerable one, and getting it wrong teaches them the app is unfair rather
+ * than teaching them adjectives.
+ *
+ * Latin and punctuation are always readable — an Indonesian-language multiple
+ * choice about which script loanwords use needs no kana to answer, and those
+ * drills stay available from the first session.
+ */
+export const canRead = (text: string, knows: (character: string) => boolean): boolean =>
+  [...text].every(
+    (character) => (!isKana(character) && !isKanji(character)) || knows(character),
+  );

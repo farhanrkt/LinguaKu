@@ -22,8 +22,9 @@ import { allCategoryScores, recentDrillIds, weakestCategories } from './contrast
 import { minedItemIds } from './mining.ts';
 import { deferredItemIds } from './deferrals.ts';
 import { loadAnchors } from '../content.ts';
-import { isDrillPresentable, peekContrastive } from '../contrastive.ts';
+import { isDrillPresentable, peekContrastive, type Drill } from '../contrastive.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
+import { canRead } from '../../core/kana.ts';
 import { peekTopics, type TopicPack } from '../topics.ts';
 import type { Item, Profile, Session, TargetLang, Timestamp } from '../types.ts';
 
@@ -204,6 +205,7 @@ const drillCandidates = async (
   profile: Profile,
   limit: number,
   audioAvailable: boolean,
+  known: ReadonlySet<string>,
 ): Promise<Candidate[]> => {
   if (limit <= 0) return [];
   const lang = profile.targets[0] ?? 'en';
@@ -227,8 +229,26 @@ const drillCandidates = async (
     if (!category) continue;
 
     const rating = scores.get(categoryId)?.rating ?? DEFAULT_RATING;
+    // SPEC §2.9 asks a question *about* the language, in the language. A drill
+    // the learner cannot read is not a hard question, it is an unanswerable
+    // one — and the composer picked by Elo difficulty alone, so session one
+    // offered `きのうのえいがは おもしろいでした。` and asked for a correction
+    // from someone who had not been taught a character (D108).
+    //
+    // What it reads is the whole drill: a prompt in Indonesian with Japanese
+    // options is just as unanswerable. Drills that need no Japanese at all —
+    // "which script do loanwords use?" — stay available from day one.
+    const readable = (drill: Drill): boolean =>
+      canRead(
+        [drill.prompt, ...(drill.options ?? []), drill.answer].join(''),
+        (character: string) =>
+          known.has(`${lang}:kana:${character}`) || known.has(`${lang}:kanji:${character}`),
+      );
+
     const eligible = category.drills
-      .filter((drill) => isDrillPresentable(drill, audioAvailable) && !recent.has(drill.id))
+      .filter(
+        (drill) => isDrillPresentable(drill, audioAvailable) && !recent.has(drill.id) && readable(drill),
+      )
       .sort(
         (a, b) =>
           Math.abs((a.difficulty ?? DEFAULT_ITEM_DIFFICULTY) - rating) -
@@ -483,10 +503,16 @@ export const planSession = async (
   const newAllowance = Math.min(throttle.allowed, daily.remaining);
 
   const deferred = await deferredItemIds(profile.id, now);
+  // Which characters the learner can read, for §2.9's drill gate: a question
+  // written in a script nothing has taught them is unanswerable, not hard.
+  const known = knownItemIds(
+    await db.cards.where('profileId').equals(profile.id).toArray(),
+    now,
+  );
   const [due, fresh, drills, builds] = await Promise.all([
     dueCandidates(profile, now, deferred),
     newCandidates(profile, newAllowance, frontier, deferred),
-    drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false),
+    drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false, known),
     buildCandidates(profile, now, frontier, MAX_BUILDS),
   ]);
 

@@ -104,3 +104,72 @@ test('kana shares the session with words rather than blocking them', async ({ pa
     'and share the budget with the rest of the session',
   ).toBeGreaterThan(0);
 });
+
+/**
+ * The user's report, verbatim: *"there is fixing sentence in hiragana, how can a
+ * complete beginner do that even though the skill level is really from 0."*
+ *
+ * They could not. §2.9's drills are written in Japanese and the composer chose
+ * them by Elo difficulty alone, with no check that the learner could read the
+ * script — so a first session offered `きのうのえいがは おもしろいでした。` and
+ * asked for a correction from someone who had not been taught one character.
+ *
+ * Getting that wrong teaches them the app is unfair, not adjective conjugation.
+ */
+test('a beginner is never asked to fix a sentence they cannot read', async ({ page }) => {
+  test.setTimeout(120_000);
+  await firstRun(page);
+  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await waitForJapanese(page);
+
+  await page.getByTestId('practise').click();
+  await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 30_000 });
+
+  // Read the plan rather than the screen: the claim is about what the composer
+  // was willing to schedule, and every drill in it has to clear the gate.
+  const drills = await page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const open = indexedDB.open('linguaku');
+        open.onsuccess = () => {
+          const request = open.result.transaction(['sessions']).objectStore('sessions').getAll();
+          request.onsuccess = () => {
+            const rows = request.result as Array<{ itemIds: string[]; startedAt: number }>;
+            const latest = rows.sort((a, b) => b.startedAt - a.startedAt)[0];
+            // Every id in the queue; which are drills is decided below, by
+            // looking them up in the pack. An earlier version filtered on a
+            // `drill:` prefix that does not exist, so it checked nothing.
+            resolve(latest?.itemIds ?? []);
+          };
+          request.onerror = () => resolve([]);
+        };
+        open.onerror = () => resolve([]);
+      }),
+  );
+
+  // Nothing Japanese is readable on day one, so any drill that survives must be
+  // answerable without reading Japanese at all — the Indonesian multiple
+  // choices about script and word order, which are exactly where a beginner
+  // should start.
+  const unreadable = await page.evaluate(
+    (ids) =>
+      fetch('/content/ja/contrastive.json')
+        .then((response) => response.json() as Promise<{ categories: Array<{ drills: Array<{ id: string; prompt: string; options?: string[]; answer: string }> }> }>)
+        .then((pack) => {
+          const byId = new Map(
+            pack.categories.flatMap((category) => category.drills.map((drill) => [drill.id, drill])),
+          );
+          const japanese = /[ぁ-ゟ゠-ヿ一-鿿]/;
+          return ids
+            .map((id) => byId.get(id))
+            .filter((drill) => drill !== undefined)
+            .filter((drill) =>
+              japanese.test([drill.prompt, ...(drill.options ?? []), drill.answer].join('')),
+            )
+            .map((drill) => drill.id);
+        }),
+    drills,
+  );
+
+  expect(unreadable, 'no drill should need Japanese a beginner has not been taught').toEqual([]);
+});

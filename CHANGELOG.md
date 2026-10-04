@@ -5,6 +5,29 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.33.0 — 2026-10-04
+
+### Fixed — a beginner was asked to correct a sentence they could not read
+
+`drillCandidates` chose by Elo difficulty alone, with no check that the question
+was legible. A fresh profile sits at the median rating, so session one offered
+`きのうのえいがは おもしろいでした。` and asked for a correction from someone who
+had not been taught a single character.
+
+That is not a hard question but an unanswerable one: a wrong answer they had no
+way to get right teaches them the app is unfair, and it poisons the §3.3
+heatmap, which reads those answers as evidence about the category.
+
+`canRead` now gates the **whole drill** — prompt, options and answer, since a
+prompt in Indonesian with Japanese options is just as unanswerable. Latin and
+punctuation are always readable, so drills that need no Japanese stay available
+from day one. It unlocks character by character off the same known-set the
+romaji fade uses.
+
+952 unit · 78 e2e.
+
+---
+
 ## v1.32.1 — 2026-10-04
 
 ### Added — the script fades in as the characters are learned
