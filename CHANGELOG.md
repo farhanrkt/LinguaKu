@@ -5,6 +5,45 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.24.1 — 2026-10-04
+
+### Fixed — a bad moment was remembered as a fact
+
+All three in-memory content loaders — glosses, topics and the reader's sentence
+shards — wrote the result of a *failed* fetch into their cache. Each reasoned
+correctly about the first call and not at all about the second: one flaky
+moment, offline before a shard had been cached or a service worker still
+installing, became permanent for the rest of the session even after the network
+came back.
+
+The gloss case is the worst and is undetectable. Every word in the band reports
+*"Kata ini belum ada di kamus kami"* — invariant 38's false branch — and D59
+measured gloss coverage at 30% of English lexemes and 4% of Japanese, so a wrong
+"no entry" looks exactly like a right one.
+
+Topics are silent by design: a topic only reorders new items (invariant 33), so
+an un-topiced session is indistinguishable from a learner who chose no topic.
+Sentences cost money: §5.4's learner is on mobile data and D80 makes the reader
+state its download before spending it, so a cached failure means the reader
+reports itself empty after the learner agreed to pay.
+
+`fetchShard` draws the line: **a 404 is a fact about the build and may be
+remembered; anything else is a fact about right now and may not.** Japanese
+ships gloss shards for bands 1–2 only, so simply never caching would re-fetch a
+genuinely absent shard once per card. Each loader still returns its empty value
+on failure — it no longer writes it down.
+
+### Changed
+
+- `clearGlossCache`'s comment claimed it was "also used when a language switch
+  invalidates what is in memory". The cache is keyed `lang:band`, so a switch
+  needs no clearing, and nothing outside the tests calls it. It is a test seam,
+  and now says so.
+
+899 unit · 72 e2e.
+
+---
+
 ## v1.24.0 — 2026-10-04
 
 ### Added — a word you set aside can be asked for again

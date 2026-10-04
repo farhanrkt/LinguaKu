@@ -58,3 +58,71 @@ describe('glossFor', () => {
     expect(await glossFor('en', 1, 'en:lex:back')).toEqual(['punggung, kembali']);
   });
 });
+
+/**
+ * A failed fetch is a fact about *right now*. It was being written into the
+ * cache as a fact about the content.
+ *
+ * One flaky moment — offline before the shard had been cached, a service worker
+ * still installing — made every word in that band report *"belum ada di kamus
+ * kami"* for the rest of the session, even after the network came back. That is
+ * invariant 38's false branch, and it is undetectable to the learner because
+ * D59 measured gloss coverage at 30% of English lexemes and 4% of Japanese:
+ * "no entry" is the ordinary answer, so a wrong one looks exactly like a right
+ * one.
+ */
+describe('a transient failure is not remembered (invariant 38)', () => {
+  it('tries again after a network failure instead of caching the silence', async () => {
+    clearGlossCache();
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return calls === 1
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(
+            new Response(JSON.stringify({ glosses: { 'en:lex:bank': ['bank', 'tepi sungai'] } }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            }),
+          );
+    });
+
+    expect(await glossFor('en', 1, 'en:lex:bank')).toEqual([]);
+    expect(await glossFor('en', 1, 'en:lex:bank')).toEqual(['bank', 'tepi sungai']);
+    expect(calls).toBe(2);
+  });
+
+  it('tries again after a server fault, which is also not an answer', async () => {
+    clearGlossCache();
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return Promise.resolve(
+        calls === 1
+          ? new Response('', { status: 503 })
+          : new Response(JSON.stringify({ glosses: { 'en:lex:bank': ['bank'] } }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            }),
+      );
+    });
+
+    expect(await glossFor('en', 1, 'en:lex:bank')).toEqual([]);
+    expect(await glossFor('en', 1, 'en:lex:bank')).toEqual(['bank']);
+  });
+
+  it('remembers a 404, because that is a fact about the build', async () => {
+    // Japanese ships gloss shards for bands 1-2 only. Re-fetching a shard that
+    // does not exist, once per card, is waste rather than caution.
+    clearGlossCache();
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return Promise.resolve(new Response('', { status: 404 }));
+    });
+
+    expect(await glossFor('ja', 5, 'ja:lex:x')).toEqual([]);
+    expect(await glossFor('ja', 5, 'ja:lex:x')).toEqual([]);
+    expect(calls).toBe(1);
+  });
+});

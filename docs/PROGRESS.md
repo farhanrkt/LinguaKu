@@ -1,5 +1,78 @@
 # PROGRESS.md
 
+## v1.24.1 — a bad moment, remembered as a fact (2026-10-04)
+
+Found while reading a comment that turned out to be wrong about something else.
+
+`clearGlossCache` is documented as *"Test seam; also used when a language
+switch invalidates what is in memory."* It is not: the cache is keyed
+`lang:band`, so a language switch needs no clearing, and nothing outside the
+tests calls it. Correcting that two-word claim meant reading the loader it
+belongs to, which had a real defect in it.
+
+### Three loaders, one mistake
+
+```ts
+  } catch {
+    // Offline before this band was cached, or no gloss shard for this language.
+    // Either way the caller gets "no gloss", which is a state it already has.
+  }
+  cache.set(key, map);     // ← map is still EMPTY
+```
+
+Glosses, topics and the reader's sentence shards all did this. Each comment
+reasons correctly about the *first* call and not at all about the second: a
+failed fetch was written into the in-memory cache and stayed there for the rest
+of the session, even once the network came back.
+
+The trigger is ordinary — offline before a shard had ever been fetched, or a
+service worker still installing on a first visit.
+
+### Why the gloss case is the worst one
+
+Every word in that band reports **"Kata ini belum ada di kamus kami"** for the
+rest of the session. That is the false branch of invariant 38 — *a card shows
+what the word means, or says it has no entry* — and the learner has no way at
+all to detect it, because D59 measured gloss coverage at **30% of English
+lexemes and 4% of Japanese**. "No entry" is the ordinary answer here. A wrong
+one is indistinguishable from a right one.
+
+The other two are quieter but not better:
+
+- **Topics** only *reorder* new items (invariant 33), never restrict them. So a
+  session that silently lost its topic map looks exactly like a learner who
+  chose no topic. Nothing on screen would differ.
+- **Sentences** cost money. §5.4's learner is on mobile data and D80 makes the
+  reader state its download before spending it — so a cached failure means the
+  reader reports itself empty *after* the learner agreed to pay for it, with no
+  way to ask again short of a reload.
+
+### The distinction worth making
+
+The easy fix is to never cache a failure. That is wrong in one direction:
+Japanese ships gloss shards for bands 1–2 only, so bands 3–5 legitimately 404,
+and re-fetching a shard that does not exist once per card is waste rather than
+caution.
+
+So `fetchShard` draws the line the loaders were missing:
+
+> **A 404 is a fact about the build and may be remembered. Anything else is a
+> fact about right now and may not.**
+
+Each loader still returns its empty value on failure — `glossFor` gives `[]`,
+the reader opens with nothing, the composer behaves as it did before topics.
+What changed is that none of them writes it down.
+
+### Falsified
+
+Each of the three has a test that fails once, succeeds the second time, and
+asserts the second call returns real data; plus one that 404s twice and asserts
+a single fetch. Checked against the old behaviour by putting `cache.set` back
+into the `catch` — the two "tries again" cases fail, the 404 case does not,
+which is exactly the split the fix is about.
+
+899 unit · 72 e2e.
+
 ## v1.24.0 — a word you set aside, and no way back (2026-10-04)
 
 The second name off the non-test dead-export scan that found §4.3's script

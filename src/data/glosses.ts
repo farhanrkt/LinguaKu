@@ -1,5 +1,5 @@
 import type { FrequencyBand } from '../core/frequency.ts';
-import { CONTENT_BASE } from './content.ts';
+import { CONTENT_BASE, fetchShard } from './content.ts';
 import type { TargetLang } from './types.ts';
 
 /**
@@ -34,19 +34,25 @@ export const loadGlosses = async (
   const cached = cache.get(key);
   if (cached) return cached;
 
-  let map: ReadonlyMap<string, readonly string[]> = EMPTY;
   try {
-    const response = await fetch(`${CONTENT_BASE}/${lang}/glosses.b${band}.json`);
-    if (response.ok) {
-      const payload = (await response.json()) as { glosses?: Record<string, string[]> };
-      map = new Map(Object.entries(payload.glosses ?? {}));
-    }
+    const payload = await fetchShard<{ glosses?: Record<string, string[]> }>(
+      `${CONTENT_BASE}/${lang}/glosses.b${band}.json`,
+    );
+    // `null` is a 404: no gloss shard exists for this language and band, which
+    // is true of every Japanese band above 2 and is permanent for this build.
+    const map: ReadonlyMap<string, readonly string[]> =
+      payload === null ? EMPTY : new Map(Object.entries(payload.glosses ?? {}));
+    cache.set(key, map);
+    return map;
   } catch {
-    // Offline before this band was cached, or no gloss shard for this language.
-    // Either way the caller gets "no gloss", which is a state it already has.
+    // Offline before this band was cached, or a server fault. The caller gets
+    // "no gloss", which is a state it already handles — but this is **not**
+    // written to the cache. Remembering it would make every word in the band
+    // report "belum ada di kamus kami" for the rest of the session, which is
+    // invariant 38's false branch and undetectable to the learner, because
+    // D59 makes "no entry" the common answer anyway.
+    return EMPTY;
   }
-  cache.set(key, map);
-  return map;
 };
 
 /**
@@ -62,5 +68,8 @@ export const glossFor = async (
   itemId: string,
 ): Promise<readonly string[]> => (await loadGlosses(lang, band)).get(itemId) ?? [];
 
-/** Test seam; also used when a language switch invalidates what is in memory. */
+/**
+ * Test seam. The cache is keyed `lang:band`, so a language switch needs no
+ * clearing — an earlier version of this comment claimed otherwise.
+ */
 export const clearGlossCache = (): void => cache.clear();

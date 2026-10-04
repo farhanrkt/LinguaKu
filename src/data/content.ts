@@ -132,6 +132,28 @@ const fetchJson = async <T>(url: string): Promise<T> => {
   return (await response.json()) as T;
 };
 
+/**
+ * A JSON shard, or `null` where the server says there is no such shard.
+ *
+ * The distinction this exists for: **a 404 is a fact about the build, and a
+ * failed fetch is a fact about right now.** The first may be remembered; the
+ * second must not be.
+ *
+ * Every cached loader below used to remember both. One flaky moment — offline
+ * before a shard had been cached, a service worker still installing — was
+ * written into the in-memory cache as "there is nothing here", and stayed there
+ * for the rest of the session even after the network came back. For glosses
+ * that meant every word in a band reporting *"belum ada di kamus kami"*, which
+ * is the false branch of invariant 38 and one the learner cannot detect, since
+ * D59 makes "no entry" the common case anyway.
+ */
+export const fetchShard = async <T>(url: string): Promise<T | null> => {
+  const response = await fetch(url);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${url} → HTTP ${response.status}`);
+  return (await response.json()) as T;
+};
+
 export const fetchManifest = (lang: TargetLang): Promise<ContentManifest> =>
   fetchJson<ContentManifest>(`${CONTENT_BASE}/${lang}/manifest.json`);
 
@@ -320,15 +342,19 @@ export const loadSentences = async (
   if (cached) return cached;
 
   try {
-    const payload = await fetchJson<{ sentences: AnchorSentence[] }>(
+    const payload = await fetchShard<{ sentences: AnchorSentence[] }>(
       `${CONTENT_BASE}/${lang}/sentences.b${band}.json`,
     );
-    sentenceCache.set(key, payload.sentences);
-    return payload.sentences;
+    // `null` is a 404: this build has no sentence shard for that band, which is
+    // permanent and worth remembering.
+    const sentences = payload?.sentences ?? [];
+    sentenceCache.set(key, sentences);
+    return sentences;
   } catch {
-    // Offline before this band was ever fetched. The reader says it has nothing
-    // rather than failing to open.
-    sentenceCache.set(key, []);
+    // Offline before this band was ever fetched, or a server fault. The reader
+    // says it has nothing rather than failing to open — but it is **not**
+    // cached, because the next attempt may well succeed and a reader that
+    // stays empty for the rest of the session is worse than one that waits.
     return [];
   }
 };

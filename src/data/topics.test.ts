@@ -55,3 +55,36 @@ describe('loadTopics', () => {
     expect((await loadTopics('en')).coverage.share).toBeCloseTo(0.069, 3);
   });
 });
+
+/**
+ * A topic reorders new items (invariant 33), silently and by design — so a
+ * topic map that failed to load looks exactly like a learner who chose no
+ * topic. Caching that failure meant one bad moment quietly un-topiced the rest
+ * of the session with nothing to show for it.
+ */
+describe('a transient failure is not remembered', () => {
+  it('tries again after a network failure', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return calls === 1
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(pack) });
+    });
+
+    expect((await loadTopics('en')).topics).toEqual([]);
+    expect((await loadTopics('en')).topics).toHaveLength(1);
+  });
+
+  it('remembers a 404, because a language with no topic map has none', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+
+    expect((await loadTopics('ja')).topics).toEqual([]);
+    expect((await loadTopics('ja')).topics).toEqual([]);
+    expect(calls).toBe(1);
+  });
+});

@@ -294,6 +294,13 @@ needs React state to work, it is in the wrong place.
     and a control that reaches back into a card that is gone is the second code
     path D77 refuses.
 
+50. **A 404 may be cached; a failed fetch may not** (D98). `fetchShard` returns
+    `null` for 404 — a fact about the build — and throws on anything else, which
+    is a fact about right now. Every in-memory content loader still returns its
+    empty value on failure; none of them writes it down. A cached failure made
+    one flaky moment last the whole session, and in the gloss case it was
+    invisible, because "no entry" is the ordinary answer (D59).
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`

@@ -1,4 +1,4 @@
-import { CONTENT_BASE } from './content.ts';
+import { CONTENT_BASE, fetchShard } from './content.ts';
 import type { TargetLang } from './types.ts';
 
 /**
@@ -42,27 +42,30 @@ export const loadTopics = async (lang: TargetLang): Promise<TopicPack> => {
   const cached = cache.get(lang);
   if (cached) return cached;
 
-  let pack = EMPTY_TOPICS;
   try {
-    const response = await fetch(`${CONTENT_BASE}/${lang}/topics.json`);
-    if (response.ok) {
-      const payload = (await response.json()) as {
-        topics?: Topic[];
-        items?: Record<string, string>;
-        coverage?: TopicPack['coverage'];
-      };
-      pack = {
-        topics: payload.topics ?? [],
-        byItem: new Map(Object.entries(payload.items ?? {})),
-        coverage: payload.coverage ?? EMPTY_TOPICS.coverage,
-      };
-    }
+    const payload = await fetchShard<{
+      topics?: Topic[];
+      items?: Record<string, string>;
+      coverage?: TopicPack['coverage'];
+    }>(`${CONTENT_BASE}/${lang}/topics.json`);
+    // `null` is a 404: this language has no topic map, which is permanent.
+    const pack: TopicPack =
+      payload === null
+        ? EMPTY_TOPICS
+        : {
+            topics: payload.topics ?? [],
+            byItem: new Map(Object.entries(payload.items ?? {})),
+            coverage: payload.coverage ?? EMPTY_TOPICS.coverage,
+          };
+    cache.set(lang, pack);
+    return pack;
   } catch {
-    // Offline before it was cached, or a language with no topic map. Either
-    // way the app behaves as it did before topics existed.
+    // Offline before it was cached, or a server fault. The app behaves as it
+    // did before topics existed — for this call only. Caching it would make a
+    // single bad moment silently un-topic the rest of the session, and a topic
+    // reorders new items (invariant 33), so the learner would never know.
+    return EMPTY_TOPICS;
   }
-  cache.set(lang, pack);
-  return pack;
 };
 
 /** The pack if it is already in memory. The composer must not await a fetch. */

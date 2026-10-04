@@ -8,6 +8,7 @@ import {
   ensureBands,
   getAnchor,
   isContentReady,
+  loadSentences,
   type ContentManifest,
 } from './content.ts';
 
@@ -239,5 +240,48 @@ describe('downloadCost', () => {
     const cost = await downloadCost('en', [{ kind: 'passages', band: 5 }]);
     expect(cost.gzipBytes).toBe(0);
     expect(cost.urls).toEqual([]);
+  });
+});
+
+/**
+ * The reader's corpus, and the same rule: a shard that failed to arrive is not
+ * a shard that does not exist.
+ *
+ * §5.4's learner is on mobile data and the reader states a download cost before
+ * spending it (D80). Caching one failed fetch meant the reader reported itself
+ * empty for the rest of the session — after the learner had agreed to pay for
+ * it, and with no way to ask again short of a reload.
+ */
+describe('loadSentences does not remember a failure as an answer', () => {
+  it('tries again after a network failure', async () => {
+    clearAnchorCache();
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return calls === 1
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(
+            new Response(JSON.stringify({ sentences: [{ id: 's1', text: 'hi' }] }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            }),
+          );
+    });
+
+    expect(await loadSentences('en', 1)).toEqual([]);
+    expect(await loadSentences('en', 1)).toHaveLength(1);
+  });
+
+  it('remembers a 404, which is a fact about the build', async () => {
+    clearAnchorCache();
+    let calls = 0;
+    vi.stubGlobal('fetch', () => {
+      calls++;
+      return Promise.resolve(new Response('', { status: 404 }));
+    });
+
+    expect(await loadSentences('en', 5)).toEqual([]);
+    expect(await loadSentences('en', 5)).toEqual([]);
+    expect(calls).toBe(1);
   });
 });
