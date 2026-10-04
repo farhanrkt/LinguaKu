@@ -368,7 +368,15 @@ const idle = (deferMs = IDLE_FALLBACK_MS): Promise<void> =>
     schedule();
   });
 
-/** The session's verdict, or null if the probe has not answered yet. */
+/**
+ * The session's verdict, or null if the probe has not answered yet.
+ *
+ * Test seam, alongside `resetTtsVerdict`. The ladder asks `isTtsLive`, the home
+ * screen is handed the report it was probed with, and the diagnostics screen
+ * deliberately runs its own probe from inside a tap rather than reading a
+ * stored one (D29) — so nothing in the app reads this, and the speech tests
+ * need it to see what the probe actually recorded.
+ */
 export const ttsReport = (language: string): VoiceReport | null =>
   verdicts.get(language) ?? null;
 

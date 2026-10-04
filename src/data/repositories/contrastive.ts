@@ -38,11 +38,21 @@ const key = (profileId: string, lang: TargetLang, categoryId: string): [string, 
   categoryId,
 ];
 
+/**
+ * One category's standing, with §2.15's unmeasured default where no row exists.
+ *
+ * Test seam. The app reads `allCategoryScores` for the heatmap and gets an
+ * updated rating straight back from `recordCategoryAttempt`, so nothing in
+ * `src/features` calls this — but the defaulting it does is the behaviour the
+ * contrastive tests assert `recordCategoryAttempt` against, and routing them
+ * through the Map accessor would lose it.
+ */
 export const getCategoryScore = async (
   profileId: string,
   lang: TargetLang,
   categoryId: string,
-): Promise<CategoryRating> => toRating(await db.categoryScores.get(key(profileId, lang, categoryId)));
+): Promise<CategoryRating> =>
+  toRating(await db.categoryScores.get(key(profileId, lang, categoryId)));
 
 export const allCategoryScores = async (
   profileId: string,

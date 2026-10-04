@@ -1,4 +1,4 @@
-import { KNOWN_RETRIEVABILITY, retrievability } from './scheduler.ts';
+import { isKnown } from './scheduler.ts';
 import { tokenizeLatin } from './tokenize.ts';
 import type { StoredFsrsState, Timestamp } from '../data/types.ts';
 
@@ -30,8 +30,11 @@ export interface KnownCard {
  */
 export const knownItemIds = (cards: readonly KnownCard[], now: Timestamp): Set<string> => {
   const known = new Set<string>();
+  // `isKnown`, not a second copy of its body. The threshold is §2.4's, and the
+  // two definitions sat in neighbouring files agreeing by coincidence — the
+  // sort of agreement that survives until someone changes one of them.
   for (const card of cards) {
-    if (retrievability(card.fsrs, now) > KNOWN_RETRIEVABILITY) known.add(card.itemId);
+    if (isKnown(card.fsrs, now)) known.add(card.itemId);
   }
   return known;
 };

@@ -435,5 +435,13 @@ export const loadPseudowords = async (lang: TargetLang): Promise<string[]> => {
  */
 export const STARTER_BANDS: readonly FrequencyBand[] = [1, 2, 3];
 
+/**
+ * Whether any shard for this language has been imported.
+ *
+ * Test seam. Nothing gates on it at runtime — `App` **awaits** `ensureBands`
+ * before it shows a screen, so "is the content in yet" is answered by the await
+ * rather than by a query — but it is how the content tests check that
+ * `ensureBands` wrote its bookkeeping (db v2) rather than only its rows.
+ */
 export const isContentReady = async (lang: TargetLang): Promise<boolean> =>
   (await db.contentShards.where('lang').equals(lang).count()) > 0;

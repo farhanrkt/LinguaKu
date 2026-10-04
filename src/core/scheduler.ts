@@ -33,7 +33,17 @@ export interface SchedulerOptions {
 const schedulerFor = (options: SchedulerOptions = {}) =>
   fsrs(options.parameters ?? DEFAULT_PARAMETERS);
 
-/** The four things a learner can say about a card. */
+/**
+ * The four ratings FSRS accepts.
+ *
+ * Not four things a learner says: nothing in this app asks them. The rating is
+ * derived from the answer (`gradeForOutcome`), and Easy is never produced at
+ * all, because the only honest source for "that felt effortless" would be the
+ * learner saying so and §2.12 forbids reading it off the confidence tap.
+ *
+ * It exists so §2.1's determinism property can be proved over the whole rating
+ * space rather than over the subset the app happens to emit.
+ */
 export const GRADES: readonly Grade[] = [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy];
 
 export interface Scheduled {
@@ -51,27 +61,17 @@ export interface Scheduled {
   elapsedDays: number;
 }
 
-/**
- * What each rating would do, without committing — SPEC §2.1 asks for this so
- * the UI can show real intervals on the answer buttons instead of guesses.
+/*
+ * `preview` lived here: "what each rating would do, without committing — SPEC
+ * §2.1 asks for this so the UI can show real intervals on the answer buttons".
+ *
+ * There are no answer buttons, and that is a design decision rather than an
+ * omission: this app grades the learner's *answer* and derives the rating
+ * (`gradeForOutcome`), so there is nothing for a four-way preview to label.
+ * §2.1 names `scheduler.repeat()` as an API capability; its acceptance criteria
+ * are about determinism and the log, not an interval UI. Deleted under
+ * invariant 8 rather than kept as a seam for a screen the design excludes.
  */
-export const preview = (
-  state: StoredFsrsState,
-  now: Timestamp,
-  options?: SchedulerOptions,
-): Record<Grade, Scheduled> => {
-  const previews = schedulerFor(options).repeat(fromStoredFsrsState(state), new Date(now));
-  const result = {} as Record<Grade, Scheduled>;
-  for (const grade of GRADES) {
-    const { card, log } = previews[grade];
-    result[grade] = {
-      state: toStoredFsrsState(card),
-      scheduledDays: log.scheduled_days,
-      elapsedDays: log.elapsed_days,
-    };
-  }
-  return result;
-};
 
 /**
  * Apply a rating the learner has actually given.

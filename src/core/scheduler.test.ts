@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { Rating, State } from 'ts-fsrs';
+import { State } from 'ts-fsrs';
 import { emptyFsrsState } from '../data/fsrsState.ts';
 import {
   applyRating,
   DEFAULT_PARAMETERS,
   GRADES,
   isKnown,
-  preview,
   retrievability,
 } from './scheduler.ts';
 import type { Grade, StoredFsrsState } from '../data/types.ts';
@@ -55,36 +54,6 @@ describe('determinism (SPEC §2.1 acceptance)', () => {
       at = direct.dueAt;
     }
     expect(roundTripped).toEqual(direct);
-  });
-});
-
-describe('preview', () => {
-  it('offers all four outcomes without committing to any', () => {
-    const state = emptyFsrsState(NOW);
-    const options = preview(state, NOW);
-    expect(Object.keys(options).map(Number).sort()).toEqual([1, 2, 3, 4]);
-    // The card the learner is looking at is untouched.
-    expect(state).toEqual(emptyFsrsState(NOW));
-  });
-
-  it('agrees with what applyRating actually does', () => {
-    const state = emptyFsrsState(NOW);
-    for (const grade of GRADES) {
-      expect(preview(state, NOW)[grade]).toEqual(applyRating(state, grade, NOW));
-    }
-  });
-
-  it('schedules Easy further out than Good, and Again soonest', () => {
-    // A card with some history, so the four outcomes actually separate.
-    let state = emptyFsrsState(NOW);
-    let at = NOW;
-    for (const grade of [3, 3, 3] as Grade[]) {
-      state = applyRating(state, grade, at).state;
-      at = state.dueAt;
-    }
-    const options = preview(state, at);
-    expect(options[Rating.Again].state.dueAt).toBeLessThan(options[Rating.Good].state.dueAt);
-    expect(options[Rating.Good].state.dueAt).toBeLessThanOrEqual(options[Rating.Easy].state.dueAt);
   });
 });
 

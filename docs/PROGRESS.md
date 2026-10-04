@@ -1,5 +1,71 @@
 # PROGRESS.md
 
+## v1.25.1 — a seam, or a lie (2026-10-04)
+
+Finishing the list D96 opened. Rerunning the dead-export scan over **non-test
+source only** had turned up fifteen names; three of them were the script ladder,
+the deferral undo and the gloss cache, which became v1.23.0, v1.24.0 and
+v1.24.1. This is the rest of the list.
+
+The useful question turned out not to be "does anything call it" but **"does the
+file claim a caller it does not have"**.
+
+### Three lies, deleted
+
+- **`preview`** — *"what each rating would do, without committing — SPEC §2.1
+  asks for this so the UI can show real intervals on the answer buttons."*
+  There are no answer buttons. That is a design decision, not an omission: this
+  app grades the learner's *answer* and derives the rating (`gradeForOutcome`),
+  so there is nothing for a four-way preview to label. §2.1 names
+  `scheduler.repeat()` as an API capability and its acceptance criteria are
+  about determinism and the log.
+- **`isMined`** and **`pendingMined`** — duplicates of `minedItemIds`, which the
+  composer already uses. `pendingMined`'s comment described the prioritisation
+  as something the composer would do *with it*; the composer does it without it,
+  through `minedRank` in `newCandidates`.
+
+### Four seams, kept — and deleting them would have made the tests worse
+
+`getCategoryScore`, `isContentReady`, `ttsReport` and `GRADES` are accurate,
+working, and called only from tests. Each one is how a test reads a property the
+app really has:
+
+- `getCategoryScore` returns §2.15's unmeasured default where no row exists, and
+  that defaulting is exactly what the contrastive tests assert
+  `recordCategoryAttempt` against. `allCategoryScores` returns a Map with no
+  default, so routing them through it would have lost the behaviour under test.
+- `isContentReady` is how the content tests check `ensureBands` wrote its
+  bookkeeping (db v2) and not only its rows.
+- `ttsReport` is how the speech tests see what the probe actually recorded.
+- `GRADES` is how §2.1's determinism property is proved over the **whole** rating
+  space rather than the subset the app emits.
+
+So the rule is not "delete what has no production caller". It is that the file
+must not claim a caller it does not have, and each of these now says it is a
+seam — which is what `clearAnchorCache` and `resetTtsVerdict` have always said.
+
+`GRADES` needed its comment corrected rather than kept: *"the four things a
+learner can say about a card"* describes a different app. Nothing here asks
+them, and Easy is never produced at all, because the only honest source for
+"that felt effortless" would be the learner saying so and §2.12 forbids reading
+it off the confidence tap.
+
+### Two real fixes fell out of the same pass
+
+- **`knownItemIds` inlined `isKnown`'s body.** §2.4's 0.6 threshold had two
+  definitions in neighbouring files, agreeing by coincidence — the sort of
+  agreement that survives exactly until someone changes one of them. It
+  delegates now.
+- **The L4 dictation gate counted `tokenizeLatin(anchor.text)`** — D99's defect
+  one more time. Measured over the shipped band-1 anchors it admitted **100%**
+  of them where real tokens admit 99.9%: three sentences of 11–12 tokens against
+  a cap of 10. Small, and not a measurement either way. It counts the anchor's
+  own tokens now.
+
+The scan is down to seven names, and all seven are seams that say so.
+
+902 unit · 74 e2e.
+
 ## v1.25.0 — the reader had almost nothing in it (2026-10-04)
 
 Started as the slice v1.23.0 deferred: §4.3's script ladder reached the practice

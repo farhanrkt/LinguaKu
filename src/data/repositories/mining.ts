@@ -1,5 +1,5 @@
 import { db } from '../db.ts';
-import type { MinedItem, Timestamp } from '../types.ts';
+import type { Timestamp } from '../types.ts';
 
 /**
  * One-tap sentence mining (SPEC §8: *"tap-to-gloss graded reader with one-tap
@@ -34,26 +34,12 @@ export const unmineItem = async (profileId: string, itemId: string): Promise<voi
   await db.minedItems.delete([profileId, itemId]);
 };
 
-export const isMined = async (profileId: string, itemId: string): Promise<boolean> =>
-  (await db.minedItems.get([profileId, itemId])) !== undefined;
-
 export const minedItemIds = async (profileId: string): Promise<Set<string>> =>
   new Set((await db.minedItems.where('profileId').equals(profileId).toArray()).map((row) => row.itemId));
 
-/**
- * Mined items still waiting to be introduced, oldest first.
- *
- * A word the learner went looking for is worth more than the next one off the
- * frequency list — they met it, wanted it, and have a context for it — so the
- * composer takes these before the frontier queue.
+/*
+ * `isMined` and `pendingMined` lived here. Both were duplicates of
+ * `minedItemIds`, which the composer already uses — and `pendingMined`'s own
+ * comment described a behaviour the composer performs without it: mined items
+ * sort ahead of the frontier queue in `newCandidates`, by `minedRank`.
  */
-export const pendingMined = async (
-  profileId: string,
-  startedItemIds: ReadonlySet<string>,
-): Promise<MinedItem[]> => {
-  const rows = await db.minedItems
-    .where('[profileId+minedAt]')
-    .between([profileId, 0], [profileId, Number.MAX_SAFE_INTEGER])
-    .toArray();
-  return rows.filter((row) => !startedItemIds.has(row.itemId));
-};

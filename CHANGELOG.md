@@ -5,6 +5,43 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.25.1 — 2026-10-04
+
+### Removed — three exports that claimed a caller they did not have
+
+D90's rule is *nothing is exported that nothing reads*, and the scan enforcing
+it counted test files, so it could never see this class. Rerunning it over
+non-test source finished the list D96 opened.
+
+- `preview` promised *"so the UI can show real intervals on the answer
+  buttons"*. There are no answer buttons: this app grades the learner's answer
+  and derives the rating, so there is nothing for a four-way preview to label.
+- `isMined` and `pendingMined` duplicated `minedItemIds`, and `pendingMined`'s
+  comment described a prioritisation `newCandidates` already performs.
+
+### Changed
+
+- `getCategoryScore`, `isContentReady`, `ttsReport` and `GRADES` are kept and
+  now say they are test seams. Each is how a test reads a property the app
+  really has, and deleting them would have degraded the tests —
+  `allCategoryScores` has no default, so routing the contrastive tests through
+  it would lose the behaviour under test.
+- `GRADES`'s comment said "the four things a learner can say about a card",
+  which describes a different app. Nothing here asks them, and Easy is never
+  produced at all.
+
+### Fixed
+
+- `knownItemIds` inlined `isKnown`'s body, so §2.4's 0.6 threshold had two
+  definitions in neighbouring files agreeing by coincidence. It delegates now.
+- The L4 dictation length gate counted `tokenizeLatin(anchor.text)` — D99's
+  defect again. Over the shipped band-1 anchors it admitted 100% of them where
+  real tokens admit 99.9%. It counts the anchor's own tokens now.
+
+902 unit · 74 e2e.
+
+---
+
 ## v1.25.0 — 2026-10-04
 
 ### Fixed — the Japanese reader was offering four sentences out of 2,152

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
-import { isMined, mineItem, minedItemIds, pendingMined, unmineItem } from './mining.ts';
+import { mineItem, minedItemIds, unmineItem } from './mining.ts';
 import { recordReview } from './reviews.ts';
 import { planSession } from './sessions.ts';
 import { bandForRank } from '../../core/frequency.ts';
@@ -56,7 +56,7 @@ describe('mining is an intention, not a card (SPEC §2.2, invariant 0)', () => {
     await mineItem(PROFILE, 'en:lex:w5', 'tatoeba:eng:5', NOW);
     expect(await db.cards.count()).toBe(0);
     expect(await db.reviewLogs.count()).toBe(0);
-    expect(await isMined(PROFILE, 'en:lex:w5')).toBe(true);
+    expect(await minedItemIds(PROFILE)).toContain('en:lex:w5');
   });
 
   it('is idempotent — one word tapped twice is one intention', async () => {
@@ -72,7 +72,7 @@ describe('mining is an intention, not a card (SPEC §2.2, invariant 0)', () => {
   it('can be undone', async () => {
     await mineItem(PROFILE, 'en:lex:w5', 'tatoeba:eng:5', NOW);
     await unmineItem(PROFILE, 'en:lex:w5');
-    expect(await isMined(PROFILE, 'en:lex:w5')).toBe(false);
+    expect(await minedItemIds(PROFILE)).not.toContain('en:lex:w5');
   });
 
   it('keeps the sentence it was mined from, so it can be taught in context', async () => {
@@ -85,14 +85,6 @@ describe('mining is an intention, not a card (SPEC §2.2, invariant 0)', () => {
   it('scopes to the profile', async () => {
     await mineItem(PROFILE, 'en:lex:w5', 'tatoeba:eng:5', NOW);
     expect(await minedItemIds('someone-else')).toEqual(new Set());
-  });
-});
-
-describe('pendingMined', () => {
-  it('forgets a word once the learner has actually started it', async () => {
-    await mineItem(PROFILE, 'en:lex:w5', 'tatoeba:eng:5', NOW);
-    expect(await pendingMined(PROFILE, new Set())).toHaveLength(1);
-    expect(await pendingMined(PROFILE, new Set(['en:lex:w5']))).toHaveLength(0);
   });
 });
 
@@ -137,8 +129,13 @@ describe('the composer acts on it (SPEC §8)', () => {
       correct: true,
       now: NOW,
     });
-    // Now it is a normal card with a normal schedule; the mining intention is
-    // spent rather than repeating forever.
-    expect(await pendingMined(PROFILE, new Set(['en:lex:w50']))).toHaveLength(0);
+    // Now it is a normal card with a normal schedule. The intention is spent
+    // by the card existing, not by the row going away: `newCandidates` draws
+    // only from items the learner has never answered (SPEC §2.2), so a mined
+    // word stops jumping the queue the moment it has one.
+    expect(await db.cards.get(`${PROFILE}::en:lex:w50`)).toBeDefined();
+    // And the record of having wanted it survives, which is what the export
+    // carries and what another device gets on sync.
+    expect(await minedItemIds(PROFILE)).toContain('en:lex:w50');
   });
 });

@@ -44,7 +44,7 @@ npm ci && npm run verify
 |---|---|---|
 | 1.1 | Typecheck | Clean. Strict, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. |
 | 1.2 | Lint | Clean. `no-explicit-any` is an error, not a warning. |
-| 1.3 | Unit tests | **906 passed, 62 files**, ~7 s. Zero skipped. |
+| 1.3 | Unit tests | **902 passed, 62 files**, ~7 s. Zero skipped. |
 | 1.4 | Licence gate | **8 datasets declared and attributed; 64 asset files traced.** Fails in *both* directions — an undeclared dataset, and a declared one nothing references. |
 | 1.5 | Audio gate | *"no pre-cached audio yet"* until R7 is answered. Once clips ship: budget and index checked in both directions. |
 | 1.6 | Build | Succeeds; `dist/` written. |

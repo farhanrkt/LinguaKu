@@ -287,9 +287,14 @@ export const buildTask = async (
   // no anchor qualifies, the item is not L4-eligible and its ceiling drops to
   // L3 — SPEC §2.6's exclusion, applied per item rather than app-wide.
   if (level >= 4) {
+    // Counted over the anchor's own tokens where it has them (D99). The
+    // Latin tokenizer finds no Japanese words, so measured over the shipped
+    // band-1 anchors this gate admitted 100% of them rather than 99.9% — it
+    // was not wrong often, but it was not measuring anything either.
     const audible = anchors.find(
       (anchor) =>
-        hasAudioFor(anchor.id) && tokenizeLatin(anchor.text).length <= DICTATION_MAX_TOKENS,
+        hasAudioFor(anchor.id) &&
+        (anchor.tokens ?? tokenizeLatin(anchor.text)).length <= DICTATION_MAX_TOKENS,
     );
     if (audible) {
       return {
