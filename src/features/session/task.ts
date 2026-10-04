@@ -196,6 +196,23 @@ export interface BuildTaskOptions {
 }
 
 /**
+ * A kanji's parts, which do not include the kanji.
+ *
+ * KRADFILE lists a character among its own radicals. Measured over the shipped
+ * shard: **62 of 1,748** have a breakdown that is nothing but the character
+ * itself, and **78 more** list it beside real components — so the card said
+ * *"日 tersusun dari 日"* and *"見 tersusun dari 見 + 目 + 儿"*, then invited the
+ * learner to build a story out of those parts.
+ *
+ * Dropping the self-reference fixes both at once, and is what finally lets
+ * `baselineAtomic` fire: *"日 adalah bentuk dasar"* was written for exactly the
+ * first case and could never run, because it is guarded on an empty breakdown
+ * and no shipped kanji has one.
+ */
+const componentsOf = (item: Item): string[] =>
+  (item.componentsOf ?? []).filter((part) => part !== item.headword);
+
+/**
  * The reading fields for a kanji face, with KANJIDIC2's notation unpacked.
  *
  * The card printed the raw string: 会 was shown as `あ.う` under the heading
@@ -259,9 +276,9 @@ export const buildTask = async (
       asksConfidence: false,
       kanji: {
         literal: item.headword,
-        components: item.componentsOf ?? [],
+        components: componentsOf(item),
         ...kanjiReadingOf(item.reading),
-        mnemonic: mine?.text ?? baselineMnemonic(item.headword, item.componentsOf ?? []),
+        mnemonic: mine?.text ?? baselineMnemonic(item.headword, componentsOf(item)),
         mnemonicIsMine: mine !== null,
       },
     };

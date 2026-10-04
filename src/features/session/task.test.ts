@@ -217,3 +217,55 @@ describe('a kanji card carries a reading, not dictionary notation (SPEC §2.11)'
     }
   });
 });
+
+/**
+ * §2.11 teaches a kanji "by radical decomposition + an Indonesian-language
+ * mnemonic", and KRADFILE lists a character among its own radicals.
+ *
+ * Measured over the shipped shard: **62 of 1,748** have a breakdown that is
+ * nothing but the character itself, and **78 more** list it alongside real
+ * components. So the card said *"日 tersusun dari 日"* — 日 is made up of 日 —
+ * and *"見 tersusun dari 見 + 目 + 儿"*, and the baseline mnemonic then invited
+ * the learner to "make up your own story from those parts".
+ *
+ * `baselineAtomic` was written for the first case — *"日 adalah bentuk dasar"* —
+ * and could never fire, because it is guarded on `components.length > 0` and no
+ * shipped kanji has an empty breakdown (0 of 1,748).
+ *
+ * One rule fixes both: a character is not one of its own components.
+ */
+describe('a kanji is not one of its own parts (SPEC §2.11)', () => {
+  const withBreakdown = async (literal: string, breakdown: string[]) => {
+    await db.items.put({
+      id: `ja:kanji:${literal}`,
+      lang: 'ja',
+      kind: 'kanji',
+      headword: literal,
+      anchorSentenceIds: [],
+      componentsOf: breakdown,
+      freqRank: 500,
+      band: 1,
+      sourceRef: { dataset: 'kanjidic2', externalId: literal },
+    });
+    await db.cards.put(card(`ja:kanji:${literal}`, 0));
+    return (await buildTask(PROFILE, `ja:kanji:${literal}`, 1))?.kanji;
+  };
+
+  it('drops the character from its own breakdown', async () => {
+    // 見 ships as ['見', '目', '儿'] — 78 kanji list themselves beside real parts.
+    expect((await withBreakdown('見', ['見', '目', '儿']))?.components).toEqual(['目', '儿']);
+  });
+
+  it('leaves a breakdown that does not mention it alone', async () => {
+    expect((await withBreakdown('校', ['木', '交']))?.components).toEqual(['木', '交']);
+  });
+
+  it('calls a character with nothing but itself a basic form', async () => {
+    // 62 kanji ship as [self]. The card used to say "日 tersusun dari 日".
+    const face = await withBreakdown('日', ['日']);
+    expect(face?.components).toEqual([]);
+    // Which is what finally lets `baselineAtomic` fire — it never had before.
+    expect(face?.mnemonic).toContain('bentuk dasar');
+    expect(face?.mnemonic).not.toContain('tersusun dari');
+  });
+});

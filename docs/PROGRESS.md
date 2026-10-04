@@ -1,5 +1,54 @@
 # PROGRESS.md
 
+## v1.30.1 — 日 is made up of 日 (2026-10-04)
+
+The other half of the card v1.30.0 opened.
+
+KRADFILE lists a character among its own radicals, and D41's derived grouping
+keeps it. Over the shipped shard:
+
+| | count | the card said |
+|---|---|---|
+| breakdown is only the character | **62** | *"日 tersusun dari 日"* |
+| breakdown lists it beside real parts | **78** | *"見 tersusun dari 見 + 目 + 儿"* |
+
+…and then the baseline mnemonic invited the learner to *"karang ceritamu sendiri
+dari bagian-bagian itu"* — make up your own story from those parts.
+
+### A fallback that could never run
+
+`baselineAtomic` exists for precisely the first case:
+
+> 日 adalah bentuk dasar. Coba karang caramu sendiri untuk mengingatnya.
+
+It is guarded on `components.length > 0`, and **no shipped kanji has an empty
+breakdown** — 0 of 1,748, because D41's fallback to raw radicals always produces
+at least the character itself. So the branch written for the atomic case was
+reachable only in a case that never occurs, while the case it was written for
+got the circular text instead.
+
+### One rule
+
+A character is not one of its own components.
+
+- 見 → 目 + 儿. More useful than it was, not less.
+- 日 → nothing, so the component line hides and `baselineAtomic` fires for the
+  first time since M6.
+- Everything else is untouched: 140 of 1,748 cards change, 8%.
+
+It is filtered where the face is built, not in the shard. The raw KRADFILE set
+is licensed data that D41 ships deliberately alongside the derived grouping, so
+the correction belongs to how it is read, not to the record of what was
+received.
+
+### Left alone
+
+`森 → 木` and `林 → 木`. Both are true and both lose that there are three and
+two of them — KRADFILE lists *unique* radicals, so the count is not in the data,
+and inventing it is not an option.
+
+928 unit · 75 e2e.
+
 ## v1.30.0 — a full stop that is not part of any word (2026-10-04)
 
 §2.11's acceptance criterion is *"every kanji item renders its component

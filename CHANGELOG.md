@@ -5,6 +5,32 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.30.1 — 2026-10-04
+
+### Fixed — a kanji was listed among its own parts
+
+KRADFILE lists a character among its own radicals. Measured over the shipped
+shard: **62 of 1,748** have a breakdown that is nothing but the character
+itself, and **78 more** list it beside real components — so §2.11's card said
+*"日 tersusun dari 日"* and *"見 tersusun dari 見 + 目 + 儿"*, then invited the
+learner to build a story out of those parts.
+
+`baselineAtomic` — *"日 adalah bentuk dasar"* — was written for the first case
+and could never fire, because it is guarded on an empty breakdown and no shipped
+kanji has one.
+
+One rule fixes both: a character is not one of its own components. 見 becomes
+目 + 儿; 日 becomes atomic, which hides the component line and lets
+`baselineAtomic` run for the first time. 140 of 1,748 cards change.
+
+Filtered where the face is built, not in the shard — the raw KRADFILE set is
+licensed data D41 ships deliberately. `森 → 木` is left alone: true, and the
+count of three is not in the data to recover.
+
+928 unit · 75 e2e.
+
+---
+
 ## v1.30.0 — 2026-10-04
 
 ### Fixed — the kanji card showed dictionary notation as the reading
