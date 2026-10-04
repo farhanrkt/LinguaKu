@@ -1,5 +1,69 @@
 # PROGRESS.md
 
+## v1.30.0 — a full stop that is not part of any word (2026-10-04)
+
+§2.11's acceptance criterion is *"every kanji item renders its component
+breakdown; user-authored mnemonics persist and survive sync."* v1.21.0 fixed the
+sync half. This time I checked the card itself, which neither half had looked at.
+
+The breakdown is fine — **0 of 1,748** shipped kanji have an empty one, so D41's
+fallback to raw radicals holds everywhere. The reading was not.
+
+### What the card said
+
+KANJIDIC2 writes a kun reading with its okurigana attached and a dot marking
+where the kanji stops. 会 is `あ.う`: the character is read あ, and the う is
+written after it in kana. A leading or trailing hyphen marks a prefix or suffix
+position — 一 is `ひと-`, 部 is `-べ`.
+
+The card rendered `{face.reading}` verbatim, under the heading **"Dibaca"**.
+
+| shape | count | example |
+|---|---|---|
+| clean | 870 | 日 → `ひ` |
+| dot | 863 | 会 → `あ.う` |
+| trailing hyphen | 9 | 一 → `ひと-` |
+| leading hyphen | 4 | 部 → `-べ` |
+| hyphen and dot | 2 | 可 → `-べ.き` |
+
+**878 of 1,748 — 50.2%** — told an Indonesian beginner that a kanji is read as
+a string containing a full stop.
+
+### Why the obvious fix is wrong
+
+Strip the dot: `あ.う` → `あう`. That is worse than leaving it, because あう is
+the reading of **会う**, not of 会. The card would stop being cryptic and start
+being false — which is the failure §2.7 exists to prevent, moved one screen
+over.
+
+So both halves are kept, and the card says each one plainly. Driven in a browser
+on 与:
+
+> **Dibaca** あた
+> Dipakai dalam 与える, dibaca あたえる.
+
+Both true. `あた.える` was neither.
+
+The position hyphen is dropped — 13 of 1,748. The reading is right either way,
+and what the hyphen adds is that the character sits at the front or the back of
+a compound: copy worth less than what it would cost the learner to decode.
+
+### Where the split lives
+
+In `buildTask`, not the view. The kanji face already carries display-ready data
+for its components and its mnemonic, and putting the reading there too means a
+deterministic test covers it — this repo has no component tests, so a split done
+in the view would have been guarded by nothing but my eyes.
+
+Falsified by putting `item.reading` back: three of the four cases fail.
+
+### Scope
+
+Lexeme readings carry no notation — **0 of 5,633**, measured — so this is the
+kanji shard alone, and no content had to change.
+
+925 unit · 75 e2e.
+
 ## v1.29.1 — the offline test that never opened a card (2026-10-04)
 
 R11 ended with a sentence about what the next pass would need: *"an offline test

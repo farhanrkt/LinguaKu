@@ -1,6 +1,7 @@
 import { db } from '../../data/db.ts';
 import { makeCloze, type Cloze } from '../../core/cloze.ts';
 import { acceptedAnswers } from '../../core/grader.ts';
+import { splitKanjiReading } from '../../core/kana.ts';
 import { mulberry32, shuffle } from '../../core/rng.ts';
 import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
@@ -146,7 +147,17 @@ export interface KanjiFace {
   literal: string;
   /** The component breakdown, e.g. 校 → 木 + 交 (decision D41). */
   components: string[];
+  /**
+   * What the character itself is read as — KANJIDIC2's notation already
+   * unpacked, so never `あ.う` or `ひと-` (see `splitKanjiReading`).
+   */
   reading: string | null;
+  /**
+   * The kana written after it in the word, where the dictionary marks any.
+   * Present for 863 of the 1,748 shipped kanji; the card spells out the word
+   * they form, because `あ` alone and `あう` alone are each only half true.
+   */
+  okurigana?: string;
   /** The learner's own mnemonic if they wrote one, otherwise the baseline. */
   mnemonic: string;
   mnemonicIsMine: boolean;
@@ -183,6 +194,20 @@ export interface BuildTaskOptions {
    */
   hasAudioFor?: (sentenceId: string) => boolean;
 }
+
+/**
+ * The reading fields for a kanji face, with KANJIDIC2's notation unpacked.
+ *
+ * The card printed the raw string: 会 was shown as `あ.う` under the heading
+ * "Dibaca", for 878 of the 1,748 shipped kanji. Collapsing the dot would make
+ * it false — あう is the reading of 会う, not of 会 — so both halves are kept
+ * and the card states each one.
+ */
+const kanjiReadingOf = (raw: string | undefined): { reading: string | null; okurigana?: string } => {
+  if (raw === undefined || raw.length === 0) return { reading: null };
+  const { reading, okurigana } = splitKanjiReading(raw);
+  return { reading, ...(okurigana === null ? {} : { okurigana }) };
+};
 
 /**
  * The `alsoAccepted` fragment, or nothing at all.
@@ -235,7 +260,7 @@ export const buildTask = async (
       kanji: {
         literal: item.headword,
         components: item.componentsOf ?? [],
-        reading: item.reading ?? null,
+        ...kanjiReadingOf(item.reading),
         mnemonic: mine?.text ?? baselineMnemonic(item.headword, item.componentsOf ?? []),
         mnemonicIsMine: mine !== null,
       },

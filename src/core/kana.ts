@@ -263,3 +263,41 @@ export const romajiToKana = (input: string, final = false): string => {
   // the first keystroke of `nani` into ん under their fingers.
   return final && buffer === 'n' ? `${result}ん` : result + buffer;
 };
+
+// ----------------------------------------------------- KANJIDIC2's notation
+
+export interface KanjiReading {
+  /** What the character itself is read as. */
+  reading: string;
+  /** Kana written after it in the word, where KANJIDIC2 marks any. */
+  okurigana: string | null;
+}
+
+/**
+ * Splits a KANJIDIC2 kun reading into the character's reading and its okurigana.
+ *
+ * KANJIDIC2 writes a kun reading with the okurigana attached and a dot marking
+ * where the kanji stops — 会 is `あ.う`, meaning the character is read あ and
+ * the う is written in kana after it — and marks a prefix or suffix position
+ * with a hyphen: 一 is `ひと-`, 部 is `-べ`.
+ *
+ * That is dictionary notation, not a reading, and the kanji card rendered it
+ * verbatim: **878 of the 1,748 shipped kanji (50.2%)** told the learner that
+ * 会 is read `あ.う`, a string with a full stop in it that appears in no
+ * Japanese word.
+ *
+ * **Stripping the dot would be worse than leaving it.** あう is the reading of
+ * 会う, not of 会, so collapsing the two halves makes the card *false* rather
+ * than merely cryptic. Both halves are kept and the card says each one plainly.
+ *
+ * The position hyphen is dropped — 13 of 1,748. The reading is correct either
+ * way; what the hyphen adds is that the character sits at the front or back of
+ * a compound, and inventing copy for that in thirteen cases buys less than it
+ * costs the learner to decode.
+ */
+export const splitKanjiReading = (raw: string): KanjiReading => {
+  const bare = raw.replace(/^-|-$/g, '');
+  const dot = bare.indexOf('.');
+  if (dot < 0) return { reading: bare, okurigana: null };
+  return { reading: bare.slice(0, dot), okurigana: bare.slice(dot + 1) || null };
+};

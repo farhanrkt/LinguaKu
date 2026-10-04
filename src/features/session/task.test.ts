@@ -158,3 +158,62 @@ describe('a Japanese production card accepts the reading (SPEC §2.7, §4.3)', (
     expect(task?.alsoAccepted).toBeUndefined();
   });
 });
+
+/**
+ * SPEC §2.11's card, and the dictionary notation that was reaching it.
+ *
+ * KANJIDIC2 writes a kun reading with its okurigana attached and a dot where
+ * the kanji stops — 会 is `あ.う` — and marks a prefix or suffix position with a
+ * hyphen. The card printed that verbatim under "Dibaca", so **878 of the 1,748
+ * shipped kanji (50.2%)** told an Indonesian beginner that 会 is read `あ.う`.
+ *
+ * Driven in a browser against the fix, 与 now reads: *Dibaca あた · Dipakai
+ * dalam 与える, dibaca あたえる.* Both true; `あた.える` was neither.
+ */
+describe('a kanji card carries a reading, not dictionary notation (SPEC §2.11)', () => {
+  const kanji = (literal: string, reading: string): Item => ({
+    id: `ja:kanji:${literal}`,
+    lang: 'ja',
+    kind: 'kanji',
+    headword: literal,
+    reading,
+    anchorSentenceIds: [],
+    componentsOf: ['勹', '上'],
+    freqRank: 500,
+    band: 1,
+    sourceRef: { dataset: 'kanjidic2', externalId: literal },
+  });
+
+  const faceOf = async (literal: string, reading: string) => {
+    await db.items.put(kanji(literal, reading));
+    await db.cards.put(card(`ja:kanji:${literal}`, 0));
+    const task = await buildTask(PROFILE, `ja:kanji:${literal}`, 1);
+    return task?.kanji;
+  };
+
+  it('splits the okurigana out instead of printing the dot', async () => {
+    const face = await faceOf('与', 'あた.える');
+    expect(face?.reading).toBe('あた');
+    expect(face?.okurigana).toBe('える');
+  });
+
+  it('leaves a reading that needs no unpacking alone', async () => {
+    const face = await faceOf('日', 'ひ');
+    expect(face?.reading).toBe('ひ');
+    expect(face?.okurigana).toBeUndefined();
+  });
+
+  it('drops the position hyphen', async () => {
+    const face = await faceOf('一', 'ひと-');
+    expect(face?.reading).toBe('ひと');
+    expect(face?.okurigana).toBeUndefined();
+  });
+
+  it('never puts notation on a card, whatever the dictionary wrote', async () => {
+    for (const raw of ['あた.える', 'ひと-', '-べ.き', 'ニチ']) {
+      const face = await faceOf('与', raw);
+      expect(face?.reading ?? '').not.toMatch(/[.-]/);
+      expect(face?.okurigana ?? '').not.toMatch(/[.-]/);
+    }
+  });
+});

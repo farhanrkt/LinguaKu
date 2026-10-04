@@ -128,6 +128,40 @@ const WordMeaning = ({ task, scriptMode }: { task: Task; scriptMode: ScriptMode 
   );
 };
 
+/**
+ * A kanji's reading, with KANJIDIC2's notation unpacked rather than printed.
+ *
+ * `splitKanjiReading` explains the data; this decides what to show. The
+ * character's own reading goes under "Dibaca", and where the dictionary marks
+ * okurigana the word it forms is spelled out beside it — 会 is read あ, and it
+ * is used in 会う, read あう. Both are true; `あ.う` on its own was neither.
+ */
+const KanjiReadingLine = ({
+  literal,
+  reading,
+  okurigana,
+}: {
+  literal: string;
+  reading: string;
+  okurigana: string | undefined;
+}) => {
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
+        {copy.session.kanji.readingHeading}
+      </p>
+      <p className="mt-1 text-xl" data-testid="kanji-reading">
+        {reading}
+      </p>
+      {okurigana === undefined ? null : (
+        <p className="mt-1 text-sm text-stone-600 dark:text-slate-400" data-testid="kanji-in-word">
+          {copy.session.kanji.inWord(`${literal}${okurigana}`, `${reading}${okurigana}`)}
+        </p>
+      )}
+    </div>
+  );
+};
+
 /** L0 — errorless first exposure. Nothing is being tested yet. */
 export const ExposureTask = ({
   task,
@@ -428,12 +462,11 @@ export const KanjiTask = ({
       ) : null}
 
       {face.reading ? (
-        <div className="mt-4">
-          <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
-            {copy.session.kanji.readingHeading}
-          </p>
-          <p className="mt-1 text-xl">{face.reading}</p>
-        </div>
+        <KanjiReadingLine
+          literal={face.literal}
+          reading={face.reading}
+          okurigana={face.okurigana}
+        />
       ) : null}
 
       <div className="mt-6">

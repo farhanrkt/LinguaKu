@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { romajiToKana, toHiragana, toKatakana, toRomaji } from './kana.ts';
+import { romajiToKana, splitKanjiReading, toHiragana, toKatakana, toRomaji } from './kana.ts';
 import { gradeAnswer } from './grader.ts';
 
 /**
@@ -83,5 +83,55 @@ describe('the commit boundary (§2.7)', () => {
     expect(romajiToKana('nihon', true)).toBe('にほん');
     expect(gradeAnswer(romajiToKana('nihon'), 'にほん').outcome).toBe('wrong');
     expect(gradeAnswer(romajiToKana('nihon', true), 'にほん').outcome).toBe('correct');
+  });
+});
+
+/**
+ * KANJIDIC2 writes a kun reading with its okurigana attached and a dot marking
+ * where the kanji stops: 会 is `あ.う`, meaning the character is read あ and the
+ * う is written in kana after it. A leading or trailing hyphen marks a prefix or
+ * suffix position — 一 is `ひと-`, 部 is `-べ`.
+ *
+ * That is dictionary notation, not a reading. The kanji card rendered it
+ * verbatim under the heading "bacaannya", so **878 of the 1,748 shipped kanji —
+ * 50.2% — told an Indonesian beginner that 会 is read `あ.う`**, a string with a
+ * full stop in it that appears in no Japanese word.
+ *
+ * Stripping the dot would be worse than leaving it: あう is the reading of 会う,
+ * not of 会, so the "fix" would make the card false instead of merely cryptic.
+ * The split keeps both halves and lets the card say each one plainly.
+ */
+describe('splitKanjiReading (KANJIDIC2 notation is not a reading)', () => {
+  it('separates the character’s reading from its okurigana', () => {
+    expect(splitKanjiReading('あ.う')).toEqual({ reading: 'あ', okurigana: 'う' });
+    expect(splitKanjiReading('なが.い')).toEqual({ reading: 'なが', okurigana: 'い' });
+    expect(splitKanjiReading('みずか.ら')).toEqual({ reading: 'みずか', okurigana: 'ら' });
+  });
+
+  it('leaves a plain reading alone', () => {
+    // 870 of 1,748 are already clean, including every on-yomi.
+    expect(splitKanjiReading('ひ')).toEqual({ reading: 'ひ', okurigana: null });
+    expect(splitKanjiReading('ニチ')).toEqual({ reading: 'ニチ', okurigana: null });
+  });
+
+  it('drops the position hyphen, which is notation too', () => {
+    // 13 of 1,748. The reading is right either way; what the hyphen adds is
+    // that the character sits at the front or the back of a compound, and
+    // inventing copy for that in thirteen cases is not worth a sentence the
+    // learner has to decode.
+    expect(splitKanjiReading('ひと-')).toEqual({ reading: 'ひと', okurigana: null });
+    expect(splitKanjiReading('-べ')).toEqual({ reading: 'べ', okurigana: null });
+  });
+
+  it('handles a hyphen and a dot together', () => {
+    expect(splitKanjiReading('-べ.き')).toEqual({ reading: 'べ', okurigana: 'き' });
+  });
+
+  it('never returns notation, whatever it is given', () => {
+    for (const raw of ['あ.う', 'ひと-', '-べ.き', 'ひ', '']) {
+      const split = splitKanjiReading(raw);
+      expect(split.reading).not.toMatch(/[.-]/);
+      expect(split.okurigana ?? '').not.toMatch(/[.-]/);
+    }
   });
 });

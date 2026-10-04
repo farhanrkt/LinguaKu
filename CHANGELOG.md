@@ -5,6 +5,31 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.30.0 — 2026-10-04
+
+### Fixed — the kanji card showed dictionary notation as the reading
+
+KANJIDIC2 writes a kun reading with its okurigana attached and a dot marking
+where the kanji stops: 会 is `あ.う`. The §2.11 card printed that verbatim under
+the heading *"Dibaca"*, so **878 of the 1,748 shipped kanji (50.2%)** told an
+Indonesian beginner that a kanji is read as a string containing a full stop.
+
+Stripping the dot would have been worse than leaving it — あう is the reading of
+会う, not of 会, so the card would stop being cryptic and start being false. Both
+halves are kept instead: the character's own reading under *Dibaca*, and where
+the dictionary marks okurigana, the word it forms — *"Dipakai dalam 与える,
+dibaca あたえる."*
+
+The position hyphen (13 of 1,748) is dropped: the reading is correct either way.
+
+The split happens in `buildTask` rather than the view, so a deterministic test
+covers it; verified in a browser as well. Lexeme readings carry no notation — 0
+of 5,633 — so no content changed.
+
+925 unit · 75 e2e.
+
+---
+
 ## v1.29.1 — 2026-10-04
 
 ### Changed — the offline test answers a question now

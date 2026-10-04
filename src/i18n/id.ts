@@ -207,6 +207,17 @@ export const copy = {
       instruction: 'Perhatikan bagian-bagiannya — itu yang bikin huruf gampang diingat.',
       componentsHeading: 'Tersusun dari',
       readingHeading: 'Dibaca',
+      /**
+       * The okurigana KANJIDIC2 attaches to a kun reading.
+       *
+       * The card used to print the raw notation — 会 was shown as `あ.う` — for
+       * 878 of the 1,748 shipped kanji. The dot means "the kanji is read あ and
+       * the う is written after it in kana", which is worth saying, and
+       * collapsing it to あう would be false: あう is the reading of 会う, not
+       * of 会.
+       */
+      inWord: (word: string, reading: string) =>
+        `Dipakai dalam ${word}, dibaca ${reading}.`,
       mnemonicHeading: 'Cara mengingat',
       // SPEC §2.11: the learner's own mnemonic beats a given one, so the copy
       // invites editing rather than presenting ours as the answer.
