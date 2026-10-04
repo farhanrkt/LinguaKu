@@ -45,6 +45,30 @@ test('sync is off by default and says the app does not need it', async ({ page }
   await expect(page.getByTestId('sync-now')).toBeDisabled();
 });
 
+/**
+ * The consent sentence has to match what a delta actually carries.
+ *
+ * Until v1.21.0 it carried the review history, and the screen asked for
+ * *"riwayat latihanmu"*. It now also carries the mnemonics the learner typed
+ * themselves, because SPEC §2.11 makes surviving sync an acceptance criterion
+ * (D94) — so the sentence asking permission has to say so before the switch is
+ * ever reachable, which is why this is a gate and not a copy review.
+ */
+test('the screen names what sync uploads, before it can be turned on', async ({ page }) => {
+  await firstRun(page);
+  await openFromSettings(page, 'sync-open');
+
+  const carries = page.getByTestId('sync-carries');
+  await expect(carries).toBeVisible();
+  // Answers and schedule — what it always carried.
+  await expect(carries).toContainText(/jawaban latihanmu/);
+  // The learner's own written mnemonics — what v1.21.0 added.
+  await expect(carries).toContainText(/catatan hafalan yang kamu tulis sendiri/);
+  // And what never leaves: the endpoint and token are device-local secrets,
+  // deliberately held outside Dexie so they cannot reach an export either.
+  await expect(carries).toContainText(/kata sandi server tidak pernah dikirim/);
+});
+
 test('a failed sync leaves the learner’s data alone', async ({ page }) => {
   await firstRun(page);
   await page.getByTestId('practise').click();

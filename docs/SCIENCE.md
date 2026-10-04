@@ -248,7 +248,21 @@ component graph, with an Indonesian-language mnemonic the learner can edit.
 **Acceptance:** every kanji item renders its component breakdown; user-authored
 mnemonics persist and survive sync.
 
-**Status:** planned (M6); decomposition source not yet licence-cleared (R3).
+**Status:** **shipped** (M6 breakdown, v1.21.0 sync half). The decomposition
+source cleared through KRADFILE, which gives *radicals* — 校 as 父 + 木 + 亠 —
+rather than the 木 + 交 the spec asks for, so the pipeline also derives a
+one-level grouping and ships the raw list beside it (D41, marked `UNVALIDATED`;
+it fires on 1,149 of 1,748 kanji).
+
+The second half of the acceptance criterion was **false until v1.21.0** and had
+been since M6: a `Delta` carried no mnemonics, so nothing a learner wrote ever
+reached another device, and `authoredByUser` was a tiebreaker with nothing to
+tie against. Three places in the repository — this file, `Mnemonic`'s own type
+comment, and `mnemonics.ts` — asserted the behaviour instead. Mnemonics now
+travel in the delta as current state, last-write-wins on `updatedAt` (D94,
+invariant 46), and the sync screen names them among what it uploads, because
+free text the learner typed is not covered by consent given for a review
+history. Tested in `src/core/delta.test.ts` and `src/platform/sync.test.ts`.
 
 ## §2.12 Metacognitive calibration
 

@@ -9,6 +9,8 @@ import {
 } from './sync.ts';
 import { buildDelta } from '../core/delta.ts';
 import { recordReview } from '../data/repositories/reviews.ts';
+import { saveMnemonic } from '../data/repositories/mnemonics.ts';
+import { recordCategoryAttempt } from '../data/repositories/contrastive.ts';
 import type { Card, ReviewLog, Session, StoredFsrsState } from '../data/types.ts';
 
 /**
@@ -157,6 +159,8 @@ const incoming = (logs: ReviewLog[], cards: Card[]) =>
     reviewLogs: logs,
     drillAttempts: [],
     cards,
+    mnemonics: [],
+    categoryScores: [],
     producedAt: NOW,
   });
 
@@ -295,5 +299,138 @@ describe('sync failures are classified, not printed raw', () => {
     vi.stubGlobal('fetch', () => Promise.resolve(new Response('', { status: 418 })));
     const outcome = await syncNow('p1');
     expect(outcome).toMatchObject({ reason: 'unknown', detail: 'HTTP 418' });
+  });
+});
+
+// ------------------------------------- what a delta actually carries upstream
+
+/**
+ * Three claims about sync that the code made and did not keep.
+ *
+ * SPEC §2.11's acceptance criterion is *"user-authored mnemonics persist and
+ * **survive sync**"*; `src/data/types.ts` says a learner's mnemonic "wins on
+ * sync", and `mnemonics.ts` quotes the criterion in its own doc comment. The
+ * delta carried no mnemonics at all.
+ *
+ * The same shape of gap sat under the heatmap: drill *attempts* travelled and
+ * the `CategoryScore` they produce did not, so a second device held twenty
+ * answers in its append-only log while its own heatmap told the learner to
+ * "answer 5 more" (invariant 16 reads `attempts` off the score row).
+ *
+ * And the window was wrong: sessions were selected by `startedAt >= since`, so
+ * a session that began before a sync and finished after it was skipped — and
+ * because the cursor had advanced, skipped permanently.
+ *
+ * The bodies are read as `unknown` on purpose, so these tests describe the
+ * wire and fail at runtime against the unfixed code rather than failing to
+ * compile against it.
+ */
+describe('a delta carries everything the learner made (SPEC §2.11, §6)', () => {
+  let pushed: unknown[][] = [];
+
+  const enable = () =>
+    writeSyncSettings({
+      enabled: true,
+      endpoint: 'https://example.test',
+      token: 'secret',
+      lastSyncedAt: null,
+    });
+
+  const capture = () => {
+    pushed = [];
+    vi.stubGlobal('fetch', (_url: string, init: { body: string }) => {
+      const body = JSON.parse(init.body) as { deltas: unknown[] };
+      pushed.push(body.deltas);
+      return Promise.resolve(new Response(JSON.stringify({ deltas: [] }), { status: 200 }));
+    });
+  };
+
+  /** The deltas sent by the most recent push. */
+  const sent = (): Record<string, unknown>[] =>
+    (pushed.at(-1) ?? []) as Record<string, unknown>[];
+
+  const finishedSession = (over: Partial<Session> = {}): Session => ({
+    id: 's-x',
+    profileId: 'p1',
+    lang: 'en',
+    startedAt: NOW - 1_000,
+    endedAt: NOW + 1_000,
+    plannedMinutes: 4,
+    itemIds: ['en:lex:x'],
+    completed: 1,
+    resumeCursor: 1,
+    ...over,
+  });
+
+  const review = (itemId: string, at: number) =>
+    recordReview({
+      profileId: 'p1',
+      itemId,
+      grade: 3,
+      confidence: null,
+      latencyMs: 800,
+      answerRaw: 'x',
+      correct: true,
+      now: at,
+    });
+
+  it('carries a mnemonic the learner wrote — §2.11 calls this an acceptance criterion', async () => {
+    await review('ja:kanji:校', NOW);
+    await saveMnemonic('p1', 'ja:kanji:校', 'pohon di samping persimpangan', NOW);
+    await db.sessions.add(finishedSession({ id: 's-mn', lang: 'ja', itemIds: ['ja:kanji:校'] }));
+
+    enable();
+    capture();
+    expect(await syncNow('p1')).toMatchObject({ status: 'ok' });
+    expect(sent()[0]?.['mnemonics']).toEqual([
+      expect.objectContaining({ itemId: 'ja:kanji:校', text: 'pohon di samping persimpangan' }),
+    ]);
+  });
+
+  it('carries the category score, so the other device’s heatmap is not a lie', async () => {
+    await review('en:lex:x', NOW);
+    await recordCategoryAttempt({
+      profileId: 'p1',
+      lang: 'en',
+      categoryIds: ['articles'],
+      correct: true,
+      now: NOW,
+    });
+    await db.sessions.add(finishedSession({ id: 's-cs' }));
+
+    enable();
+    capture();
+    expect(await syncNow('p1')).toMatchObject({ status: 'ok' });
+    expect(sent()[0]?.['categoryScores']).toEqual([
+      expect.objectContaining({ categoryId: 'articles', lang: 'en', attempts: 1 }),
+    ]);
+  });
+
+  it('pushes a session that began before a sync and finished after it', async () => {
+    await review('en:lex:a', NOW);
+    await db.sessions.add(
+      finishedSession({ id: 's-straddle', startedAt: NOW, endedAt: null, completed: 0 }),
+    );
+
+    enable();
+    capture();
+    // Nothing to push yet: the session is not finished, which is honest.
+    expect(await syncNow('p1')).toMatchObject({ status: 'ok' });
+    expect(sent()).toEqual([]);
+
+    const cursor = readSyncSettings().lastSyncedAt;
+    expect(cursor).not.toBeNull();
+
+    // The learner comes back after that sync and finishes the same session.
+    await review('en:lex:b', (cursor ?? 0) + 60_000);
+    await db.sessions.update('s-straddle', { completed: 1, endedAt: (cursor ?? 0) + 61_000 });
+
+    capture();
+    expect(await syncNow('p1')).toMatchObject({ status: 'ok' });
+    expect(sent()[0]?.['sessionId']).toBe('s-straddle');
+    // Both reviews, including the one answered before the first sync. The
+    // server keys on session id and discards a replay, so a session gets one
+    // push and it has to be the complete one.
+    expect(sent()[0]?.['reviewLogs']).toHaveLength(2);
   });
 });

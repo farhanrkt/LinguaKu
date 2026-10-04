@@ -1,5 +1,127 @@
 # PROGRESS.md
 
+## v1.21.0 — sync did not carry what three documents said it carried (2026-10-04)
+
+Found by reading the acceptance criteria in SPEC §2 against the code that
+claims them, rather than by using the app. Three defects, all in one function,
+all of the same kind: something written down and not kept.
+
+### The mnemonic that never left the phone it was typed on
+
+§2.11's acceptance criterion is, in full: *"every kanji item renders its
+component breakdown; **user-authored mnemonics persist and survive sync**."*
+Three places in the repository restate it.
+
+- `src/data/types.ts`, over `interface Mnemonic`: *"learner-edited mnemonics
+  beat given ones, so they win on sync."*
+- `src/data/repositories/mnemonics.ts` quotes the criterion verbatim, and names
+  `authoredByUser` as *"the sync tiebreaker SPEC §2.11 asks for"*.
+- The export bundle has carried `mnemonics` since M5.
+
+A `Delta` carried the session, its review logs, its drill attempts and its
+touched cards. It did not carry a mnemonic, and never had. There was no
+tiebreaker to be, because nothing arrived to tie with.
+
+What makes this the worst of the three is *why* §2.11 exists. The mnemonic is
+the only content in this app the learner writes themselves, and it is asked for
+because self-generated mnemonics are stronger than given ones — the generation
+effect. Stranding it on one device is the single most damaging thing sync could
+do to it, and the app shipped a settings screen inviting the learner to turn on
+the feature that would do it.
+
+### The heatmap that contradicted its own log
+
+`DrillAttempt` rows travelled. The `CategoryScore` they produce did not — and
+`recordDrillAnswer` is the only writer of contrastive state (invariant 15), so
+a merge cannot rebuild one. The result on a second device: twenty answers sat
+in its own append-only log while the §3.3 heatmap read `attempts: 0` off the
+missing score row and rendered §2.15's honest-ignorance line —
+*"belum cukup data"*, answer five more (invariant 16).
+
+Invariant 18 exists to stop an unmeasured figure being drawn as zero. This was
+the inverse and it is worse: a **measured** figure drawn as zero, and the
+measurement was sitting in the same database.
+
+### The window that dropped a session permanently
+
+`pendingDeltas` selected sessions with `startedAt >= since`. Begin a session,
+sync, come back and finish it, and the session is behind the cursor — forever,
+because the cursor has moved on and `startedAt` never will.
+
+This is not an exotic sequence. §2.13 persists `resumeCursor` after every
+single answer *specifically* so a session survives being interrupted, and
+`findResumable` will hand one back days later. Straddling a sync is the
+ordinary case for anyone who syncs more than once.
+
+Two things decided the fix:
+
+- **It has to be `endedAt`, not "push it unfinished and replace it later."**
+  The Worker does `ON CONFLICT(session_id) DO NOTHING`. A session gets exactly
+  one push upstream, so it must be the finished one; a partial delta sent
+  early would become the permanent record and the rest of the session would be
+  lost on the server rather than merely delayed.
+- **Rows read from the earliest session being pushed, not from `since`.**
+  Fixing only the session query would have sent a straddling session carrying
+  the reviews answered *after* the sync and not the ones before it — a session
+  missing half its history, which is worse than a session that did not arrive.
+
+### Three smaller things that came with it
+
+- The cursor is taken **before** the read instead of `Date.now()` after the
+  write, which had skipped anything written while the request was in flight.
+- `localMnemonics` and `localScores` are **required** on `MergeInput`, not
+  defaulted. A caller that forgot them would silently discard the learner's own
+  text, which is precisely the bug being fixed, so the compiler asks instead.
+  Making them required broke nine call sites, every one of them deliberately.
+- `DELTA_VERSION` is 2, and a version 1 delta still reads. A second device that
+  has not updated yet is a device whose review history is the one thing that
+  cannot be recovered; refusing its session over two absent fields would trade
+  a real loss for a cosmetic consistency.
+
+### The consent sentence had to change too
+
+The screen asked for *"riwayat latihanmu"* — your practice history — and until
+this release that was exactly what left the phone. It now also carries free
+text the learner typed. Widening the upload without widening the sentence that
+asks permission for it would be the same defect in a different register, so
+the screen names what travels, including what does not: no settings, no token.
+
+### Falsified
+
+All three were written as tests that read the pushed request body as `unknown`,
+so they describe the wire and **fail at runtime** against the unfixed code
+rather than failing to compile against it. Confirmed failing, then fixed:
+864 unit tests from 854.
+
+---
+
+## v1.15.1 – v1.20.1 — nine releases recorded in DECISIONS and not here
+
+Flagged while writing the entry above: this file stopped at v1.15.0 while the
+app was at v1.20.1, and `CLAUDE.md` points a new reader here for "where things
+stand". The reasoning for each of these is in `docs/DECISIONS.md` as D84–D93;
+what was missing is the index. In order:
+
+| Release | What it was |
+|---|---|
+| v1.15.1 | Sentence building was silently English-only — `tokenizeLatin` returns a Japanese sentence as one unbroken token, so the gate rejected every one of them. 0 → 1,521 buildable sentences at band 1. |
+| docs | R9 filed: English anchor tokens resolve to a lexeme 95.8% of the time and Japanese 53.0%, because particles are not vocabulary. A learner who knows every Japanese word the app ships tops out at 53.9% mean coverage. Redefining a §2 criterion for one language is not a unilateral call. |
+| v1.16.0 | `slippingSoon` — the words closest to being forgotten — had existed since M2 and was called by nothing. That is §1's whole thesis, invisible. |
+| v1.17.0 | Shadowing did not exist, while §8, PROGRESS, the launch checklist and the README all said it did. The platform half and every line of its Indonesian were already written. |
+| v1.18.0 | A backup silently lost every rebuilt sentence. |
+| v1.18.1 | Two more tables were missing from it; a test now walks `db.tables` and fails unless each one is exported or named as generated. |
+| v1.19.0 | Audio played over the top of the next card. `cancelSpeech` had existed since M4 and nothing called it. No unit test could catch it — the CI browser has no speech engine. |
+| v1.19.1 | Sync states what it is about to upload (`deltaSize`, unused since M7), and seven exports that nothing read were deleted or wired up. |
+| v1.19.2 | A refused import told the learner the file *"isn't a LinguaKu backup"* when it was one, from a newer version of the app. |
+| v1.20.0 | A failed sync printed *"Gagal: HTTP 401"* to an Indonesian learner. Five classified failures, each naming its remedy. |
+| v1.20.1 | The app claimed a reminder it had not set — `scheduleReminder` returns whether anything was actually scheduled and both callers discarded the boolean. |
+
+The pattern across nine of the eleven is one thing: **a document asserting a
+behaviour that no code performed.** Six were found by listing exported names
+that appear only at their own declaration, two by using the app in a browser,
+and one by reading an acceptance criterion against its implementation — which
+is how the release above was found too.
+
 ## v1.15.0 — the variety half (2026-10-02)
 
 v1.14.0 did the structure half of the brief and said plainly what it had not

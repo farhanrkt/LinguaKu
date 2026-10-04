@@ -1,5 +1,12 @@
 import { db } from '../data/db.ts';
-import { buildDelta, deltaSize, isDelta, mergeDelta, type Delta } from '../core/delta.ts';
+import {
+  buildDelta,
+  deltaSize,
+  isDelta,
+  mergeDelta,
+  scoreKey,
+  type Delta,
+} from '../core/delta.ts';
 import type { Timestamp } from '../data/types.ts';
 
 /**
@@ -111,26 +118,52 @@ const failureFor = (status: number): SyncFailure => {
   return 'unknown';
 };
 
-/** Deltas for finished sessions the server has not seen. */
+/**
+ * Deltas for finished sessions the server has not seen.
+ *
+ * ## Selected by when a session *ended*
+ *
+ * This used to ask for sessions with `startedAt >= since`, which silently
+ * dropped every session that straddled a sync: begin a session, sync, come back
+ * and finish it, and the session sat behind the cursor permanently — along with
+ * every review in it. SPEC §2.13 makes sessions resumable across days
+ * (`resumeCursor` is persisted after every single answer), so straddling is
+ * ordinary rather than exotic.
+ *
+ * It has to be `endedAt`, not "push it unfinished and replace it later": the
+ * Worker keys on session id and does `ON CONFLICT DO NOTHING`, so a session
+ * gets exactly one push upstream and it must be the finished one.
+ *
+ * The scan is over one profile's sessions, which is what `findResumable`
+ * already does — a four-minute session is one row, so a year of daily use is a
+ * few hundred of them.
+ */
 const pendingDeltas = async (profileId: string, since: Timestamp): Promise<Delta[]> => {
   const sessions = await db.sessions
     .where('[profileId+startedAt]')
-    .between([profileId, since], [profileId, Number.MAX_SAFE_INTEGER])
+    .between([profileId, 0], [profileId, Number.MAX_SAFE_INTEGER])
     .toArray();
 
-  const finished = sessions.filter((session) => session.completed === 1);
+  const finished = sessions.filter(
+    (session) => session.completed === 1 && (session.endedAt ?? session.startedAt) >= since,
+  );
   if (finished.length === 0) return [];
 
-  const [logs, attempts, cards] = await Promise.all([
-    db.reviewLogs
-      .where('[profileId+reviewedAt]')
-      .between([profileId, since], [profileId, Number.MAX_SAFE_INTEGER])
-      .toArray(),
-    db.drillAttempts
-      .where('[profileId+answeredAt]')
-      .between([profileId, since], [profileId, Number.MAX_SAFE_INTEGER])
-      .toArray(),
+  // Rows are read from the earliest session being pushed, not from `since`. A
+  // straddling session must travel with the answers given *before* the sync
+  // that skipped it, or the fix above would send a session missing half its
+  // reviews — worse than not sending it.
+  const earliest = Math.min(...finished.map((session) => session.startedAt));
+  const upTo = Number.MAX_SAFE_INTEGER;
+
+  const [logs, attempts, cards, mnemonics, scores] = await Promise.all([
+    db.reviewLogs.where('[profileId+reviewedAt]').between([profileId, earliest], [profileId, upTo]).toArray(),
+    db.drillAttempts.where('[profileId+answeredAt]').between([profileId, earliest], [profileId, upTo]).toArray(),
     db.cards.where('profileId').equals(profileId).toArray(),
+    // `mnemonics` is keyed `[profileId+itemId]` and holds one row per kanji the
+    // learner actually edited, so a filter is the honest read here.
+    db.mnemonics.filter((row) => row.profileId === profileId).toArray(),
+    db.categoryScores.where('profileId').equals(profileId).toArray(),
   ]);
 
   return finished.map((session) => {
@@ -148,6 +181,12 @@ const pendingDeltas = async (profileId: string, since: Timestamp): Promise<Delta
       reviewLogs: sessionLogs,
       drillAttempts: inWindow(attempts, (attempt) => attempt.answeredAt),
       cards: cards.filter((card) => touched.has(card.id)),
+      // Current state, windowed the same way the history is. Both are only ever
+      // written during a session — `saveMnemonic` from the session screen,
+      // `recordCategoryAttempt` from a drill answer — so a row's `updatedAt`
+      // falls inside exactly one session, and rides exactly one delta.
+      mnemonics: inWindow(mnemonics, (row) => row.updatedAt),
+      categoryScores: inWindow(scores, (row) => row.updatedAt),
       producedAt: Date.now(),
     });
   });
@@ -183,6 +222,11 @@ export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
   if (!settings.enabled || settings.endpoint.length === 0) return { status: 'disabled' };
 
   const since = settings.lastSyncedAt ?? 0;
+  // The next cursor is taken *before* anything is read. Taking it afterwards
+  // (`Date.now()` at the end) silently skipped anything written while the
+  // request was in flight, because the cursor would then sit past rows this
+  // push never carried.
+  const cursor = Date.now();
 
   try {
     const deltas = await pendingDeltas(profileId, since);
@@ -211,7 +255,7 @@ export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
       merged += await applyDelta(delta);
     }
 
-    writeSyncSettings({ ...settings, lastSyncedAt: Date.now() });
+    writeSyncSettings({ ...settings, lastSyncedAt: cursor });
     return { status: 'ok', pushed: deltas.length, pulled: incoming.length, merged };
   } catch (error) {
     // `fetch` rejects rather than resolving when it cannot reach the host at
@@ -233,10 +277,19 @@ export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
  * `put` — the append-only hook would reject that, and it would be right to.
  */
 export const applyDelta = async (delta: Delta): Promise<number> => {
-  const [knownLogs, knownAttempts, cards] = await Promise.all([
+  // A version 1 delta carries neither state array; `?? []` is the wire being
+  // older than this build, not defensive clutter.
+  const incomingMnemonics = delta.mnemonics ?? [];
+  const incomingScores = delta.categoryScores ?? [];
+
+  const [knownLogs, knownAttempts, cards, mnemonics, scores] = await Promise.all([
     db.reviewLogs.bulkGet(delta.reviewLogs.map((log) => log.id)),
     db.drillAttempts.bulkGet(delta.drillAttempts.map((attempt) => attempt.id)),
     db.cards.bulkGet(delta.cards.map((card) => card.id)),
+    db.mnemonics.bulkGet(incomingMnemonics.map((row) => [row.profileId, row.itemId] as const)),
+    db.categoryScores.bulkGet(
+      incomingScores.map((row) => [row.profileId, row.lang, row.categoryId] as const),
+    ),
   ]);
 
   const result = mergeDelta({
@@ -244,11 +297,13 @@ export const applyDelta = async (delta: Delta): Promise<number> => {
     knownLogIds: new Set(knownLogs.flatMap((row) => (row ? [row.id] : []))),
     knownAttemptIds: new Set(knownAttempts.flatMap((row) => (row ? [row.id] : []))),
     localCards: new Map(cards.flatMap((row) => (row ? [[row.id, row] as const] : []))),
+    localMnemonics: new Map(mnemonics.flatMap((row) => (row ? [[row.itemId, row] as const] : []))),
+    localScores: new Map(scores.flatMap((row) => (row ? [[scoreKey(row), row] as const] : []))),
   });
 
   await db.transaction(
     'rw',
-    [db.sessions, db.reviewLogs, db.drillAttempts, db.cards],
+    [db.sessions, db.reviewLogs, db.drillAttempts, db.cards, db.mnemonics, db.categoryScores],
     async () => {
       await db.sessions.put(delta.session);
       if (result.newReviewLogs.length > 0) await db.reviewLogs.bulkAdd(result.newReviewLogs);
@@ -256,8 +311,16 @@ export const applyDelta = async (delta: Delta): Promise<number> => {
         await db.drillAttempts.bulkAdd(result.newDrillAttempts);
       }
       if (result.updatedCards.length > 0) await db.cards.bulkPut(result.updatedCards);
+      if (result.updatedMnemonics.length > 0) await db.mnemonics.bulkPut(result.updatedMnemonics);
+      if (result.updatedScores.length > 0) await db.categoryScores.bulkPut(result.updatedScores);
     },
   );
 
-  return result.newReviewLogs.length + result.newDrillAttempts.length + result.updatedCards.length;
+  return (
+    result.newReviewLogs.length +
+    result.newDrillAttempts.length +
+    result.updatedCards.length +
+    result.updatedMnemonics.length +
+    result.updatedScores.length
+  );
 };

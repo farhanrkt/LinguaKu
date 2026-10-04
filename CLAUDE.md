@@ -262,6 +262,14 @@ needs React state to work, it is in the wrong place.
     optional extra that can stop a session being planned is worse than no extra.
 
 
+46. **A delta carries current state, not only answers** (D94). Mnemonics and
+    category scores ride in it alongside the logs, because §2.11 makes
+    surviving sync an acceptance criterion and a `CategoryScore` cannot be
+    recomputed from the attempts beside it (invariant 15). Both are state, so
+    both are last-write-wins on `updatedAt`. Sessions are selected by when they
+    **ended** — `startedAt` dropped any session that straddled a sync, forever,
+    because the cursor had moved past it. A version 1 delta still reads.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`

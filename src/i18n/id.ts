@@ -304,6 +304,18 @@ export const copy = {
     heading: 'Sinkronisasi',
     intro:
       'Aplikasi ini jalan sepenuhnya tanpa ini. Kalau kamu punya lebih dari satu HP dan mau riwayat latihanmu nyambung, kamu bisa nyalakan — tapi itu berarti datamu keluar dari HP ini.',
+    /**
+     * What actually leaves the phone, named.
+     *
+     * The consent `intro` asks for is for *"riwayat latihanmu"*, and until
+     * v1.21.0 that was all a delta carried. It now also carries the mnemonics
+     * the learner typed themselves (SPEC §2.11 requires that they survive
+     * sync), which is free text rather than a rating — so the sentence that
+     * asks for consent has to say so. Listing it is also how the learner can
+     * tell this is not everything: no profile, no settings, no token.
+     */
+    carries:
+      'Yang dikirim: jawaban latihanmu, jadwal kartumu, dan catatan hafalan yang kamu tulis sendiri. Pengaturan dan kata sandi server tidak pernah dikirim.',
     // No LinguaKu server exists. Say so, rather than letting anyone assume one.
     noServer:
       'Kami tidak punya server. Kamu perlu memasang sendiri (petunjuknya ada di workers/sync/README.md), lalu tempel alamatnya di bawah.',

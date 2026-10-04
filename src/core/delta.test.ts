@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildDelta, DELTA_VERSION, isDelta, mergeDelta } from './delta.ts';
-import type { Card, ReviewLog, Session, StoredFsrsState } from '../data/types.ts';
+import { buildDelta, DELTA_VERSION, isDelta, mergeDelta, scoreKey, type Delta } from './delta.ts';
+import type {
+  Card,
+  CategoryScore,
+  Mnemonic,
+  ReviewLog,
+  Session,
+  StoredFsrsState,
+} from '../data/types.ts';
 
 /**
  * SPEC §5.1 and §6. The rule under test is §6's own sentence — *"last-write-wins
@@ -61,15 +68,39 @@ const session: Session = {
   resumeCursor: 1,
 };
 
-const delta = (logs: ReviewLog[], cards: Card[]) =>
+const delta = (
+  logs: ReviewLog[],
+  cards: Card[],
+  state: { mnemonics?: Mnemonic[]; categoryScores?: CategoryScore[] } = {},
+) =>
   buildDelta({
     profileId: 'p1',
     session,
     reviewLogs: logs,
     drillAttempts: [],
     cards,
+    mnemonics: state.mnemonics ?? [],
+    categoryScores: state.categoryScores ?? [],
     producedAt: NOW,
   });
+
+const mnemonic = (itemId: string, text: string, updatedAt: number): Mnemonic => ({
+  profileId: 'p1',
+  itemId,
+  text,
+  authoredByUser: 1,
+  updatedAt,
+});
+
+const score = (categoryId: string, attempts: number, updatedAt: number): CategoryScore => ({
+  profileId: 'p1',
+  lang: 'en',
+  categoryId,
+  elo: 1200,
+  attempts,
+  correct: attempts,
+  updatedAt,
+});
 
 describe('buildDelta', () => {
   it('packs a whole session into one delta', () => {
@@ -99,6 +130,8 @@ describe('mergeDelta — logs merge, cards contest', () => {
     knownLogIds: new Set<string>(),
     knownAttemptIds: new Set<string>(),
     localCards: new Map<string, Card>(),
+    localMnemonics: new Map<string, Mnemonic>(),
+    localScores: new Map<string, CategoryScore>(),
   };
 
   it('adds logs the device has never seen', () => {
@@ -173,5 +206,91 @@ describe('mergeDelta — logs merge, cards contest', () => {
       localCards: new Map([['c1', card('c1', NOW)]]),
     });
     expect(result.updatedCards).toEqual([]);
+  });
+});
+
+/**
+ * SPEC §2.11's acceptance criterion — *"user-authored mnemonics persist and
+ * survive sync"* — and the score row behind the §3.3 heatmap. Both are current
+ * state, so both follow §6's last-write-wins rather than the append-only rule.
+ */
+describe('state the learner made, not just the answers they gave', () => {
+  const empty = {
+    knownLogIds: new Set<string>(),
+    knownAttemptIds: new Set<string>(),
+    localCards: new Map<string, Card>(),
+    localMnemonics: new Map<string, Mnemonic>(),
+    localScores: new Map<string, CategoryScore>(),
+  };
+
+  it('packs the learner’s own mnemonic into the delta', () => {
+    const packed = delta([], [], { mnemonics: [mnemonic('ja:kanji:校', 'pohon', NOW)] });
+    expect(packed.mnemonics).toHaveLength(1);
+    expect(packed.version).toBe(DELTA_VERSION);
+  });
+
+  it('takes a mnemonic the device has never seen', () => {
+    const result = mergeDelta({
+      delta: delta([], [], { mnemonics: [mnemonic('ja:kanji:校', 'pohon', NOW)] }),
+      ...empty,
+    });
+    expect(result.updatedMnemonics.map((row) => row.text)).toEqual(['pohon']);
+  });
+
+  it('keeps the locally newer mnemonic — an edit here must not be rolled back', () => {
+    const result = mergeDelta({
+      delta: delta([], [], { mnemonics: [mnemonic('ja:kanji:校', 'yang lama', NOW - 1_000)] }),
+      ...empty,
+      localMnemonics: new Map([['ja:kanji:校', mnemonic('ja:kanji:校', 'yang baru', NOW)]]),
+    });
+    expect(result.updatedMnemonics).toEqual([]);
+  });
+
+  it('treats an equal timestamp as no change rather than a rewrite', () => {
+    const result = mergeDelta({
+      delta: delta([], [], { mnemonics: [mnemonic('ja:kanji:校', 'sama', NOW)] }),
+      ...empty,
+      localMnemonics: new Map([['ja:kanji:校', mnemonic('ja:kanji:校', 'sama', NOW)]]),
+    });
+    expect(result.updatedMnemonics).toEqual([]);
+  });
+
+  it('carries the category score, because a merge cannot recompute one', () => {
+    // `recordDrillAnswer` is the only writer of contrastive state (invariant
+    // 15), so the attempts arriving beside this row cannot rebuild it. Without
+    // the row the receiving heatmap reads 0 attempts and says so.
+    const result = mergeDelta({
+      delta: delta([], [], { categoryScores: [score('articles', 20, NOW)] }),
+      ...empty,
+    });
+    expect(result.updatedScores.map((row) => row.attempts)).toEqual([20]);
+  });
+
+  it('keys a score by language and category, so en and ja do not collide', () => {
+    const en = score('articles', 3, NOW);
+    const ja: CategoryScore = { ...en, lang: 'ja', attempts: 9 };
+    expect(scoreKey(en)).not.toBe(scoreKey(ja));
+
+    const result = mergeDelta({
+      delta: delta([], [], { categoryScores: [ja] }),
+      ...empty,
+      localScores: new Map([[scoreKey(en), { ...en, updatedAt: NOW + 5_000 }]]),
+    });
+    // The English row being newer says nothing about the Japanese one.
+    expect(result.updatedScores.map((row) => row.lang)).toEqual(['ja']);
+  });
+
+  it('reads a version 1 delta, which carries neither array', () => {
+    // A second device that has not updated yet still pushes v1. Dropping its
+    // session because two fields are missing would lose review history.
+    const v1 = { ...delta([log('l1')], []) } as Partial<Delta>;
+    delete v1.mnemonics;
+    delete v1.categoryScores;
+    expect(isDelta(v1)).toBe(true);
+
+    const result = mergeDelta({ delta: v1 as Delta, ...empty });
+    expect(result.newReviewLogs.map((l) => l.id)).toEqual(['l1']);
+    expect(result.updatedMnemonics).toEqual([]);
+    expect(result.updatedScores).toEqual([]);
   });
 });

@@ -87,6 +87,12 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
       <h1 className="text-2xl font-bold">{copy.sync.heading}</h1>
       <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.sync.intro}</p>
+      {/* Named, because a delta carries the learner's own written mnemonics as
+          well as their answers (SPEC §2.11), and consent given for a review
+          history does not cover free text they typed. */}
+      <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="sync-carries">
+        {copy.sync.carries}
+      </p>
       <p className="mt-2 text-sm text-stone-500 dark:text-slate-400">{copy.sync.noServer}</p>
 
       {/* What this will cost to send, before it is sent (§5.4, D80). Null while

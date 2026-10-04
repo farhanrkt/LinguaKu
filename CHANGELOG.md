@@ -5,6 +5,63 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.21.0 — 2026-10-04
+
+### Fixed — sync did not carry what three documents said it carried
+
+SPEC §2.11's acceptance criterion is *"every kanji item renders its component
+breakdown; **user-authored mnemonics persist and survive sync**."* The type
+comment over `Mnemonic` says a learner's edit "wins on sync"; `mnemonics.ts`
+quotes the criterion in its own doc comment and calls `authoredByUser` the
+tiebreaker it asks for; `docs/SCIENCE.md` restated it and marked §2.11
+*planned*.
+
+A `Delta` carried no mnemonics, and never had. The one piece of content in this
+app the learner writes themselves — asked for *because* self-generated
+mnemonics beat given ones — never left the phone it was typed on, and
+`authoredByUser` was a tiebreaker with nothing to tie against.
+
+Two more defects sat beside it in the same function.
+
+**The heatmap contradicted its own log.** `DrillAttempt` rows travelled and the
+`CategoryScore` they produce did not, and `recordDrillAnswer` is the only writer
+of contrastive state (invariant 15), so a merge cannot rebuild one. A second
+device held twenty answers in its append-only log while the §3.3 heatmap read
+`attempts: 0` off the missing row and told the learner to answer five more
+(invariant 16). Invariant 18 exists to stop an *unmeasured* figure being drawn
+as zero; this was a measured one, drawn as zero, with the measurement in the
+same database.
+
+**A session that straddled a sync was dropped permanently.** `pendingDeltas`
+selected sessions by `startedAt >= since`, so a session begun before a sync and
+finished after it sat behind the cursor forever, with every review in it. §2.13
+persists `resumeCursor` after every single answer precisely so a session
+survives interruption, which makes straddling the ordinary case. Sessions are
+now selected by when they **ended** — it cannot be "push it unfinished and
+replace it later", because the Worker does `ON CONFLICT(session_id) DO NOTHING`
+— and rows are read from the earliest session being pushed rather than from
+`since`, or the fix would have sent a session missing half its history.
+
+### Changed
+
+- `DELTA_VERSION` is 2. A version 1 delta from a device that has not updated
+  still reads: refusing its session over two absent fields would lose review
+  history, which is the one unrecoverable outcome.
+- `localMnemonics` and `localScores` are **required** on `MergeInput`, not
+  defaulted. A caller that forgot them would silently discard the learner's own
+  text, so the compiler asks. Nine call sites were reviewed as a result.
+- The sync cursor is taken *before* the read instead of `Date.now()` after the
+  write, which had skipped anything written while the request was in flight.
+- The sync screen names what it uploads, and what it does not. Consent was
+  asked for *"riwayat latihanmu"*; free text the learner typed is not that.
+- `docs/PROGRESS.md` had stopped at v1.15.0 while the app was at v1.20.1.
+  Nine releases are indexed there now; their reasoning was already in
+  `docs/DECISIONS.md` as D84–D93.
+
+864 unit · 69 e2e.
+
+---
+
 ## v1.20.1 — 2026-10-03
 
 ### Fixed — the app claimed a reminder it had not set
