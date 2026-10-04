@@ -5,6 +5,32 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.29.1 — 2026-10-04
+
+### Changed — the offline test answers a question now
+
+SPEC §5.4 promises the app is *"fully functional offline after first load"*, and
+the gate asserted that the home screen renders with the network cut. The home
+screen renders from precached JS and CSS whether or not a single content shard
+survived, so the test could not see the promise break — including by R11's own
+recommended service-worker fix, whose failure mode is silently breaking exactly
+this.
+
+It now composes a session, checks the card carries a real headword, and answers
+it: that needs the lexeme, anchor and gloss shards for the band. It passes,
+which is the first direct evidence here that §5.4 holds rather than being
+assumed.
+
+Proved it can fail by removing the content caching and rebuilding — the new test
+fails and the old one still passes. Removing the precache globs alone was not
+enough, because the runtime cache had already caught the shards during the
+online first run; the two mechanisms overlap, and the precache is what covers a
+learner who installs and goes offline *before* a session.
+
+916 unit · 75 e2e.
+
+---
+
 ## v1.29.0 — 2026-10-04
 
 ### Fixed — a stale shard could be recorded as current, permanently

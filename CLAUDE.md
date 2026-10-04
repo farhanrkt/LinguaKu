@@ -326,6 +326,14 @@ needs React state to work, it is in the wrong place.
     what the remainder *is*, and that differs per language — rare words and
     proper nouns for English, particles and auxiliaries for Japanese.
 
+54. **The offline gate answers a question, not just the home screen** (v1.29.1).
+    §5.4 promises "fully functional offline after first load", and a test that
+    stops at the shell passes whether or not a single content shard survived —
+    the shell renders from precached JS and CSS. `smoke.spec.ts` cuts the
+    network and answers a card, which needs the lexeme, anchor and gloss shards
+    for the band. Proved by removing both caching mechanisms: the new test
+    fails, the old one still passes.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`

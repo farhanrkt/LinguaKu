@@ -1,5 +1,63 @@
 # PROGRESS.md
 
+## v1.29.1 — the offline test that never opened a card (2026-10-04)
+
+R11 ended with a sentence about what the next pass would need: *"an offline test
+that asserts content availability rather than just that the app boots."* That
+turned out to be worth doing on its own, before any of R11's options.
+
+### What the gate actually proved
+
+```ts
+await context.setOffline(true);
+await page.reload();
+await expect(page.getByRole('heading', { name: 'Halo!' })).toBeVisible();
+```
+
+The home screen. Which renders from the precached JS and CSS whether or not a
+single content shard survived.
+
+That is the fragile half. Thirty shards are precached and revision-managed;
+thirty-four live in a runtime cache whose entry cap once sat one fetch *below*
+the shard count — a failure invariant 34 describes as looking *"like content
+that mysteriously will not open on a plane."* And R11's recommended fix is a
+service-worker change whose failure mode is silently breaking exactly this.
+
+So the thing guarding §5.4's headline promise could not see the promise break.
+
+### Cutting the network and answering a card
+
+The new test composes a session, checks the card carries a real headword, and
+answers it. A session needs the lexeme shard for its items, the anchor shard for
+its sentences and the gloss shard for its meanings — nothing renders without all
+three.
+
+**It passes**, which is the first direct evidence in this repo that §5.4 holds
+rather than being assumed.
+
+### Proving it could fail
+
+Removing the content precache globs alone was **not enough** — the test still
+passed, because the runtime `CacheFirst` rule had already caught the shards
+during the online first run. Which is itself worth knowing: the two mechanisms
+overlap, and the precache matters for the learner who installs and goes offline
+*before* a session rather than after.
+
+The first attempt was also inconclusive for a duller reason —
+`playwright.config.ts` sets `reuseExistingServer: true`, so a preview server
+left running from an earlier run meant the build never re-ran and the config
+edit changed nothing. A falsification that does not rebuild is not a
+falsification.
+
+With the server killed and **both** mechanisms removed, the result is clean:
+
+| | shell-only test (old) | answer-a-card test (new) |
+|---|---|---|
+| content caching intact | pass | pass |
+| content caching removed | **pass** | **fail** |
+
+916 unit · 75 e2e.
+
 ## v1.29.0 — a hash that proved nothing (2026-10-04)
 
 v1.26.0 changed shipped content for the first time in a while, which raised a
