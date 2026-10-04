@@ -5,6 +5,40 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.27.0 — 2026-10-04
+
+### Fixed — the Japanese placement check had nothing to catch over-claiming
+
+SPEC §4.2 asks for a Yes/No vocabulary check *with generated pseudowords*, and
+`pseudoword.ts` says what happens without them: *"a Yes/No test without
+pseudowords measures confidence, not vocabulary — a learner who says yes to
+everything scores 100%."*
+
+Only English ships a `pseudowords.json`. `loadPseudowords('ja')` 404s, the
+screen catches it into an empty list, no pseudoword is ever shown, and
+`correctedAbility` returned the raw estimate with its raw standard error —
+indistinguishable from one that had been checked. Nothing documented it.
+
+- `wasControlled` makes the absence explicit instead of a silent `return raw`.
+- The result screen says so: *"Buat bahasa ini kami belum punya kata-kata
+  jebakan, jadi angka ini murni dari jawabanmu sendiri."*
+- The estimate is not discarded — it is still the honest reading of the answers
+  given — and no discount is invented for it, because there is no measurement
+  behind one.
+
+Filed as **R10**. Generating Japanese pseudowords risks emitting a real word,
+which would make the correction wrong rather than absent, so the fix needs a
+native speaker — the same category as R7's voice licence.
+
+### Changed
+
+- `placement.result.overclaimed` said *"bukan bahasa Inggris"*. It says *"bukan
+  kata asli"* now, which is true in any language.
+
+913 unit · 74 e2e.
+
+---
+
 ## v1.26.1 — 2026-10-04
 
 ### Fixed — the heatmap said "your English patterns" to Japanese learners

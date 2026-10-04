@@ -846,7 +846,19 @@ export const copy = {
         'Jawabanmu campur-campur, jadi kami belum bisa menebak dengan yakin. Kami mulai dari tengah dan menyesuaikan sambil kamu latihan.',
       estimate: 'Ini perkiraan, dan akan terus kami perbaiki setiap kali kamu latihan.',
       overclaimed:
-        'Beberapa kata tadi sebenarnya bukan bahasa Inggris — jadi perkiraannya kami buat lebih hati-hati.',
+        'Beberapa kata tadi sebenarnya bukan kata asli — jadi perkiraannya kami buat lebih hati-hati.',
+      /**
+       * SPEC §4.2's over-claiming control did not run.
+       *
+       * Only English ships pseudowords, so a Japanese check has nothing to
+       * catch over-claiming with — and `pseudoword.ts` is blunt about what that
+       * means: *"a Yes/No test without pseudowords measures confidence, not
+       * vocabulary."* The reading is still the honest one for the answers
+       * given; it simply has not been checked, and saying so is cheaper than
+       * inventing a discount for it (R10).
+       */
+      unchecked:
+        'Buat bahasa ini kami belum punya kata-kata jebakan, jadi angka ini murni dari jawabanmu sendiri — anggap saja titik awal, bukan hasil tes.',
       begin: 'Mulai latihan',
     },
   },

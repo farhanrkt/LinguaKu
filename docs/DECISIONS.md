@@ -316,6 +316,61 @@ rewrites, but if the total becomes unmanageable the decision to record is where
 clips live instead — and whatever the answer is, it may not introduce a
 recurring cost (invariant 4).
 
+### R10 — Japanese placement has no over-claiming control
+
+**Status: open, measured 2026-10-04. Disclosed on screen (v1.27.0); the fix
+needs a native speaker.**
+
+SPEC §4.2 asks for *"a Yes/No vocabulary-size check with **generated
+pseudowords** to catch overclaiming, correcting the raw score for false
+alarms"*, and `src/core/pseudoword.ts` states the stake plainly:
+
+> A Yes/No test without pseudowords measures confidence, not vocabulary — a
+> learner who says yes to everything scores 100%.
+
+`build-en.ts` generates `assets/content/en/pseudowords.json` from a character
+model of the corpus. **`build-ja.ts` generates nothing.** `loadPseudowords('ja')`
+404s, the placement screen catches it into an empty list, and the run shows no
+pseudoword at all — so `correctedAbility` returned the raw estimate, with its
+raw standard error, indistinguishable from one that had been checked.
+
+Nothing documented this. It was found by reading the copy for hardcoded
+language names and following `overclaimed` — a string that can never be shown
+to a Japanese learner, because there is nothing for them to over-claim.
+
+**Why the obvious fix is not obviously right.** Generating Japanese pseudowords
+from a character model risks emitting a **real word**. Japanese has a small
+phoneme inventory and a dense homophone space, so a plausible-looking kana
+string is far more likely to exist than a plausible-looking English letter
+string — and a "pseudoword" that is real makes the correction *wrong* rather
+than absent, which is worse than the current state. Validating against JMdict
+catches dictionary words and not the rest. PROGRESS already records the English
+lesson here: *"a trigram model makes obvious fakes"*, and that was for a
+language we can all read.
+
+This is the same shape as R7's voice licence and the device matrix: a thing that
+needs a person who speaks the language, not more code.
+
+**What was done instead.** `wasControlled` makes the absence explicit rather
+than a silent `return raw`, and the result screen says so: *"Buat bahasa ini
+kami belum punya kata-kata jebakan, jadi angka ini murni dari jawabanmu sendiri
+— anggap saja titik awal, bukan hasil tes."* The estimate is not discarded,
+because it is still the honest 1PL reading of the answers the learner gave, and
+no discount is invented for it, because there is no measurement to base one on.
+
+**Bounded harm.** Placement is offered, never enforced (invariant 13), it is
+skippable at no cost, and §4.2 re-estimates continuously — so an inflated
+placement means meeting some words above the frontier for a while, which the
+composer corrects on its own.
+
+**Options, when someone can check the output:**
+1. Generate from a kana character model and have a native speaker screen the
+   list. Cheapest, and the one §4.2 asks for.
+2. Use low-frequency *real* words from outside the shipped inventory as the
+   control. Not what §4.2 says, and a learner who genuinely knows one is
+   penalised.
+3. Leave it disclosed. Honest, and the status quo.
+
 ### R9 — Token coverage is an English metric, and Japanese pays for it
 
 **Status: open, measured 2026-10-03, re-measured 2026-10-04, and it is a §2.4

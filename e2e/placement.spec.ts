@@ -61,8 +61,13 @@ test('runs adaptively and reports a band, never a bare level', async ({ page }) 
 
   // SPEC §2.15: an estimate, framed as an estimate.
   await expect(page.locator('body')).toContainText(/perkiraan/i);
-  // And having claimed every pseudoword, the app should say so.
-  await expect(page.locator('body')).toContainText(/bukan bahasa Inggris/i);
+  // And having claimed every pseudoword, the app should say so. The wording is
+  // language-neutral: it used to say "bukan bahasa Inggris", which was a
+  // sentence no Japanese learner could ever see — see R10.
+  await expect(page.locator('body')).toContainText(/bukan kata asli/i);
+  // English ships pseudowords, so §4.2's control ran and the screen must not
+  // claim otherwise.
+  await expect(page.getByTestId('placement-unchecked')).toHaveCount(0);
 });
 
 test('a taken placement stops being offered', async ({ page }) => {

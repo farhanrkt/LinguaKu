@@ -9,6 +9,7 @@ import { bandForAbility, type AbilityEstimate } from '../../core/placement.ts';
 import {
   buildProbePool,
   correctedAbility,
+  wasControlled,
   emptyPlacement,
   nextProbe,
   recordAnswer,
@@ -33,7 +34,7 @@ type Phase =
   | { name: 'loading' }
   | { name: 'intro' }
   | { name: 'asking'; probe: PlacementProbe }
-  | { name: 'result'; estimate: AbilityEstimate; overclaimed: boolean };
+  | { name: 'result'; estimate: AbilityEstimate; overclaimed: boolean; unchecked: boolean };
 
 /** Enough breadth to place anyone from beginner to the top of band 5. */
 const PROBE_WORDS = 120;
@@ -82,6 +83,9 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
         name: 'result',
         estimate,
         overclaimed: tally.falseAlarms > 0,
+        // §4.2's control did not run at all — no pseudoword was shown, which
+        // is every Japanese placement today (R10).
+        unchecked: !wasControlled(current),
       });
     },
     [pool, profile.id, lang],
@@ -195,6 +199,14 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
           {copy.placement.result.estimate}
         </p>
       )}
+      {phase.unchecked ? (
+        <p
+          className="mt-3 rounded-2xl bg-stone-100 p-3 text-sm text-stone-600 dark:bg-slate-900 dark:text-slate-400"
+          data-testid="placement-unchecked"
+        >
+          {copy.placement.result.unchecked}
+        </p>
+      ) : null}
       {phase.overclaimed ? (
         <p className="mt-3 rounded-2xl bg-stone-100 p-3 text-sm text-stone-600 dark:bg-slate-900 dark:text-slate-400">
           {copy.placement.result.overclaimed}

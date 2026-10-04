@@ -107,9 +107,29 @@ export const tallyFrom = (state: PlacementState) => {
  * capped at the prior. A learner who says yes to every pseudoword ends up back
  * where we started, which is exactly what we actually know about them.
  */
+/**
+ * Whether SPEC §4.2's over-claiming control actually ran.
+ *
+ * `pseudoword.ts` states the stake: *"a Yes/No test without pseudowords
+ * measures confidence, not vocabulary — a learner who says yes to everything
+ * scores 100%."* Only English ships a `pseudowords.json`; `loadPseudowords('ja')`
+ * 404s, the screen catches it into an empty list, and the run then shows no
+ * pseudoword at all.
+ *
+ * The estimate is still the honest 1PL reading of the answers the learner gave,
+ * so it is not discarded. What it may not do is present itself as checked, and
+ * this is what the result screen says so from.
+ */
+export const wasControlled = (state: PlacementState): boolean =>
+  tallyFrom(state).pseudoShown > 0;
+
 export const correctedAbility = (state: PlacementState): AbilityEstimate => {
   const raw = abilityFrom(state);
   const tally = tallyFrom(state);
+  // No pseudoword was shown, so there is nothing to correct *against*. The
+  // reading stands as given — see `wasControlled`, which is what the screen
+  // uses to avoid claiming a check that did not happen. Inventing a discount
+  // here would be a calibration with no measurement behind it.
   if (tally.pseudoShown === 0) return raw;
 
   const { hitRate, corrected } = correctForFalseAlarms(tally);

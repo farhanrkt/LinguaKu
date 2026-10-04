@@ -1,5 +1,82 @@
 # PROGRESS.md
 
+## v1.27.0 — a test with nothing to catch you (2026-10-04)
+
+Found by grepping the copy for hardcoded language names after v1.26.1, and
+following one of them.
+
+`placement.result.overclaimed` read *"Beberapa kata tadi sebenarnya bukan bahasa
+**Inggris**"* — "some of those words weren't actually English". The obvious fix
+is to make it language-aware, like the heatmap heading. Checking who could see
+it turned up something else: **a Japanese learner can never see that sentence at
+all**, because there is nothing for them to over-claim.
+
+### What §4.2 asks for, and what ships
+
+> Include a **Yes/No vocabulary-size check with generated pseudowords** to catch
+> overclaiming, correcting the raw score for false alarms.
+
+And `src/core/pseudoword.ts` says what happens without them:
+
+> A Yes/No test without pseudowords measures confidence, not vocabulary — a
+> learner who says yes to everything scores 100%.
+
+`build-en.ts` generates `assets/content/en/pseudowords.json` from a character
+model of the corpus. `build-ja.ts` generates nothing. `loadPseudowords('ja')`
+404s, `PlacementScreen` catches it into an empty list, and the run shows no
+pseudoword at all.
+
+`correctedAbility` then does this:
+
+```ts
+if (tally.pseudoShown === 0) return raw;
+```
+
+The raw estimate, with its raw standard error, handed back indistinguishable
+from a corrected one. Nothing documented the gap.
+
+### Why not just generate them
+
+Generating Japanese pseudowords from a character model risks emitting a **real
+word**. Japanese has a small phoneme inventory and a dense homophone space, so a
+plausible-looking kana string is much likelier to exist than a plausible-looking
+English letter string — and a "pseudoword" that is real makes the correction
+*wrong* rather than absent, which is worse than not having one. Validating
+against JMdict catches dictionary entries and not names, slang or compounds.
+
+This log already records the English lesson: *"a trigram model makes obvious
+fakes"* — and that was for a language everyone working on this can read.
+
+So it goes in the register as **R10**, in the same category as R7's voice
+licence and the device matrix: a thing that needs a person who speaks the
+language rather than more code.
+
+### What was done instead
+
+`wasControlled` replaces the silent `return raw`, and the result screen says
+what did not happen:
+
+> Buat bahasa ini kami belum punya kata-kata jebakan, jadi angka ini murni dari
+> jawabanmu sendiri — anggap saja titik awal, bukan hasil tes.
+
+Two things deliberately **not** done:
+
+- The estimate is not discarded. It is still the honest 1PL reading of the
+  answers the learner actually gave; what it may not do is present itself as
+  checked.
+- No discount is invented for it. `placementRun.ts` is careful to label its one
+  calibration choice as a calibration choice, and inventing a second with no
+  measurement behind it would be exactly the kind of fake precision §2.15 bans.
+
+The harm was bounded in the first place — placement is offered, never enforced
+(invariant 13), skippable at no cost, and §4.2 re-estimates continuously — but
+"bounded" is not "worth leaving unsaid".
+
+And `overclaimed` lost its "bahasa Inggris": it now says *"bukan kata asli"*,
+which is true in any language and will still be true when R10 closes.
+
+913 unit · 74 e2e.
+
 ## v1.26.1 — your English patterns, in Japanese (2026-10-04)
 
 Found by reading the Japanese progress screen end to end after v1.26.0 moved

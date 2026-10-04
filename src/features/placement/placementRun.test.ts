@@ -8,6 +8,8 @@ import {
   PSEUDO_EVERY,
   recordAnswer,
   tallyFrom,
+  wasControlled,
+  type PlacementProbe,
   type PlacementState,
 } from './placementRun.ts';
 import { MAX_DURATION_MS, MAX_ITEMS, PRIOR_MEAN, PRIOR_SD } from '../../core/placement.ts';
@@ -134,5 +136,50 @@ describe('a skipped placement', () => {
     const estimate = abilityFrom(emptyPlacement(NOW));
     expect(estimate.theta).toBeCloseTo(PRIOR_MEAN, 5);
     expect(estimate.standardError).toBeCloseTo(PRIOR_SD, 1);
+  });
+});
+
+/**
+ * SPEC §4.2 asks for *"a Yes/No vocabulary-size check with generated
+ * pseudowords to catch overclaiming, correcting the raw score for false
+ * alarms"*, and `pseudoword.ts` states the stake: **"a Yes/No test without
+ * pseudowords measures confidence, not vocabulary — a learner who says yes to
+ * everything scores 100%."**
+ *
+ * Only English ships a `pseudowords.json`. `loadPseudowords('ja')` 404s, the
+ * screen catches it into an empty list, and the run then shows no pseudoword at
+ * all — so the control simply does not happen, and `correctedAbility` returned
+ * the raw estimate with its raw standard error, indistinguishable from one that
+ * had been corrected.
+ *
+ * The estimate is still the honest 1PL reading of the answers given, so it is
+ * not discarded. What it may not do is present itself as checked.
+ */
+describe('the over-claiming control either ran or it did not (SPEC §4.2)', () => {
+  const probe = (kind: 'real' | 'pseudo', difficulty: number): PlacementProbe => ({
+    id: `${kind}-${difficulty}`,
+    word: kind,
+    kind,
+    difficulty,
+  });
+  const runOf = (probes: readonly PlacementProbe[]): PlacementState =>
+    probes.reduce((state, p) => recordAnswer(state, p, true), emptyPlacement(0));
+
+  it('reports that no pseudoword was shown', () => {
+    // Japanese: `loadPseudowords('ja')` 404s and the screen catches it to [].
+    expect(wasControlled(runOf([probe('real', -1), probe('real', 0), probe('real', 1)]))).toBe(
+      false,
+    );
+  });
+
+  it('reports that it ran as soon as one was', () => {
+    expect(wasControlled(runOf([probe('real', -1), probe('pseudo', 0), probe('real', 1)]))).toBe(
+      true,
+    );
+  });
+
+  it('does not change the estimate — an unchecked reading is still a reading', () => {
+    const uncontrolled = runOf([probe('real', -1), probe('real', 0), probe('real', 1)]);
+    expect(correctedAbility(uncontrolled)).toEqual(abilityFrom(uncontrolled));
   });
 });
