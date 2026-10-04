@@ -1,5 +1,42 @@
 # PROGRESS.md
 
+## v1.26.1 — your English patterns, in Japanese (2026-10-04)
+
+Found by reading the Japanese progress screen end to end after v1.26.0 moved
+the numbers on it — which is what you do after changing a figure a learner sees,
+and which turned up something else entirely.
+
+The §3.3 contrastive heatmap is headed:
+
+> **Pola bahasa Inggrismu** — *your English patterns*
+
+It was a literal, with no language in it. On a Japanese profile that sentence
+sat directly above は dan が, hiragana dan katakana, and あげる・くれる・もらう.
+
+The data was right the whole time. `allCategoryScores` is scoped by language and
+the right categories were listed; only the heading lied, which is why no test
+caught it — every assertion about the heatmap was about its rows.
+
+`copy.langNames` has existed since M0 and the screen already had `lang` in
+scope two components away. It takes it now.
+
+### What the rest of that screen looked like
+
+Worth recording, because it is the first full read of §9 for Japanese since the
+figures were corrected, and the rest of it holds up:
+
+> Kata yang sudah kamu kunci mencakup sekitar **37%** kata yang muncul
+> sehari-hari. … Semua tahap selesai berarti **54%** … Sisanya partikel dan kata
+> bantu — itu tata bahasa, dan kami ajarkan lewat kalimat, bukan lewat hafalan
+> kata.
+
+And every unmeasured row says so rather than showing a zero — "Belum diukur" on
+all five skill axes, "Belum cukup data · Butuh 5 jawaban lagi" on all fourteen
+heatmap categories, "Belum cukup ulangan terjadwal untuk dinilai" on retention.
+Invariant 18 holds across the whole screen.
+
+910 unit · 74 e2e.
+
 ## v1.26.0 — a percentage of itself (2026-10-04)
 
 `build-en.ts` writes the rule down, right where it computes the English number:

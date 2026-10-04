@@ -5,6 +5,22 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.26.1 — 2026-10-04
+
+### Fixed — the heatmap said "your English patterns" to Japanese learners
+
+§3.3's contrastive heatmap was headed *"Pola bahasa Inggrismu"* with no language
+in it, so a Japanese profile saw that sentence above は dan が, hiragana dan
+katakana, and あげる・くれる・もらう.
+
+The data underneath was correct — `allCategoryScores` is scoped by language — so
+no test caught it: every assertion about the heatmap was about its rows. Found
+by reading the screen after v1.26.0 moved the numbers on it.
+
+910 unit · 74 e2e.
+
+---
+
 ## v1.26.0 — 2026-10-04
 
 ### Fixed — the Japanese capability figure was a percentage of itself

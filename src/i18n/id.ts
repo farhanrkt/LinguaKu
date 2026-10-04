@@ -768,7 +768,16 @@ export const copy = {
     },
 
     heatmap: {
-      heading: 'Pola bahasa Inggrismu',
+      /**
+       * Named for the language actually being learned.
+       *
+       * It was hardcoded to *"Pola bahasa Inggrismu"* — your English patterns —
+       * and sat above a list of Japanese categories (は dan が, hiragana dan
+       * katakana) whenever the learner was on Japanese. The data under it was
+       * right the whole time; only the heading was wrong, which is the kind of
+       * thing only looking at the screen finds.
+       */
+      heading: (lang: TargetLang) => `Pola bahasa ${copy.langNames[lang]}mu`,
       // SPEC §2.15: no claim without evidence behind it.
       intro:
         'Ini disusun dari jawabanmu sendiri, bukan dari tebakan. Yang belum cukup datanya kami tulis apa adanya.',

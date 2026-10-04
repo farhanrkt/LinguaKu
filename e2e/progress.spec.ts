@@ -45,6 +45,10 @@ test('every §9 section renders, and says so plainly when it has nothing yet', a
   await expect(page.getByTestId('retention')).toContainText('Belum cukup ulangan');
   await expect(page.getByTestId('calibration')).toContainText('Belum cukup jawaban');
 
+  // §3.3's heatmap is named for the language being studied. It was hardcoded
+  // to "Inggris", which was right here and wrong for every Japanese learner.
+  await expect(page.getByRole('heading', { name: /Pola bahasa Inggrismu/ })).toBeVisible();
+
   // SPEC §9 / §2.15: no level label, and none of the banned framings anywhere
   // on the most judgement-laden screen in the app.
   await expect(page.locator('body')).not.toContainText(/\bXP\b|poin|streak|nyawa|level [ABC]\d/i);

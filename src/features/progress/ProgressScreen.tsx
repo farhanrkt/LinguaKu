@@ -270,7 +270,7 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
           <Calibration report={report} />
           <Consistency report={report} />
           <WeeklyRecap report={report} />
-          <Heatmap rows={rows} drills={drills} />
+          <Heatmap rows={rows} drills={drills} lang={lang} />
         </>
       )}
 
@@ -618,7 +618,15 @@ const WeeklyRecap = ({ report }: { report: ProgressReport }) => {
  * `MIN_ATTEMPTS_TO_CLAIM` answers, no composite score, and "not measured yet"
  * shown rather than hidden.
  */
-const Heatmap = ({ rows, drills }: { rows: HeatRow[] | null; drills: number }) => {
+const Heatmap = ({
+  rows,
+  drills,
+  lang,
+}: {
+  rows: HeatRow[] | null;
+  drills: number;
+  lang: TargetLang;
+}) => {
   const measured = (rows ?? []).filter((row) => row.standing.measured);
   const ordered = [
     ...measured.sort((a, b) => a.standing.rating - b.standing.rating),
@@ -630,7 +638,7 @@ const Heatmap = ({ rows, drills }: { rows: HeatRow[] | null; drills: number }) =
 
   return (
     <section>
-      <h2 className="mt-8 text-lg font-bold">{copy.progress.heatmap.heading}</h2>
+      <h2 className="mt-8 text-lg font-bold">{copy.progress.heatmap.heading(lang)}</h2>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
         {copy.progress.heatmap.intro}
       </p>

@@ -33,3 +33,21 @@ describe('the capability ceiling explains its own remainder', () => {
     expect(copy.progress.vocab.ceiling(87, 'en')).toContain('87%');
   });
 });
+
+/**
+ * The §3.3 heatmap was headed *"Pola bahasa Inggrismu"* — your English patterns
+ * — regardless of what the learner was studying, so a Japanese profile saw that
+ * sentence above は dan が, hiragana dan katakana, and あげる/くれる/もらう. The
+ * data was right the whole time; only the heading lied, which is the kind of
+ * thing that only shows up by opening the screen.
+ */
+describe('the heatmap is named for the language being learned', () => {
+  it('says Japanese on a Japanese profile', () => {
+    expect(copy.progress.heatmap.heading('ja')).toContain('Jepang');
+    expect(copy.progress.heatmap.heading('ja')).not.toContain('Inggris');
+  });
+
+  it('still says English on an English one', () => {
+    expect(copy.progress.heatmap.heading('en')).toContain('Inggris');
+  });
+});
