@@ -139,10 +139,13 @@ const WordMeaning = ({ task, scriptMode }: { task: Task; scriptMode: ScriptMode 
 const KanjiReadingLine = ({
   literal,
   reading,
+  romaji,
   okurigana,
 }: {
   literal: string;
   reading: string;
+  /** Latin letters beside the kana — what a day-one learner can actually say. */
+  romaji: string | null;
   okurigana: string | undefined;
 }) => {
   return (
@@ -152,6 +155,9 @@ const KanjiReadingLine = ({
       </p>
       <p className="mt-1 text-xl" data-testid="kanji-reading">
         {reading}
+        {romaji === null ? null : (
+          <span className="ml-2 text-base text-stone-600 dark:text-slate-400">({romaji})</span>
+        )}
       </p>
       {okurigana === undefined ? null : (
         <p className="mt-1 text-sm text-stone-600 dark:text-slate-400" data-testid="kanji-in-word">
@@ -461,10 +467,22 @@ export const KanjiTask = ({
         </div>
       ) : null}
 
+      {face.meanings.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
+            {copy.session.kanji.meaningHeading}
+          </p>
+          <p className="mt-1 text-lg" data-testid="kanji-meanings">
+            {face.meanings.join(', ')}
+          </p>
+        </div>
+      ) : null}
+
       {face.reading ? (
         <KanjiReadingLine
           literal={face.literal}
           reading={face.reading}
+          romaji={face.romaji}
           okurigana={face.okurigana}
         />
       ) : null}

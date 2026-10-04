@@ -269,3 +269,54 @@ describe('a kanji is not one of its own parts (SPEC §2.11)', () => {
     expect(face?.mnemonic).not.toContain('tersusun dari');
   });
 });
+
+/**
+ * What a beginner actually needs off a kanji card: what it means, and how to
+ * say it in letters they can already read.
+ *
+ * The card showed neither. All 1,748 shipped kanji carry `meanings` from
+ * KANJIDIC2 — 日 is `["day", "sun", "Japan", "counter for days"]` — and the
+ * card rendered none of them; `toRomaji` has existed in `core/kana.ts` since M6
+ * and the card never called it. So the learner met 与, its parts, and the
+ * reading あた, with no way to know what any of it meant or how it sounded.
+ *
+ * The meanings are English, and there is no Indonesian source for them: the
+ * id.wiktionary gloss shards cover 274 Japanese lexemes and **0 kanji**. Showing
+ * them labelled as English is honest and useful; showing nothing was neither.
+ */
+describe('a kanji card says what it means and how it sounds (SPEC §2.11)', () => {
+  const kanjiWith = async (over: { reading?: string; meanings?: string[] }) => {
+    await db.items.put({
+      id: 'ja:kanji:日',
+      lang: 'ja',
+      kind: 'kanji',
+      headword: '日',
+      anchorSentenceIds: [],
+      componentsOf: ['日'],
+      freqRank: 1,
+      band: 1,
+      sourceRef: { dataset: 'kanjidic2', externalId: '日' },
+      ...(over.reading === undefined ? {} : { reading: over.reading }),
+      ...(over.meanings === undefined ? {} : { meanings: over.meanings }),
+    });
+    await db.cards.put(card('ja:kanji:日', 0));
+    return (await buildTask(PROFILE, 'ja:kanji:日', 1))?.kanji;
+  };
+
+  it('carries the meanings the shard has shipped all along', async () => {
+    const face = await kanjiWith({ meanings: ['day', 'sun', 'Japan', 'counter for days'] });
+    expect(face?.meanings).toEqual(['day', 'sun', 'Japan', 'counter for days']);
+  });
+
+  it('romanises the reading, so a day-one learner can say it', async () => {
+    expect((await kanjiWith({ reading: 'ひ' }))?.romaji).toBe('hi');
+    // Through the okurigana split, which runs first.
+    expect((await kanjiWith({ reading: 'あた.える' }))?.romaji).toBe('ata');
+  });
+
+  it('says nothing rather than something empty', async () => {
+    const face = await kanjiWith({});
+    expect(face?.meanings).toEqual([]);
+    expect(face?.romaji).toBeNull();
+  });
+});

@@ -5,6 +5,26 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.31.0 — 2026-10-04
+
+### Added — the kanji card says what the character means, and how to say it
+
+All 1,748 shipped kanji carry KANJIDIC2 `meanings` and the card rendered none of
+them; `toRomaji` has been in `core/kana.ts` since M6 and the card never called
+it. A beginner met 与, its components, and the reading あた — with no way to know
+what it meant or how it sounded.
+
+The meanings are English and there is no Indonesian source: the gloss shards
+cover 274 Japanese lexemes and 0 kanji. They are shown under *"Artinya (bahasa
+Inggris)"*, because nothing is not the neutral option — it is a card that
+teaches a character while withholding its meaning.
+
+Romaji sits beside the kana — あた (ata) — rather than replacing it.
+
+931 unit · 75 e2e.
+
+---
+
 ## v1.30.1 — 2026-10-04
 
 ### Fixed — a kanji was listed among its own parts

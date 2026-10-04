@@ -208,6 +208,14 @@ export const copy = {
       componentsHeading: 'Tersusun dari',
       readingHeading: 'Dibaca',
       /**
+       * KANJIDIC2's meanings are English and there is no Indonesian source for
+       * them — the gloss shards cover 274 Japanese lexemes and 0 kanji. The
+       * card said nothing at all about meaning, which is worse than saying it
+       * in a language the learner has at least studied at school, as long as
+       * the heading is honest about which language that is (D106).
+       */
+      meaningHeading: 'Artinya (bahasa Inggris)',
+      /**
        * The okurigana KANJIDIC2 attaches to a kun reading.
        *
        * The card used to print the raw notation — 会 was shown as `あ.う` — for

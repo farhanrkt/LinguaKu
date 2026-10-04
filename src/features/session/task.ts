@@ -1,7 +1,7 @@
 import { db } from '../../data/db.ts';
 import { makeCloze, type Cloze } from '../../core/cloze.ts';
 import { acceptedAnswers } from '../../core/grader.ts';
-import { splitKanjiReading } from '../../core/kana.ts';
+import { splitKanjiReading, toHiragana, toRomaji } from '../../core/kana.ts';
 import { mulberry32, shuffle } from '../../core/rng.ts';
 import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
@@ -158,6 +158,13 @@ export interface KanjiFace {
    * they form, because `あ` alone and `あう` alone are each only half true.
    */
   okurigana?: string;
+  /**
+   * The character's reading in latin letters — what a day-one learner can
+   * actually say. Derived from `reading`, so it follows the okurigana split.
+   */
+  romaji: string | null;
+  /** KANJIDIC2's English meanings, labelled as English on the card (D106). */
+  meanings: string[];
   /** The learner's own mnemonic if they wrote one, otherwise the baseline. */
   mnemonic: string;
   mnemonicIsMine: boolean;
@@ -220,10 +227,18 @@ const componentsOf = (item: Item): string[] =>
  * it false — あう is the reading of 会う, not of 会 — so both halves are kept
  * and the card states each one.
  */
-const kanjiReadingOf = (raw: string | undefined): { reading: string | null; okurigana?: string } => {
-  if (raw === undefined || raw.length === 0) return { reading: null };
+const kanjiReadingOf = (
+  raw: string | undefined,
+): { reading: string | null; romaji: string | null; okurigana?: string } => {
+  if (raw === undefined || raw.length === 0) return { reading: null, romaji: null };
   const { reading, okurigana } = splitKanjiReading(raw);
-  return { reading, ...(okurigana === null ? {} : { okurigana }) };
+  // The character's own reading, romanised. Not the whole word: `romaji` sits
+  // under `reading`, and the two have to agree.
+  return {
+    reading,
+    romaji: toRomaji(toHiragana(reading)),
+    ...(okurigana === null ? {} : { okurigana }),
+  };
 };
 
 /**
@@ -278,6 +293,7 @@ export const buildTask = async (
         literal: item.headword,
         components: componentsOf(item),
         ...kanjiReadingOf(item.reading),
+        meanings: item.meanings ?? [],
         mnemonic: mine?.text ?? baselineMnemonic(item.headword, componentsOf(item)),
         mnemonicIsMine: mine !== null,
       },

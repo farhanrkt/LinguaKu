@@ -241,6 +241,7 @@ const toKanjiItem = (wire: WireKanji, lang: TargetLang): Item => ({
   ...(wire.kun[0] ?? wire.on[0] ? { reading: wire.kun[0] ?? wire.on[0]! } : {}),
   anchorSentenceIds: [],
   componentsOf: wire.breakdown,
+  ...(wire.meanings.length > 0 ? { meanings: wire.meanings } : {}),
   // KANJIDIC2's newspaper frequency where it has one; otherwise the tail.
   freqRank: wire.freq ?? UNKNOWN_KANJI_RANK,
   band: bandForRank(wire.freq ?? UNKNOWN_KANJI_RANK),

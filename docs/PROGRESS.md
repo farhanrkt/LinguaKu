@@ -1,5 +1,54 @@
 # PROGRESS.md
 
+## v1.31.0 — a card that would not say what the character means (2026-10-04)
+
+Reported by the user, about Japanese: a kanji card shows the character *"with no
+word meaning or how to read it in romaji"*. Both true.
+
+All **1,748** shipped kanji carry KANJIDIC2 `meanings` — 日 is
+`["day", "sun", "Japan", "counter for days"]` — and the card rendered none of
+them. `toRomaji` has been in `core/kana.ts` since M6 and the card never called
+it. A beginner met this:
+
+> 与 · Tersusun dari 勹 + 上 · Dibaca あた
+
+A character, two shapes, and a kana reading. Nothing about meaning, and nothing
+they could pronounce.
+
+### Why the meanings were missing, and why that was the wrong call
+
+They are English, and §10 is Indonesian-first. There is no Indonesian source to
+swap in: the id.wiktionary gloss shards cover 274 Japanese lexemes and **0
+kanji**, measured.
+
+So the real choice was English-with-a-label or nothing — and nothing is not the
+neutral option. It is a card that teaches a character while withholding what it
+means. §10's rule is about the app's own voice, not about refusing to show data
+in the language it happens to exist in, as long as the learner is told which
+language that is.
+
+Now:
+
+> 与 · Tersusun dari 勹 + 上
+> **Artinya (bahasa Inggris)** bestow, participate in, give, award
+> **Dibaca** あた (ata) · Dipakai dalam 与える, dibaca あたえる.
+
+Romaji sits *beside* the kana rather than replacing it: the kana is what they
+are learning to read, the latin is the scaffold.
+
+### This is the small half
+
+The same report named two bigger things — a beginner being asked to rewrite a
+hiragana sentence on day one, and a home screen that is mostly settings. The
+root turned out to be that **the app never teaches hiragana at all**: 1,748
+kanji ship as learnable items against *fifteen* single-kana lexemes, all of them
+particles, and the only kana instruction anywhere is two multiple-choice trivia
+questions. The first screen says *"Mulai dari nol, dari hiragana."*
+
+That is the next build, and it is §4.3's own ladder finally implemented.
+
+931 unit · 75 e2e.
+
 ## v1.30.1 — 日 is made up of 日 (2026-10-04)
 
 The other half of the card v1.30.0 opened.

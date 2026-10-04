@@ -142,6 +142,12 @@ export interface Item {
   /** SPEC §2.11: kanji components, e.g. 校 → ['木', '交']. */
   componentsOf?: string[];
   /**
+   * Kanji only: KANJIDIC2's English meanings. There is no Indonesian source —
+   * the id.wiktionary gloss shards cover 274 Japanese lexemes and 0 kanji — so
+   * the card labels them as English rather than showing nothing (D106).
+   */
+  meanings?: string[];
+  /**
    * Chunks only (SPEC §2.5): the Indonesian meaning, and the L1 trap where
    * there is one.
    *
