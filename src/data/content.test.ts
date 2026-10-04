@@ -76,11 +76,16 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', (input: string) => {
     fetchCalls.push(input);
     const payload = payloads[input];
-    return Promise.resolve({
-      ok: payload !== undefined,
-      status: payload === undefined ? 404 : 200,
-      json: () => Promise.resolve(payload),
-    } as Response);
+    // A real `Response`: `ensureBands` reads the body as text so it can hash
+    // what actually arrived, and a `json()`-only stub would hide that.
+    return Promise.resolve(
+      payload === undefined
+        ? new Response('', { status: 404 })
+        : new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+    );
   });
 });
 
@@ -126,11 +131,34 @@ describe('ensureBands', () => {
     expect(fetchCalls).toEqual([]);
   });
 
+  /** The hash the import will actually compute, over what the stub serves. */
+  /** WebCrypto, exactly as the import does — not a node:crypto lookalike. */
+  const hashOf = async (path: string): Promise<string> => {
+    const payload = payloads[`/content/en/${path}`];
+    // Shards the fixture does not serve are never fetched, so their recorded
+    // hash is whatever the manifest says and the test does not care.
+    if (payload === undefined) return `absent:${path}`;
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify(payload)),
+    );
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  };
+
+  /** A manifest whose hashes match the bodies, as a real build's always do. */
+  const honest = async (): Promise<ContentManifest> => ({
+    ...manifest,
+    shards: await Promise.all(
+      manifest.shards.map(async (shard) => ({ ...shard, sha256: await hashOf(shard.path) })),
+    ),
+  });
+
   it('does not reimport a shard whose hash has not changed', async () => {
-    await ensureBands('en', [1], manifest);
+    const published = await honest();
+    await ensureBands('en', [1], published);
     fetchCalls = [];
 
-    const second = await ensureBands('en', [1], manifest);
+    const second = await ensureBands('en', [1], published);
     expect(second.imported).toEqual([]);
     expect(second.skipped).toEqual(['lexemes.b1.json']);
     expect(fetchCalls).toEqual([]);
@@ -147,7 +175,37 @@ describe('ensureBands', () => {
 
     const result = await ensureBands('en', [1], republished);
     expect(result.imported).toEqual(['lexemes.b1.json']);
-    expect((await db.contentShards.get('lexemes.b1.json'))?.sha256).toBe('lex-2');
+  });
+
+  /**
+   * Shard URLs carry no version and the service worker serves the ones outside
+   * the precache `CacheFirst`, so a changed shard can come back **stale** while
+   * the manifest already has the new hash (R11).
+   *
+   * Filing `shard.sha256` against that body would record old content as current
+   * and `ensureBands` would never look again — the staleness becomes permanent.
+   * Recording what actually arrived keeps the next boot's comparison honest.
+   */
+  it('records the hash of what arrived, not the one the manifest promised', async () => {
+    const stale = await honest();
+    const republished: ContentManifest = {
+      ...stale,
+      shards: stale.shards.map((shard) =>
+        shard.path === 'lexemes.b1.json'
+          ? { ...shard, sha256: 'a-hash-the-cache-will-not-serve' }
+          : shard,
+      ),
+    };
+
+    await ensureBands('en', [1], republished);
+    const recorded = await db.contentShards.get('lexemes.b1.json');
+    expect(recorded?.sha256).toBe(await hashOf('lexemes.b1.json'));
+    expect(recorded?.sha256).not.toBe('a-hash-the-cache-will-not-serve');
+
+    // ...so the next boot tries again rather than believing it is current.
+    fetchCalls = [];
+    const again = await ensureBands('en', [1], republished);
+    expect(again.imported).toEqual(['lexemes.b1.json']);
   });
 
   it('fetches the manifest itself when one is not supplied', async () => {

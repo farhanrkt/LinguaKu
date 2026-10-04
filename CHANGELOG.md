@@ -5,6 +5,42 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.29.0 — 2026-10-04
+
+### Fixed — a stale shard could be recorded as current, permanently
+
+Shard URLs carry no hash, and the service worker's runtime rule for content JSON
+is `CacheFirst` — so a changed shard can come back stale while the manifest
+already has the new hash. `ensureBands` then imported that body and filed it
+under the **new** hash, so the next boot compared equal and never looked again.
+
+Measured from the built `dist/sw.js`: 30 content files are precached and
+revision-managed, which Workbox updates correctly; 34 rely on the runtime cache.
+Of those, only shards `ensureBands` imports can be recorded wrong, and it is only
+ever called with `STARTER_BANDS` — leaving exactly one, `kanji.b1.json`, which it
+always wants regardless of band.
+
+The import now records the hash of the bytes that actually arrived. The rows
+still go in — stale content is valid content — but the comparison stays honest
+and the next boot retries instead of believing it is done.
+
+Filed as **R11** for the half this does not fix: under `CacheFirst` the retry is
+served from the same stale entry. Precaching the shard costs 95 KB gzipped on
+every Japanese learner's first load; versioning the URL needs a careful service
+worker pass; `StaleWhileRevalidate` re-downloads a 211 KB sentence shard every
+time the reader opens.
+
+### Changed
+
+- The content tests used placeholder hashes (`'lex-1'`), so no body ever matched
+  its manifest entry and the comparison was never exercised. They compute real
+  hashes now, and the fetch stub returns a real `Response` rather than a
+  `json()`-only lookalike.
+
+916 unit · 74 e2e.
+
+---
+
 ## v1.28.0 — 2026-10-04
 
 ### Removed — an index nothing ever wrote to

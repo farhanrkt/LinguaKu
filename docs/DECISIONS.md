@@ -316,6 +316,62 @@ rewrites, but if the total becomes unmanageable the decision to record is where
 clips live instead — and whatever the answer is, it may not introduce a
 recurring cost (invariant 4).
 
+### R11 — A runtime-cached shard has no way to know it is stale
+
+**Status: open, measured 2026-10-04. The permanent half is fixed (v1.29.0); the
+delivery half is a caching trade-off that wants a decision.**
+
+Shard URLs carry no version — `content/ja/kanji.b1.json` is the same URL whatever
+its contents — and the service worker's runtime rule for content JSON is
+`CacheFirst`, with the comment *"shards are immutable for a given manifest
+hash."* They are not: the hash lives in the manifest, not in the URL, so
+`CacheFirst` has no way to see a change.
+
+**What is and is not exposed**, from the built `dist/sw.js`:
+
+| | precached, revision-managed | runtime `CacheFirst` only |
+|---|---|---|
+| files | 30 — manifests, contrastive, topics, and bands 1–3 of lexemes, anchors, chunks, glosses | 34 — all `sentences.*` and `passages.*`, bands 4–5, `pseudowords.json`, **`kanji.b1.json`** |
+
+Workbox handles the precached 30 correctly: a changed revision re-downloads.
+Of the other 34, only shards `ensureBands` imports can be *recorded* wrong, and
+it is only ever called with `STARTER_BANDS` (1–3) — so bands 4–5 are never
+imported at all. That leaves exactly one: **`kanji.b1.json`**, which
+`ensureBands` always wants regardless of band.
+
+The failure, before v1.29.0: the manifest revalidates and offers a new hash, the
+`CacheFirst` entry serves the old body, `ensureBands` imports it and files it
+under the **new** hash — so the next boot compares equal and never looks again.
+Stale kanji breakdowns, permanently, with the app believing it is current.
+Invariant 10 calls content hashes "the cache-busting signal"; nothing busted.
+
+**Fixed:** the import now records the hash of the bytes that arrived rather than
+the one the manifest promised, so the comparison stays honest and the next boot
+retries. The rows still go in — stale content is valid content.
+
+**Not fixed:** under `CacheFirst` the retry is served from the same stale entry,
+so it does not *deliver* the new shard. Three ways out, none free:
+
+1. **Precache `kanji.b1.json`.** Correct and simple; costs **95 KB gzipped** on
+   every Japanese learner's first load, against a 764 KB starter set. A 12%
+   increase to fix a latent bug is the wrong trade against §5.4's mobile-data
+   learner.
+2. **Version the URL** (`?v=<sha>`) so `CacheFirst` is actually true. Needs the
+   runtime `urlPattern` to accept a query *and* `ignoreURLParametersMatching`
+   so precached shards still match their revisionless entries — a subtle
+   service-worker change whose failure mode is silently breaking offline, which
+   `check:offline` and one smoke test are thin cover for.
+3. **`StaleWhileRevalidate` for content JSON.** Picks up changes on the next
+   load, and silently re-downloads a 211 KB sentence shard every time the reader
+   opens while online — exactly what D80 announces a cost for.
+
+Option 2 is the right one; it wants a careful pass with an offline test that
+actually asserts content availability, not a quick edit.
+
+**Why it has not bitten:** `kanji.b1.json` has not changed since M6. The v1.26.0
+content change touched `lexemes.b1–b5` and the manifest, all but two of which are
+precached, and the two that are not (bands 4–5) are never imported.
+
 ### R10 — Japanese placement has no over-claiming control
 
 **Status: open, measured 2026-10-04. Disclosed on screen (v1.27.0); the fix

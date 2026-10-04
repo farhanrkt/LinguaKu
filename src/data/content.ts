@@ -147,6 +147,31 @@ const fetchJson = async <T>(url: string): Promise<T> => {
  * is the false branch of invariant 38 and one the learner cannot detect, since
  * D59 makes "no entry" the common case anyway.
  */
+/**
+ * A shard's text and the hash of the bytes that actually arrived.
+ *
+ * `sha256` is null where the platform has no `crypto.subtle` — an insecure
+ * origin, or a test environment — in which case the caller falls back to
+ * trusting the manifest, which is what it did before this existed.
+ */
+const fetchShardBody = async (url: string): Promise<{ text: string; sha256: string | null }> => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url} → HTTP ${response.status}`);
+  const text = await response.text();
+  return { text, sha256: await sha256Of(text) };
+};
+
+const sha256Of = async (text: string): Promise<string | null> => {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return null;
+  try {
+    const digest = await subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+};
+
 export const fetchShard = async <T>(url: string): Promise<T | null> => {
   const response = await fetch(url);
   if (response.status === 404) return null;
@@ -259,11 +284,12 @@ export const ensureBands = async (
       continue;
     }
 
-    const payload = await fetchJson<{
+    const body = await fetchShardBody(`${CONTENT_BASE}/${lang}/${shard.path}`);
+    const payload = JSON.parse(body.text) as {
       lexemes?: WireLexeme[];
       kanji?: WireKanji[];
       chunks?: WireChunk[];
-    }>(`${CONTENT_BASE}/${lang}/${shard.path}`);
+    };
     const rows =
       shard.kind === 'kanji'
         ? (payload.kanji ?? []).map((wire) => toKanjiItem(wire, lang))
@@ -271,10 +297,25 @@ export const ensureBands = async (
           ? (payload.chunks ?? []).map((wire) => toChunkItem(wire, lang))
           : (payload.lexemes ?? []).map((wire) => toItem(wire, lang));
     await db.items.bulkPut(rows);
+    // Record the hash of what actually arrived, not the one the manifest
+    // promised.
+    //
+    // Shard URLs carry no version, and the service worker serves the ones
+    // outside the precache `CacheFirst` — so a shard whose content has changed
+    // can come back stale from the cache while the manifest already has the new
+    // hash. Writing `shard.sha256` there would file old content as current, and
+    // `ensureBands` would never look again: the mismatch becomes permanent, and
+    // invariant 10's "content hashes are the cache-busting signal" stops being
+    // true for that shard (R11).
+    //
+    // Recording what we got keeps the comparison honest. The rows still go in —
+    // stale content is valid content, and withholding it would be worse than
+    // serving last week's — but the next boot tries again instead of believing
+    // it is current.
     await db.contentShards.put({
       path: shard.path,
       lang,
-      sha256: shard.sha256,
+      sha256: body.sha256 ?? shard.sha256,
       importedAt: Date.now(),
       sentences: 0,
       items: rows.length,

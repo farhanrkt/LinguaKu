@@ -1,5 +1,84 @@
 # PROGRESS.md
 
+## v1.29.0 — a hash that proved nothing (2026-10-04)
+
+v1.26.0 changed shipped content for the first time in a while, which raised a
+question worth checking rather than assuming: does a learner who already has the
+old shards actually get the new ones?
+
+Invariant 10 says content hashes are "the cache-busting signal". They are not —
+not for every shard.
+
+### The shard URL carries no hash
+
+`content/ja/kanji.b1.json` is the same URL whatever is in it. The service
+worker's runtime rule for content JSON is `CacheFirst`, with this comment:
+
+> Shards are immutable for a given manifest hash.
+
+True as intent, false as implemented: the hash lives in the manifest, not in the
+URL, so `CacheFirst` has no way to see a change.
+
+### How much of the content this reaches — measured from `dist/sw.js`
+
+| | handled correctly | exposed |
+|---|---|---|
+| **30 precached**, revision-managed | manifests, contrastive, topics, bands 1–3 of lexemes/anchors/chunks/glosses | — |
+| **34 runtime `CacheFirst`** | — | all `sentences.*` and `passages.*`, bands 4–5, `pseudowords.json`, `kanji.b1.json` |
+
+Workbox updates the precached 30 properly. Of the other 34, only shards that
+`ensureBands` *imports* can be recorded wrong — and it is only ever called with
+`STARTER_BANDS`, so bands 4–5 are never imported at all.
+
+That leaves exactly one: **`kanji.b1.json`**, which `ensureBands` always wants
+regardless of band.
+
+### The part that was permanent
+
+1. The manifest revalidates and offers a new hash.
+2. `ensureBands` sees the mismatch and fetches.
+3. `CacheFirst` serves the **old** body.
+4. The import writes `sha256: shard.sha256` — the **new** hash — against it.
+
+From then on the comparison is equal and the app never looks again. Stale kanji
+breakdowns and readings, permanently, with the app believing it is current.
+
+The fix is one line of intent: **record the hash of the bytes that arrived, not
+the one the manifest promised.** The rows still go in, because stale content is
+valid content and withholding it would be worse than serving last week's — but
+the comparison stays honest and the next boot retries instead of believing it is
+done.
+
+### What that does not fix, and why it is filed rather than forced
+
+Under `CacheFirst` the retry is served from the same stale entry, so honesty is
+not delivery. Three ways out, measured rather than guessed:
+
+1. **Precache it.** Simple and correct; **95 KB gzipped** added to every Japanese
+   learner's first load against a 764 KB starter set. A 12% increase to fix a
+   latent bug is the wrong trade for §5.4's mobile-data learner.
+2. **Version the URL** so `CacheFirst` becomes true. Needs the runtime pattern to
+   accept a query *and* `ignoreURLParametersMatching` so precached shards still
+   match their revisionless entries — a subtle service-worker change whose
+   failure mode is silently breaking offline, which `check:offline` and one smoke
+   test are thin cover for.
+3. **`StaleWhileRevalidate`.** Picks up changes next load, and silently
+   re-downloads a 211 KB sentence shard every time the reader opens online —
+   exactly the cost D80 makes the reader announce.
+
+Option 2 is right and wants its own pass with an offline test that asserts
+content availability rather than just that the app boots. **R11.**
+
+### A fixture that could not have caught it
+
+The two existing hash tests used placeholder hashes — `'lex-1'`, `'lex-2'` —
+so no body ever matched its manifest entry and the comparison was never really
+exercised. They compute real hashes now, over the same bytes the stub serves,
+and the fetch stub returns a real `Response` rather than a `json()`-only
+lookalike, because the import reads the body as text to hash it.
+
+916 unit · 74 e2e.
+
 ## v1.28.0 — a seam the feature did not use (2026-10-04)
 
 Started from the same thread as v1.27.0: which parts of this app are English
