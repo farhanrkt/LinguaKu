@@ -1,3 +1,4 @@
+import { kanaSyllabary, type KanaSyllable } from '../core/kana.ts';
 import { db } from './db.ts';
 import { bandForRank, type FrequencyBand } from '../core/frequency.ts';
 import type { Item, TargetLang } from './types.ts';
@@ -325,9 +326,43 @@ export const ensureBands = async (
     result.items += rows.length;
   }
 
+  // The syllabary, for Japanese only.
+  //
+  // It comes from `src/core/kana.ts` rather than a shard: the gojūon is the
+  // writing system, not a corpus. No licence entry, no download, no hash — and
+  // nothing to go stale, which is why it is imported here rather than shipped.
+  //
+  // Until v1.32.0 the app taught 1,748 kanji and *fifteen* single-kana lexemes,
+  // all of them particles, while the first screen promised "mulai dari nol,
+  // dari hiragana". These are the characters that promise refers to.
+  if (lang === 'ja') {
+    const rows = kanaSyllabary().map(toKanaItem);
+    await db.items.bulkPut(rows);
+    result.items += rows.length;
+  }
+
   await Promise.all(bands.map((band) => loadAnchors(lang, band).catch(() => new Map())));
   return result;
 };
+
+/**
+ * A kana character as a schedulable item.
+ *
+ * `reading` is its romaji, which for a character of a syllabary is exactly what
+ * a reading is. Band 1 and a frequency rank that follows the teaching order, so
+ * あ outranks everything: the composer's ordering reads both.
+ */
+const toKanaItem = (syllable: KanaSyllable): Item => ({
+  id: syllable.id,
+  lang: 'ja',
+  kind: 'kana',
+  headword: syllable.kana,
+  reading: syllable.romaji,
+  anchorSentenceIds: [],
+  freqRank: syllable.order + 1,
+  band: 1,
+  sourceRef: { dataset: 'gojuon', externalId: syllable.kana },
+});
 
 // ---------------------------------------------------------- anchors → memory
 

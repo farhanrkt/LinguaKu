@@ -168,6 +168,85 @@ const KanjiReadingLine = ({
   );
 };
 
+/**
+ * One character of the syllabary (SPEC §4.3).
+ *
+ * At L0 the card simply shows the sound — errorless exposure, the same as a
+ * first lexeme — and above it asks for the sound in latin letters, which is the
+ * only production task a character of a syllabary has.
+ *
+ * The other script's form of the same sound is always on the card. Hiragana and
+ * katakana are "dua set huruf untuk bunyi yang sama", and meeting them as two
+ * unrelated alphabets is the thing that makes the second one feel like starting
+ * over.
+ */
+export const KanaTask = ({ task, onAnswer, busy }: TaskProps) => {
+  const face = task.kana;
+  const [value, setValue] = useState('');
+  if (!face) return null;
+
+  const asks = task.ladderLevel > 0;
+  const script = copy.session.kana.scriptLabel[face.script];
+
+  return (
+    <div>
+      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
+        {copy.session.kana.heading} · {script}
+      </p>
+      <p className="mt-2 text-stone-600 dark:text-slate-400">
+        {asks ? copy.session.kana.recall : copy.session.kana.instruction}
+      </p>
+
+      <p className="mt-6 text-center text-8xl leading-none font-bold" data-testid="kana-character">
+        {face.character}
+      </p>
+
+      {asks ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (busy === true) return;
+            onAnswer({ raw: value, confidence: null });
+          }}
+        >
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            aria-label={copy.session.kana.recall}
+            placeholder={copy.session.kana.placeholder}
+            data-testid="kana-input"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-center text-2xl focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+          />
+          <Button className="mt-4 w-full" disabled={busy === true} data-testid="kana-submit">
+            {copy.session.kana.submit}
+          </Button>
+        </form>
+      ) : (
+        <>
+          <p className="mt-3 text-center text-3xl text-teal-800 dark:text-teal-300" data-testid="kana-romaji">
+            {face.romaji}
+          </p>
+          <p className="mt-4 text-center text-sm text-stone-600 dark:text-slate-400">
+            {copy.session.kana.counterpart(face.counterpart, script)}
+          </p>
+          <Button
+            className="mt-6 w-full"
+            disabled={busy === true}
+            data-testid="kana-confirm"
+            onClick={() => onAnswer({ raw: face.romaji, confidence: null })}
+          >
+            {copy.session.kana.confirm}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+};
+
 /** L0 — errorless first exposure. Nothing is being tested yet. */
 export const ExposureTask = ({
   task,

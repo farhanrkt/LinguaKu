@@ -98,13 +98,22 @@ const newCandidates = async (
   if (limit <= 0) return [];
   const lang = profile.targets[0] ?? 'en';
 
-  // Kanji are items too (SPEC §2.11), and they share the frontier gate: a
-  // learner is not shown rare characters before common ones.
-  const items = [
-    ...(await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray()),
-    ...(await db.items.where('[lang+kind]').equals([lang, 'kanji']).toArray()),
-    ...(await db.items.where('[lang+kind]').equals([lang, 'chunk']).toArray()),
-  ].sort((a, b) => a.freqRank - b.freqRank);
+  // Kanji are items too (SPEC §2.11), and so is every character of the
+  // syllabary (SPEC §4.3) — they share the frontier gate: a learner is not
+  // shown rare characters before common ones.
+  //
+  // Each kind is queried by name rather than by language alone, so a kind the
+  // query forgets is a kind the learner never meets. `kana` was exactly that
+  // for one build.
+  const items = (
+    await Promise.all(
+      (['lexeme', 'kanji', 'chunk', 'kana'] as const).map((kind) =>
+        db.items.where('[lang+kind]').equals([lang, kind]).toArray(),
+      ),
+    )
+  )
+    .flat()
+    .sort((a, b) => a.freqRank - b.freqRank);
   const started = new Set(
     (await db.cards.where('profileId').equals(profile.id).toArray()).map((card) => card.itemId),
   );
@@ -122,7 +131,7 @@ const newCandidates = async (
       (mined.has(item.id) || item.band <= frontier) &&
       // A lexeme needs an example sentence (SPEC §2.5); a kanji is taught by its
       // components and readings, so the rule does not apply to it.
-      (item.kind === 'kanji' || item.anchorSentenceIds.length > 0) &&
+      (item.kind === 'kanji' || item.kind === 'kana' || item.anchorSentenceIds.length > 0) &&
       !started.has(item.id),
   );
 
@@ -151,7 +160,22 @@ const newCandidates = async (
     );
   });
 
-  return eligible.slice(0, limit).map((item) => ({
+  // SPEC §4.3: a learner who cannot read the script cannot read the words.
+  //
+  // Kana gets **half** the new-item budget, not all of it. Taking every slot
+  // would make the syllabary a wall — 104 hiragana at five new items a day is
+  // three weeks before the first real word — and that is the fixed lesson order
+  // §1 names as a non-goal. Taking none of it is what the app did before, which
+  // is how a beginner ended up being asked to rewrite a hiragana sentence.
+  //
+  // So they run together: some characters and some words every session, with
+  // the words written in romaji until their characters are known (D107).
+  const kana = eligible.filter((item) => item.kind === 'kana');
+  const rest = eligible.filter((item) => item.kind !== 'kana');
+  const forKana = Math.min(kana.length, Math.ceil(limit / 2));
+  const interleaved = [...kana.slice(0, forKana), ...rest].slice(0, limit);
+
+  return interleaved.map((item) => ({
     id: item.id,
     itemId: item.id,
     cardId: null,

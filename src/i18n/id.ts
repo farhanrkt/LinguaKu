@@ -202,6 +202,28 @@ export const copy = {
       done: 'Kembali',
     },
 
+    /**
+     * SPEC §4.3's syllabary, finally taught.
+     *
+     * The app shipped 1,748 kanji as learnable items against fifteen
+     * single-kana lexemes — all particles — and promised "mulai dari nol, dari
+     * hiragana" on its first screen. These are the characters that promise
+     * refers to. The copy names the sound, never a "level", and says which of
+     * the two scripts this one belongs to, because that is the single thing
+     * that confuses an absolute beginner most.
+     */
+    kana: {
+      heading: 'Huruf baru',
+      instruction: 'Ini bunyinya. Baca keras-keras sekali, lalu lanjut.',
+      recall: 'Huruf ini dibaca apa? Tulis dengan huruf latin.',
+      placeholder: 'Contoh: ka',
+      scriptLabel: { hiragana: 'Hiragana', katakana: 'Katakana' },
+      counterpart: (other: string, script: string) =>
+        `Bunyi yang sama ditulis ${other} dalam ${script}.`,
+      confirm: 'Oke, paham',
+      submit: 'Jawab',
+    },
+
     kanji: {
       heading: 'Kenali hurufnya',
       instruction: 'Perhatikan bagian-bagiannya — itu yang bikin huruf gampang diingat.',

@@ -5,6 +5,37 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.32.0 — 2026-10-04
+
+### Added — the app teaches hiragana and katakana
+
+It never did. 1,748 kanji shipped as learnable items against **fifteen**
+single-kana lexemes — all of them particles, not the alphabet — and the only
+kana instruction anywhere was two multiple-choice trivia questions, while the
+first screen promises *"Mulai dari nol, dari hiragana"*.
+
+- **208 characters** (104 hiragana, then 104 katakana) as items on the same FSRS
+  scheduler as everything else. The card shows the character, its sound, and the
+  other script's form of that sound.
+- **No shard.** The gojūon comes from `src/core/kana.ts`, which already held the
+  romaji table the converter round-trips against — the writing system is not a
+  corpus, so no licence entry, no download, no hash, and no re-download.
+- Kana takes **half** the new-item budget while any remain unlearned. All of it
+  would be three weeks of alphabet before the first real word — the fixed lesson
+  order §1 names as a non-goal. None of it is what the app did.
+- A first meeting with a character is errorless, like a first lexeme.
+
+### Fixed — a Japanese beginner started one rung too high
+
+`defaultScriptMode` returned `kana`, with a comment claiming §4.3 required it.
+§4.3 reads *romaji → kana → kanji, with romaji actively deprecated after kana
+fluency* — romaji is the rung you **leave**. Two unit tests and one e2e pinned
+the reversal, one named *"defaults Japanese learners to kana, never romaji"*.
+
+938 unit · 77 e2e.
+
+---
+
 ## v1.31.0 — 2026-10-04
 
 ### Added — the kanji card says what the character means, and how to say it

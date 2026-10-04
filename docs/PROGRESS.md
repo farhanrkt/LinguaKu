@@ -1,5 +1,80 @@
 # PROGRESS.md
 
+## v1.32.0 — the alphabet (2026-10-04)
+
+The user asked how a complete beginner is supposed to rewrite a sentence in
+hiragana *"even though the skill level is really from 0"*.
+
+The honest answer was that they are not, and the drill was not the problem.
+
+### The app never taught hiragana
+
+| | |
+|---|---|
+| kanji shipped as learnable items | **1,748** |
+| single-kana lexemes | **15** — every one a particle (は, の), not the alphabet |
+| kana instruction anywhere in the app | **two multiple-choice trivia questions** |
+| what the first screen promises | *"Bahasa Jepang — Mulai dari nol, dari hiragana"* |
+
+And `defaultScriptMode` started that learner at **kana**, citing §4.3:
+
+> romaji is deprecated the moment kana is fluent, so we never make it the
+> default entry point
+
+§4.3 says *"romaji → kana → kanji, with romaji **actively deprecated after kana
+fluency**"*. Romaji is the rung you **leave**. The comment reversed its own
+source — and two unit tests and one e2e pinned the reversal, one of them named
+*"defaults Japanese learners to kana, never romaji"*. A beginner who had been
+taught no characters was started one rung above where they stood, and then shown
+sentences in a script nothing had introduced.
+
+### 208 characters, scheduled like everything else
+
+104 hiragana then 104 katakana, as `kind: 'kana'` items on the same FSRS
+scheduler as every word and kanji. The card shows the character, its sound, and
+the other script's form of the same sound — because hiragana and katakana are
+*"dua set huruf untuk bunyi yang sama"*, and meeting them as two unrelated
+alphabets is what makes the second feel like starting over.
+
+**There is no shard.** The gojūon comes from `src/core/kana.ts`, which already
+held the romaji table `romajiToKana` round-trips against. The writing system is
+not a corpus: no licence entry, no download, no content hash, nothing to go
+stale — and no re-download for anyone.
+
+The small kana — ぁぃぅぇぉゃゅょ — are left out. They are never a syllable on
+their own; they appear as the second half of a digraph, and きゃ is taught whole.
+`ROMAJI` carries them because the converter needs them. A learner does not meet
+them as characters.
+
+### Half the budget, not all of it
+
+Kana takes **half** the new-item slots while any remain unlearned.
+
+Taking every slot makes the syllabary a wall — 104 hiragana at five new items a
+day is three weeks before the first real word, which is precisely the fixed
+lesson order §1 names as a non-goal. Taking none is what the app did. So they
+run together: some characters and some words every session, with the words in
+romaji until the characters land.
+
+A first meeting with a character is **errorless**, like a first lexeme: the
+confirmation is the response, and the only honest grade for it is "fine". That
+path already existed for exposure cards and now covers both.
+
+### What a day-one learner sees now
+
+Pick Japanese, tap practise, and the first card is あ, with `a` under it and
+*"Bunyi yang sama ditulis ア dalam Katakana."*
+
+Gated end to end: 208 items exist, the first card is あ, answering it advances,
+and the composer's queue holds characters **and** words.
+
+### Still to come in this rehaul
+
+The per-character fade — words rendered in kana only once their characters are
+known — plus the readability gate on drills, and the home screen.
+
+938 unit · 77 e2e.
+
 ## v1.31.0 — a card that would not say what the character means (2026-10-04)
 
 Reported by the user, about Japanese: a kanji card shows the character *"with no

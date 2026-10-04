@@ -35,6 +35,7 @@ import {
   ProductionTask,
   RecognitionTask,
   type AnswerPayload,
+  KanaTask,
   SentenceText,
 } from './TaskViews.tsx';
 import { saveMnemonic } from '../../data/repositories/mnemonics.ts';
@@ -331,13 +332,17 @@ export const SessionScreen = ({
             // its reading, which is the form `KanaInput` can actually produce.
             gradeAnswer(payload.raw, [task.answer, ...(task.alsoAccepted ?? [])]);
       // L0 is errorless exposure: the learner confirms, they do not answer.
-      const grade = task.kind === 'exposure' ? 3 : gradeForOutcome(result.outcome);
+      // A first meeting is not a test: the confirmation is the response, and
+      // the only honest grade for it is "fine". True of an exposure card and of
+      // a character the learner is seeing for the first time (SPEC §4.3).
+      const errorless = task.kind === 'exposure' || (task.kind === 'kana' && task.ladderLevel === 0);
+      const grade = errorless ? 3 : gradeForOutcome(result.outcome);
       const wasNew = task.ladderLevel === 0;
 
       // SPEC §2.9 / §3.3: a wrong answer that matches a known Indonesian-L1
       // pattern is evidence about that pattern, and it is logged as such.
       const hits =
-        result.outcome === 'wrong' && task.kind !== 'exposure'
+        result.outcome === 'wrong' && !errorless
           ? detectInterference({
               raw: payload.raw,
               expected: task.answer,
@@ -380,7 +385,7 @@ export const SessionScreen = ({
       // learner for reading — two taps and a compliment nobody earned. The
       // review is still recorded above (invariant 0: the confirmation *is* the
       // response); any promotion it caused is reported in the session summary.
-      if (task.kind === 'exposure') {
+      if (errorless) {
         await advance();
         return;
       }
@@ -497,6 +502,16 @@ export const SessionScreen = ({
         busy={busy}
         onPlayAudio={playAudio}
         audioAvailable={hasAudioFor(entry.task.sentence.id)}
+      />
+    ) : entry.task.kind === 'kana' ? (
+      <KanaTask
+        key={entry.task.itemId}
+        task={entry.task}
+        scriptMode={profile.scriptMode}
+        onAnswer={(payload) => void once(() => handleAnswer(payload))}
+        busy={busy}
+        onPlayAudio={playAudio}
+        audioAvailable={false}
       />
     ) : entry.task.kind === 'kanji' ? (
       <KanjiTask

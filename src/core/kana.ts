@@ -43,6 +43,12 @@ export const toKatakana = (text: string): string =>
     })
     .join('');
 
+/** Katakana only — the half of `isKana` that says which script. */
+export const isKatakana = (character: string): boolean => {
+  const code = character.charCodeAt(0);
+  return code >= KATAKANA_START && code <= KATAKANA_END;
+};
+
 export const isKana = (character: string): boolean => {
   const code = character.charCodeAt(0);
   return (code >= HIRAGANA_START && code <= 0x309f) || (code >= 0x30a0 && code <= 0x30ff);
@@ -300,4 +306,95 @@ export const splitKanjiReading = (raw: string): KanjiReading => {
   const dot = bare.indexOf('.');
   if (dot < 0) return { reading: bare, okurigana: null };
   return { reading: bare.slice(0, dot), okurigana: bare.slice(dot + 1) || null };
+};
+
+// ------------------------------------------------------------- the syllabary
+
+/**
+ * The gojūon, in teaching order, as rows.
+ *
+ * Written out rather than derived. `ROMAJI` is ordered for longest-match
+ * conversion — digraphs first — which is the opposite of the order a learner
+ * meets these in, and the row structure *is* the lesson: あいうえお names the
+ * five vowels every other row is built from. This is the writing system, not a
+ * dataset: no licence, no shard, no download.
+ *
+ * Base 46 first, then the voiced forms, then the contracted ones — which is
+ * both the conventional order and a genuine difficulty gradient. 104 per
+ * script.
+ *
+ * The small kana — ぁぃぅぇぉゃゅょ — are deliberately absent. They are never a
+ * syllable on their own: they appear as the second half of a digraph, and the
+ * digraphs are taught whole (きゃ, not き + ゃ). `ROMAJI` carries them because
+ * the converter needs them; a learner does not meet them as characters.
+ */
+export const GOJUON: ReadonlyArray<readonly [string, readonly string[]]> = [
+  ['a', ['あ', 'い', 'う', 'え', 'お']],
+  ['ka', ['か', 'き', 'く', 'け', 'こ']],
+  ['sa', ['さ', 'し', 'す', 'せ', 'そ']],
+  ['ta', ['た', 'ち', 'つ', 'て', 'と']],
+  ['na', ['な', 'に', 'ぬ', 'ね', 'の']],
+  ['ha', ['は', 'ひ', 'ふ', 'へ', 'ほ']],
+  ['ma', ['ま', 'み', 'む', 'め', 'も']],
+  ['ya', ['や', 'ゆ', 'よ']],
+  ['ra', ['ら', 'り', 'る', 'れ', 'ろ']],
+  ['wa', ['わ', 'を', 'ん']],
+  ['ga', ['が', 'ぎ', 'ぐ', 'げ', 'ご']],
+  ['za', ['ざ', 'じ', 'ず', 'ぜ', 'ぞ']],
+  ['da', ['だ', 'ぢ', 'づ', 'で', 'ど']],
+  ['ba', ['ば', 'び', 'ぶ', 'べ', 'ぼ']],
+  ['pa', ['ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ']],
+  ['kya', ['きゃ', 'きゅ', 'きょ']],
+  ['sha', ['しゃ', 'しゅ', 'しょ']],
+  ['cha', ['ちゃ', 'ちゅ', 'ちょ']],
+  ['nya', ['にゃ', 'にゅ', 'にょ']],
+  ['hya', ['ひゃ', 'ひゅ', 'ひょ']],
+  ['mya', ['みゃ', 'みゅ', 'みょ']],
+  ['rya', ['りゃ', 'りゅ', 'りょ']],
+  ['gya', ['ぎゃ', 'ぎゅ', 'ぎょ']],
+  ['ja', ['じゃ', 'じゅ', 'じょ']],
+  ['bya', ['びゃ', 'びゅ', 'びょ']],
+  ['pya', ['ぴゃ', 'ぴゅ', 'ぴょ']],
+];
+
+export interface KanaSyllable {
+  /** `ja:kana:あ` — the item id the scheduler knows it by. */
+  id: string;
+  /** The character as written. */
+  kana: string;
+  /** Its latin reading. */
+  romaji: string;
+  script: 'hiragana' | 'katakana';
+  /** The gojūon row it belongs to, for grouping on screen. */
+  row: string;
+  /** Teaching position across the whole syllabary, hiragana before katakana. */
+  order: number;
+}
+
+/**
+ * Every kana a learner has to be able to read, in the order to meet them.
+ *
+ * Hiragana first and complete, then katakana — two sets of characters for the
+ * same sounds, which is what makes the second half cheaper than the first and
+ * why they are separate items rather than two faces of one: knowing あ is not
+ * knowing ア, and the scheduler should be allowed to find that out.
+ */
+export const kanaSyllabary = (): KanaSyllable[] => {
+  const out: KanaSyllable[] = [];
+  for (const script of ['hiragana', 'katakana'] as const) {
+    for (const [row, characters] of GOJUON) {
+      for (const base of characters) {
+        const kana = script === 'hiragana' ? base : toKatakana(base);
+        out.push({
+          id: `ja:kana:${kana}`,
+          kana,
+          romaji: toRomaji(base),
+          script,
+          row: script === 'hiragana' ? row : toKatakana(row),
+          order: out.length,
+        });
+      }
+    }
+  }
+  return out;
 };

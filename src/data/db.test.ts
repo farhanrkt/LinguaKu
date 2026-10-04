@@ -151,9 +151,15 @@ describe('profiles', () => {
     expect(await getCurrentProfile()).toBeNull();
   });
 
-  it('defaults Japanese learners to kana, never romaji', async () => {
+  it('starts Japanese learners at romaji, which is where §4.3 starts them', async () => {
+    // This test used to be called "never romaji", asserting `kana` on the
+    // strength of a comment that reversed its own source: §4.3's ladder is
+    // romaji → kana → kanji, and romaji is the rung you *leave* once kana is
+    // fluent. Starting a learner who has not been taught a character one rung
+    // above where they are is what put hiragana sentences in front of a
+    // beginner (v1.32.0).
     const profile = await createProfile({ targets: ['ja'], dailyMinutes: 8, now: NOW });
-    expect(profile.scriptMode).toBe('kana');
+    expect(profile.scriptMode).toBe('romaji');
   });
 
   it('persists edits to the daily load', async () => {

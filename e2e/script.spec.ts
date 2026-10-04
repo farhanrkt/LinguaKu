@@ -34,9 +34,14 @@ test('the Japanese script ladder is offered, and starts where §4.3 says', async
   await expect(rungs.nth(1)).toContainText('Kana');
   await expect(rungs.nth(2)).toContainText('Kanji');
 
-  // `defaultScriptMode` starts a Japanese learner at kana.
-  await expect(rungs.nth(1)).toHaveAttribute('aria-pressed', 'true');
-  await expect(rungs.nth(0)).toHaveAttribute('aria-pressed', 'false');
+  // §4.3's ladder is romaji → kana → kanji, and romaji is the rung a learner
+  // *leaves* once kana is fluent. This assertion used to pin `kana`, on the
+  // strength of a comment that reversed its own source — so a beginner who had
+  // not been taught a character started one rung above where they were, and met
+  // sentences they could not read. The syllabary is taught from the first
+  // session now (v1.32.0), which is what makes romaji a rung and not a dead end.
+  await expect(rungs.nth(0)).toHaveAttribute('aria-pressed', 'true');
+  await expect(rungs.nth(1)).toHaveAttribute('aria-pressed', 'false');
 
   // And it moves, which is the part that did not exist.
   await rungs.nth(2).click();

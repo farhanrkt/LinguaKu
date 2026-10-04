@@ -102,7 +102,7 @@ export interface Ability {
   updatedAt: Timestamp;
 }
 
-export type ItemKind = 'lexeme' | 'sentence' | 'kanji' | 'grammar' | 'chunk';
+export type ItemKind = 'lexeme' | 'sentence' | 'kanji' | 'grammar' | 'chunk' | 'kana';
 
 export interface Item {
   id: string;

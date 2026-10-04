@@ -40,10 +40,12 @@ describe('activateTarget', () => {
  * into unfuriganated kanji, which is the one entry point M6 was built to avoid.
  */
 describe('scriptModeOnSwitch', () => {
-  it('starts a first-time Japanese learner at kana', () => {
+  it('starts a first-time Japanese learner at romaji', () => {
     // They had English only, and `kanji` is merely the not-applicable default
-    // a non-Japanese profile carries — not a mode they reached.
-    expect(scriptModeOnSwitch(['en'], 'ja', 'kanji')).toBe('kana');
+    // a non-Japanese profile carries — not a mode they reached. §4.3's ladder
+    // begins at romaji; the syllabary is taught from the first session, so it
+    // is a rung they can actually leave.
+    expect(scriptModeOnSwitch(['en'], 'ja', 'kanji')).toBe('romaji');
   });
 
   it('does not demote a learner who already had Japanese', () => {

@@ -1,7 +1,7 @@
 import { db } from '../../data/db.ts';
 import { makeCloze, type Cloze } from '../../core/cloze.ts';
 import { acceptedAnswers } from '../../core/grader.ts';
-import { splitKanjiReading, toHiragana, toRomaji } from '../../core/kana.ts';
+import { isKatakana, splitKanjiReading, toHiragana, toKatakana, toRomaji } from '../../core/kana.ts';
 import { mulberry32, shuffle } from '../../core/rng.ts';
 import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
@@ -39,6 +39,7 @@ export type TaskKind =
   | 'cloze-unaided'
   | 'dictation'
   | 'kanji'
+  | 'kana'
   | 'production'
   | 'free';
 
@@ -90,6 +91,8 @@ export interface Task {
   cloze?: Cloze;
   /** Kanji cards only (SPEC §2.11). */
   kanji?: KanjiFace;
+  /** SPEC §4.3's syllabary, as a card. Present only on a `kana` task. */
+  kana?: KanaFace;
   /** What a typed answer is graded against, and what the verdict shows. */
   answer: string;
   /**
@@ -143,6 +146,15 @@ const kindForLevel = (level: LadderLevel): TaskKind => {
 export const DICTATION_MAX_TOKENS = 10;
 
 /** What a kanji card shows (SPEC §2.11). */
+/** One character of the syllabary, and the sound it makes. */
+export interface KanaFace {
+  character: string;
+  romaji: string;
+  script: 'hiragana' | 'katakana';
+  /** The other script's form of the same sound — あ for ア, and the reverse. */
+  counterpart: string;
+}
+
 export interface KanjiFace {
   literal: string;
   /** The component breakdown, e.g. 校 → 木 + 交 (decision D41). */
@@ -272,6 +284,36 @@ export const buildTask = async (
   const card = await db.cards.get(cardIdFor(profileId, itemId));
   const level = card?.ladderLevel ?? 0;
   const hasAudioFor = options.hasAudioFor ?? (() => false);
+
+  // SPEC §4.3: a character of the syllabary is taught as itself. It has no
+  // example sentence and needs none — the sound *is* the content — so like a
+  // kanji it never goes down the anchor path below.
+  //
+  // The rung decides whether the card shows the sound or asks for it; it never
+  // climbs past L2, because there is no production task beyond "write the
+  // character for this sound" and no listening one without audio.
+  if (item.kind === 'kana') {
+    const character = item.headword;
+    const counterpart = isKatakana(character) ? toHiragana(character) : toKatakana(character);
+    return {
+      itemId,
+      cardId: cardIdFor(profileId, itemId),
+      headword: character,
+      ladderLevel: Math.min(level, 2) as LadderLevel,
+      ceiling: 2 as LadderLevel,
+      kind: 'kana',
+      sentence: { id: itemId, text: character },
+      translation: '',
+      answer: item.reading ?? '',
+      asksConfidence: false,
+      kana: {
+        character,
+        romaji: item.reading ?? '',
+        script: isKatakana(character) ? 'katakana' : 'hiragana',
+        counterpart,
+      },
+    };
+  }
 
   // SPEC §2.11: a kanji is taught by its components and readings, not through an
   // example sentence, so it never goes down the anchor path below — and §2.5's
