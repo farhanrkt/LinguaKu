@@ -301,6 +301,18 @@ needs React state to work, it is in the wrong place.
     one flaky moment last the whole session, and in the gloss case it was
     invisible, because "no entry" is the ordinary answer (D59).
 
+51. **Coverage is counted over tokens, never over text** (D99). `coverageOfTokens`
+    is the implementation; `coverageOf` is the Latin-only convenience in front
+    of it. `tokenizeLatin` finds no Japanese words — it splits on punctuation —
+    so any caller holding real tokens must pass them. This is v1.15.1's defect
+    generalised: a function that tokenizes its own input cannot serve a language
+    it cannot tokenize.
+52. **A rewritten surface keeps its meaning** (D100). Where §4.3's ladder draws
+    a word differently from how the sentence spells it, `TextPart.value` carries
+    what the tap means and `text` carries what is shown; the lookup and the §2.4
+    highlight both key off the token. Ruby goes inside the button, so the roving
+    tabindex (invariant 35) is untouched.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`

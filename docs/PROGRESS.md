@@ -1,5 +1,110 @@
 # PROGRESS.md
 
+## v1.25.0 — the reader had almost nothing in it (2026-10-04)
+
+Started as the slice v1.23.0 deferred: §4.3's script ladder reached the practice
+session and not the reader, so a control labelled "Tulisan Jepang" took effect
+on one screen and not the other. Wiring it meant opening the Japanese reader,
+which turned out to contain **four sentences**.
+
+### What the Japanese reader was offering
+
+`coverageOf(text, known, lang)` tokenizes with `tokenizeLatin`. That function
+finds no Japanese words — it splits on punctuation and returns the runs
+between. So a Japanese sentence's §2.4 coverage was decided by where its commas
+fell.
+
+Measured over the shipped band-1 anchors, knowing every Japanese word the app
+ships:
+
+| sentence | `tokenizeLatin` sees | coverage |
+|---|---|---|
+| `お誕生日おめでとうムーリエル！` | one run | **0.00** |
+| `彼はよく学校を欠席する。` | one run | **0.00** |
+| `あの、すみません...` | `["あの", "すみません"]` | **1.00** |
+| `本当？なぜ？` | `["本当", "なぜ"]` | **1.00** |
+
+2,148 of 2,152 scored zero and were dropped. The four that survived scored 1.00
+because their punctuation happened to split them into runs that were themselves
+lexeme ids — and all four are interjections: `あの、すみません...`, `残念・・・。`,
+`本当？なぜ？`, `あなた、大丈夫？`. That is the least useful reading material in
+the corpus, because §2.4 wants comprehensible input **with something new in it**.
+
+### Two more selectors were ranking on the same number
+
+- **`selectGraded`** picks which anchor sentence teaches a word — §2.4's i+1
+  choice. Every Japanese anchor scored below the floor, so it returned null and
+  the caller fell through to `anchors[0]`. The i+1 selection was a no-op for a
+  whole language.
+- **`buildCandidates`** skips the coverage gate for Japanese, with a comment
+  explaining the zeros as a dictionary-form/surface-form mismatch and citing
+  *"294 of 300 band-1 anchors score exactly 0"*. That measurement was taken
+  through the same broken function. It was measuring the bug.
+
+### This is v1.15.1 again
+
+v1.15.1 found sentence building silently English-only for exactly this reason
+and fixed it by **taking tokens instead of text**. The lesson did not generalise
+at the time, and `coverageOf` had the same shape two modules away.
+
+So `coverageOfTokens` is now the implementation and `coverageOf` is the
+Latin-only convenience in front of it — `coverageOfTokens(tokenizeLatin(text), …)`.
+English is unchanged by construction, which is the point of writing it that way
+round rather than adding a language branch.
+
+### What it is worth
+
+Counted through the real selector over the real shard:
+
+| knows | reader offered, before | after |
+|---|---|---|
+| band 1 (500 words) | 4 | **113** |
+| bands 1–3 (2,000) | 4 | **187** |
+| every shipped word (6,904) | 4 | **249** |
+
+And the figures are measurements: `今の何の音？` at 0.83, `これ誰の本？` at 0.80.
+
+### The number R9 was filed with was wrong, and the risk still stands
+
+`294 of 300` re-measures to **6 of 300**, with a mean coverage of **0.428**
+knowing every Japanese word the app ships. The zeros were the tokenizer.
+
+That does not rescue R9 — 0.428 is still far below the 0.92–0.98 §2.4 asks for,
+because Japanese particles are not vocabulary. What changed is that it is now a
+measurement rather than an artifact, and the risk register says so.
+
+`buildCandidates` keeps its gate off for Japanese: at `BUILD_MIN_COVERAGE` the
+real number clears only **21 of 2,152** anchors, against the 1,521 buildable
+sentences v1.15.1 recovered. It is now a choice against a real figure rather
+than a limitation, and turning it on is an R9 decision rather than a code one.
+
+### The ladder in the reader, and the one decision it needed
+
+Kana and romaji **rewrite the surface** — 学校 is drawn as がっこう or gakkou —
+and the dictionary lookup behind a tapped word has to reach the token the
+sentence actually contains, or the reader stops being able to gloss anything
+written in kanji. So `TextPart` separates what is shown from what the tap means:
+`value` defaults to `text`, so a caller with nothing to separate says nothing,
+and §2.4's unknown-word highlight keys off the token for the same reason.
+
+Ruby goes **inside** the button rather than around it, which leaves the roving
+tabindex untouched and keeps invariant 35's one-stop-per-block promise exactly
+as it was. Per-kanji stability is read once over the whole feed rather than per
+sentence, because the same character recurs and the lookup is a database read.
+
+### A gate that could not fail
+
+The first version of the tap test clicked words until any panel opened. It
+passed against a deliberately broken `value` — because a kana token is unchanged
+by the rewrite and resolves either way, so the loop found one of those first.
+
+The one that ships compares the two rungs' rendered words, asserts that some
+index differs, taps that index, and checks the **mine** button appears — which
+renders only where `db.items.get` resolved the word. That one fails when `value`
+is broken, which is the only reason to have it.
+
+906 unit · 74 e2e.
+
 ## v1.24.1 — a bad moment, remembered as a fact (2026-10-04)
 
 Found while reading a comment that turned out to be wrong about something else.

@@ -314,17 +314,27 @@ const buildCandidates = async (
       if (recent.has(sentence.id)) continue;
       if (!isBuildable(tokensOf(sentence))) continue;
 
-      // Coverage is only a real number where the tokenizer and the lexeme ids
-      // agree about what a word is. For Japanese they do not: ids are
-      // dictionary forms (`ja:lex:する`) and the shipped tokens are surface
-      // forms (`読み`, `ます`), so the ratio comes out near zero for almost
-      // every sentence and would reject the whole language. Measured: 294 of
-      // 300 band-1 anchors score exactly 0.
+      // Japanese skips the coverage gate — but **not** for the reason this
+      // comment used to give.
       //
-      // Anchors are already the curated set a band's vocabulary is taught
-      // through (D19), so band membership carries the level guarantee on its
-      // own. Where coverage is measurable it refines that; where it is not, it
-      // is left out rather than faked.
+      // It said the ratio "comes out near zero for almost every sentence",
+      // citing 294 of 300 band-1 anchors scoring exactly 0. That measurement
+      // was taken through `coverageOf`, which tokenizes with `tokenizeLatin`
+      // and therefore cannot see a Japanese word at all (v1.25.0, D99). The
+      // zeros were the tokenizer, not the language.
+      //
+      // Re-measured over the pipeline's own tokens, knowing every Japanese
+      // word the app ships: **6** of those 300 score 0, and the mean is
+      // **0.428**. So the number is real now, and it is simply low — R9's
+      // finding, that Japanese particles are not vocabulary, so a learner can
+      // know every shipped lexeme and still cover under half the tokens.
+      //
+      // At `BUILD_MIN_COVERAGE` that leaves **21 of 2,152** band-1 anchors
+      // (1.0%), against the 1,521 buildable sentences v1.15.1 recovered. So
+      // the gate stays off for Japanese as a **choice** rather than a
+      // limitation: anchors are already the curated set a band's vocabulary is
+      // taught through (D19), and band membership carries the level guarantee
+      // on its own. Turning it on is an R9 decision, not a code one.
       const report = measurable ? coverageOf(sentence.text, known, lang) : null;
       if (report !== null && report.coverage < BUILD_MIN_COVERAGE) continue;
       scored.push({

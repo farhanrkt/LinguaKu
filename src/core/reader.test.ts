@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { coverageOf, coverageOfTokens } from './coverage.ts';
 import {
   COVERAGE_MIN_TOKENS,
   MAX_UNKNOWN_PER_SENTENCE,
@@ -231,5 +232,88 @@ describe('selectPassages — §2.4 on running text', () => {
         seed: 7,
       }).map((item) => item.passage.id);
     expect(run()).toEqual(run());
+  });
+});
+
+/**
+ * SPEC §2.4 for Japanese, which it was not serving at all.
+ *
+ * `coverageOf` tokenized with `tokenizeLatin`, which finds no Japanese words —
+ * it splits on punctuation and returns the runs between. So a Japanese
+ * sentence's coverage was decided by where its commas fell: measured over the
+ * shipped band-1 anchors, 2,148 of 2,152 scored 0.00 and were dropped, and the
+ * four that survived scored **1.00** because their punctuation happened to
+ * split them into runs that were themselves lexeme ids.
+ *
+ * All four were interjections — `あの、すみません...`, `残念・・・。`,
+ * `本当？なぜ？` — which is the least useful reading material in the corpus,
+ * since §2.4 wants comprehensible input *with something new in it*.
+ *
+ * Counted through this selector over the real shard: 4 sentences before, **113**
+ * after, at band 1; 249 knowing every Japanese word the app ships.
+ */
+describe('a Japanese sentence is measured over its own tokens (SPEC §2.4)', () => {
+  const sentence = (id: string, text: string, tokens: string[]) => ({
+    id,
+    text,
+    tokens,
+    tr: { id: `${id}-tr`, text: 'terjemahan' },
+  });
+
+  // 彼 は よく 学校 を 欠席 する 。 — six of eight tokens known.
+  const known = new Set([
+    'ja:lex:彼',
+    'ja:lex:は',
+    'ja:lex:よく',
+    'ja:lex:学校',
+    'ja:lex:を',
+    'ja:lex:する',
+  ]);
+  const readable = sentence('s1', '彼はよく学校を欠席する。', [
+    '彼',
+    'は',
+    'よく',
+    '学校',
+    'を',
+    '欠席',
+    'する',
+    '。',
+  ]);
+
+  it('offers a sentence the learner can mostly read', () => {
+    const [item] = selectReading({ pool: [readable], known, lang: 'ja', limit: 5, seed: 1 });
+    expect(item).toBeDefined();
+    expect(item?.coverage).toBeCloseTo(0.75);
+    // The unknown list is words, not the whole sentence as one pseudo-word.
+    expect(item?.unknown).toEqual(['ja:lex:欠席', 'ja:lex:。']);
+  });
+
+  it('drops one the learner cannot, instead of scoring it on punctuation', () => {
+    const tooHard = sentence('s2', '彼女は昨日figureを提出した。', [
+      '彼女',
+      'は',
+      '昨日',
+      '書類',
+      'を',
+      '提出',
+      'し',
+      'た',
+    ]);
+    expect(selectReading({ pool: [tooHard], known, lang: 'ja', limit: 5, seed: 1 })).toEqual([]);
+  });
+
+  it('reports a coverage it measured, not one punctuation produced', () => {
+    // `あの、すみません...` is one of the four the old path *selected*, with a
+    // reported coverage of 1.00: `、` and `.` split it into two runs that were
+    // themselves lexeme ids. The honest figure over its real tokens is 0.5.
+    //
+    // The selection outcome is the same either way here — four tokens with two
+    // unknown fails `MAX_UNKNOWN_PER_SENTENCE` regardless — so what this pins
+    // is the *number*, which is what `selectReading` sorts on and what
+    // `ReaderItem.coverage` carries to the caller.
+    const tokens = ['あの', '、', 'すみません', '...'];
+    const polite = new Set(['ja:lex:あの', 'ja:lex:すみません']);
+    expect(coverageOfTokens(tokens, polite, 'ja').coverage).toBeCloseTo(0.5);
+    expect(coverageOf('あの、すみません...', polite, 'ja').coverage).toBe(1);
   });
 });

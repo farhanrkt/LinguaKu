@@ -31,7 +31,23 @@ export const WORD_NAV_HINT_ID = 'reader-word-nav';
 export type TextPart =
   /** Whitespace and punctuation between words: rendered, never focusable. */
   | { kind: 'gap'; text: string }
-  | { kind: 'word'; text: string; className?: string };
+  | {
+      kind: 'word';
+      /** What is shown. */
+      text: string;
+      /**
+       * What the tap *means*, where that is not what is shown.
+       *
+       * SPEC §4.3's kana and romaji rungs rewrite the surface — 学校 is drawn
+       * as がっこう or gakkou — and the dictionary lookup behind the tap still
+       * has to reach the token the sentence actually contains. Defaults to
+       * `text`, so a caller that has nothing to separate says nothing.
+       */
+      value?: string;
+      /** The reading to set above it, or absent for none (SPEC §10). */
+      ruby?: string | null;
+      className?: string;
+    };
 
 /**
  * Where the caret goes for a key, or null when the key is not ours to handle.
@@ -135,10 +151,22 @@ export const TappableText = ({
             // Clicking a word makes it the block's entry point, so Tab returns
             // to where the learner last was rather than to the first word.
             onFocus={() => setActive(position)}
-            onClick={() => onTap(part.text, position)}
+            onClick={() => onTap(part.value ?? part.text, position)}
             className={part.className ?? ''}
           >
-            {part.text}
+            {/* Ruby inside the button rather than around it: the button stays
+                the focusable element, so the roving tabindex above is
+                untouched and §10's one-stop-per-block promise holds. */}
+            {part.ruby === null || part.ruby === undefined ? (
+              part.text
+            ) : (
+              <ruby>
+                {part.text}
+                <rp>(</rp>
+                <rt className="text-[0.5em] font-normal">{part.ruby}</rt>
+                <rp>)</rp>
+              </ruby>
+            )}
           </button>
         );
       })}

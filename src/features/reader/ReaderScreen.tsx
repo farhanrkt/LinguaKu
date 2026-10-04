@@ -12,6 +12,8 @@ import {
 } from '../../core/reader.ts';
 import { knownItemIds, lexemeIdFor } from '../../core/coverage.ts';
 import { isKanji, toHiragana } from '../../core/kana.ts';
+import { furiganaFor, type RubySegment } from '../../core/furigana.ts';
+import { kanjiStability } from '../../data/repositories/kanji.ts';
 import { bandForAbility } from '../../core/placement.ts';
 import { glossFor } from '../../data/glosses.ts';
 import { loadPassages, type Passage } from '../../data/passages.ts';
@@ -26,7 +28,7 @@ import {
 import { vocabularyAbility } from '../../data/repositories/abilities.ts';
 import { mineItem, minedItemIds, unmineItem } from '../../data/repositories/mining.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { Item, Profile, TargetLang } from '../../data/types.ts';
+import type { Item, Profile, ScriptMode, TargetLang } from '../../data/types.ts';
 
 /**
  * The graded reader (SPEC §8), which the spec calls "the retention engine" and
@@ -80,20 +82,65 @@ const tokenParts = (
   tokens: readonly string[],
   lang: TargetLang,
   unknown: readonly string[],
+  /**
+   * Japanese only: the ladder's verdict per token (SPEC §4.3). Absent for
+   * English, and absent for a Japanese sentence the pipeline shipped without
+   * readings — in both cases the token is drawn as it stands.
+   */
+  segments?: readonly RubySegment[],
 ): TextPart[] =>
-  tokens.map((token) => ({
-    kind: 'word',
-    text: token,
-    className:
-      'rounded px-0.5 text-left motion-safe:transition-colors ' +
-      (unknown.includes(lexemeIdFor(lang, token.toLowerCase()))
-        ? 'bg-amber-100 font-semibold hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900'
-        : 'hover:bg-stone-100 dark:hover:bg-slate-800'),
-  }));
+  tokens.map((token, index) => {
+    const segment = segments?.[index];
+    return {
+      kind: 'word',
+      // What is drawn follows the rung; what the tap *means* does not. The
+      // lookup and the §2.4 highlight both key off the token the sentence
+      // actually contains, so neither changes when the script does.
+      text: segment?.text ?? token,
+      ...(segment && segment.text !== token ? { value: token } : {}),
+      ...(segment?.ruby === undefined || segment.ruby === null ? {} : { ruby: segment.ruby }),
+      className:
+        'rounded px-0.5 text-left motion-safe:transition-colors ' +
+        (unknown.includes(lexemeIdFor(lang, token.toLowerCase()))
+          ? 'bg-amber-100 font-semibold hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900'
+          : 'hover:bg-stone-100 dark:hover:bg-slate-800'),
+    };
+  });
+
+/**
+ * The ladder's verdict for one sentence, or nothing to say about it.
+ *
+ * SPEC §4.3 applies to every place Japanese is drawn, not only the practice
+ * card — v1.23.0 wired the session and left the reader showing bare kanji, so a
+ * learner who moved the control saw it take effect in one screen and not the
+ * other. `undefined` means "draw the tokens as they are": English, or a
+ * Japanese sentence the pipeline shipped without readings.
+ */
+const segmentsFor = (
+  sentence: AnchorSentence,
+  scriptMode: ScriptMode,
+  stability: Record<string, number | null>,
+): RubySegment[] | undefined => {
+  const { tokens, readings } = sentence;
+  if (tokens === undefined || readings === undefined) return undefined;
+  return furiganaFor({
+    tokens,
+    readings,
+    // `?? null` catches a kanji with no card, not one at zero stability.
+    stabilityOf: (kanji) => stability[kanji] ?? null,
+    scriptMode,
+  });
+};
 
 export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   const lang = profile.targets[0] ?? 'en';
   const [items, setItems] = useState<ReaderItem<AnchorSentence>[] | null>(null);
+  /**
+   * How well this learner knows each kanji in the feed (SPEC §10's per-kanji
+   * fade). Read once over the whole feed rather than per sentence: the same
+   * character turns up across sentences and the lookup is a database read.
+   */
+  const [stability, setStability] = useState<Record<string, number | null>>({});
   const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
   const [mined, setMined] = useState<ReadonlySet<string>>(new Set());
   const [tapped, setTapped] = useState<Tapped | null>(null);
@@ -165,14 +212,18 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
           seed: Math.floor(Date.now() / 86_400_000),
         }),
       );
-      setItems(
-        selectReading({
-          pool,
-          known: knownSet,
-          lang,
-          limit: READING_LENGTH,
-          seed: Math.floor(Date.now() / 86_400_000),
-        }),
+      const feed = selectReading({
+        pool,
+        known: knownSet,
+        lang,
+        limit: READING_LENGTH,
+        seed: Math.floor(Date.now() / 86_400_000),
+      });
+      setItems(feed);
+      setStability(
+        lang === 'ja'
+          ? await kanjiStability(profile.id, feed.map((item) => item.sentence.text).join(''))
+          : {},
       );
     })();
   }, [profile.id, lang, profile.dataSaver, payAnyway]);
@@ -307,7 +358,12 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
               className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
             >
               <TappableText
-                parts={tokenParts(tokensOf(item.sentence), lang, item.unknown)}
+                parts={tokenParts(
+                  tokensOf(item.sentence),
+                  lang,
+                  item.unknown,
+                  segmentsFor(item.sentence, profile.scriptMode, stability),
+                )}
                 label={copy.reader.sentenceLabel}
                 describedBy={WORD_NAV_HINT_ID}
                 onTap={(token) => void handleTap(token, item.sentence)}

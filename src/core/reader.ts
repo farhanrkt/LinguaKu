@@ -1,4 +1,4 @@
-import { coverageOf, lexemeIdFor, COVERAGE_FLOOR } from './coverage.ts';
+import { coverageOf, coverageOfTokens, COVERAGE_FLOOR } from './coverage.ts';
 import { tokenizeLatin } from './tokenize.ts';
 
 /**
@@ -106,12 +106,12 @@ export const selectReading = <T extends ReadableSentence>(
     const tokens = tokensOf(sentence);
     if (tokens.length === 0) continue;
 
-    const report = coverageOf(sentence.text, input.known, input.lang);
-    const unknown = sentence.tokens
-      ? [...new Set(tokens.map((token) => lexemeIdFor(input.lang, token)))].filter(
-          (id) => !input.known.has(id),
-        )
-      : report.unknown;
+    // Measured over the same tokens the gates below count, which for Japanese
+    // is the pipeline's morphology rather than whatever `tokenizeLatin` leaves
+    // between the commas. `tokensOf` is `tokenizeLatin` for English, so this is
+    // one call for both languages instead of a branch.
+    const report = coverageOfTokens(tokens, input.known, input.lang);
+    const unknown = report.unknown;
 
     if (tokens.length < MIN_READABLE_TOKENS) continue;
     // i+1's literal form first — at most a couple of new words.

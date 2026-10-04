@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { COVERAGE_FLOOR, COVERAGE_TARGET_MAX, COVERAGE_TARGET_MIN, coverageOf, knownItemIds, langOfItemId, lexemeIdFor, selectGraded } from './coverage.ts';
+import {
+  COVERAGE_FLOOR,
+  COVERAGE_TARGET_MAX,
+  COVERAGE_TARGET_MIN,
+  coverageOf,
+  coverageOfTokens,
+  knownItemIds,
+  langOfItemId,
+  lexemeIdFor,
+  selectGraded,
+} from './coverage.ts';
 import { applyRating } from './scheduler.ts';
 import { emptyFsrsState } from '../data/fsrsState.ts';
 
@@ -196,5 +206,51 @@ describe('langOfItemId', () => {
   it('does not confuse the separator inside the key', () => {
     // Japanese keys can carry colons in principle; only the first one delimits.
     expect(langOfItemId('ja:lex:a:b')).toBe('ja');
+  });
+});
+
+/**
+ * SPEC §2.4's coverage is a count of *words*, and `tokenizeLatin` does not find
+ * Japanese words. It splits on punctuation and returns the runs between — so a
+ * Japanese sentence's "coverage" was an artifact of where its commas fell.
+ *
+ * Measured over the shipped band-1 Japanese anchors: `お誕生日おめでとうムーリエル！`
+ * scores 0.00 (one run, no match), while `あの、すみません...` scores **1.00**,
+ * because `、` and `.` happen to split it into two runs that are themselves
+ * lexeme ids. Neither number is a measurement, and §2.4's selectors ranked on
+ * them. This is v1.15.1's defect in a second place: a function that takes text
+ * and tokenizes it itself cannot serve a language it cannot tokenize.
+ */
+describe('coverage is counted over tokens, not over whatever punctuation leaves', () => {
+  const known = new Set(['ja:lex:彼', 'ja:lex:学校', 'ja:lex:は', 'ja:lex:を']);
+  const tokens = ['彼', 'は', 'よく', '学校', 'を', '欠席', 'する', '。'];
+
+  it('measures a Japanese sentence from the pipeline’s tokens', () => {
+    const report = coverageOfTokens(tokens, known, 'ja');
+    expect(report.totalTokens).toBe(8);
+    expect(report.knownTokens).toBe(4);
+    expect(report.coverage).toBeCloseTo(0.5);
+  });
+
+  it('reports the unknown words, not the unknown sentence', () => {
+    // The old path produced a single "unknown word" that was the whole
+    // sentence: `ja:lex:彼はよく学校を欠席する`.
+    expect(coverageOfTokens(tokens, known, 'ja').unknown).toEqual([
+      'ja:lex:よく',
+      'ja:lex:欠席',
+      'ja:lex:する',
+      'ja:lex:。',
+    ]);
+  });
+
+  it('is what coverageOf does for Latin text, so English is unchanged', () => {
+    const en = new Set(['en:lex:the']);
+    expect(coverageOfTokens(['the', 'cat', 'sat'], en, 'en')).toEqual(
+      coverageOf('the cat sat', en, 'en'),
+    );
+  });
+
+  it('calls an empty token list fully covered, as the text form always has', () => {
+    expect(coverageOfTokens([], new Set(), 'ja').coverage).toBe(1);
   });
 });

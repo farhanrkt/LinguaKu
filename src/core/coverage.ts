@@ -72,12 +72,27 @@ export interface CoverageReport {
  * three times is harder than one that uses it once, and the reading-threshold
  * research this implements is stated in running-text terms.
  */
-export const coverageOf = (
-  text: string,
+/**
+ * Coverage over words the caller has already identified.
+ *
+ * **This is the real implementation, and `coverageOf` is the Latin-only
+ * convenience in front of it.** `tokenizeLatin` finds no Japanese words: it
+ * splits on punctuation and returns the runs between, so a Japanese sentence's
+ * "coverage" was an artifact of where its commas fell. Measured over the
+ * shipped band-1 anchors, `お誕生日おめでとうムーリエル！` scored 0.00 — one run,
+ * no match — while `あの、すみません...` scored **1.00**, because `、` and `.`
+ * happen to split it into two runs that are themselves lexeme ids.
+ *
+ * Neither number was a measurement, and every §2.4 selector ranked on them.
+ * This is v1.15.1's defect in a second place: a function that takes text and
+ * tokenizes it itself cannot serve a language it cannot tokenize. Taking
+ * tokens is the fix in both.
+ */
+export const coverageOfTokens = (
+  tokens: readonly string[],
   known: ReadonlySet<string>,
   lang: string,
 ): CoverageReport => {
-  const tokens = tokenizeLatin(text);
   if (tokens.length === 0) {
     return { coverage: 1, totalTokens: 0, knownTokens: 0, unknown: [] };
   }
@@ -98,6 +113,18 @@ export const coverageOf = (
   };
 };
 
+/**
+ * Coverage over Latin-script text, which tokenizes itself.
+ *
+ * Correct for English and for Indonesian; a caller holding real tokens — any
+ * Japanese caller — wants `coverageOfTokens` instead.
+ */
+export const coverageOf = (
+  text: string,
+  known: ReadonlySet<string>,
+  lang: string,
+): CoverageReport => coverageOfTokens(tokenizeLatin(text), known, lang);
+
 export const inTargetBand = (coverage: number): boolean =>
   coverage >= COVERAGE_TARGET_MIN && coverage <= COVERAGE_TARGET_MAX;
 
@@ -105,6 +132,13 @@ export const inTargetBand = (coverage: number): boolean =>
 export interface GradedCandidate {
   id: string;
   text: string;
+  /**
+   * The pipeline's morphological tokens, where it has them (Japanese, D10).
+   * Without them this selector was measuring punctuation runs and rejecting
+   * every Japanese anchor as below the floor, so §2.4's i+1 choice silently
+   * fell through to "the first one" for a whole language.
+   */
+  tokens?: readonly string[];
 }
 
 export interface GradedSelection<T extends GradedCandidate> {
@@ -139,7 +173,7 @@ export const selectGraded = <T extends GradedCandidate>(
   let easy: GradedSelection<T> | null = null;
 
   for (const item of candidates) {
-    const report = coverageOf(item.text, known, lang);
+    const report = coverageOfTokens(item.tokens ?? tokenizeLatin(item.text), known, lang);
     if (report.totalTokens === 0 || report.coverage < COVERAGE_FLOOR) continue;
 
     if (inTargetBand(report.coverage)) {

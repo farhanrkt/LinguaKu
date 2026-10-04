@@ -5,6 +5,62 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.25.0 — 2026-10-04
+
+### Fixed — the Japanese reader was offering four sentences out of 2,152
+
+`coverageOf` tokenized with `tokenizeLatin`, which finds no Japanese words: it
+splits on punctuation and returns the runs between. So a Japanese sentence's
+§2.4 coverage was decided by where its commas fell. `彼はよく学校を欠席する。`
+scored **0.00** (one run, no match) while `あの、すみません...` scored **1.00**,
+because `、` and `.` split it into two runs that happened to be lexeme ids.
+
+2,148 of 2,152 band-1 anchors were dropped, and the four that survived were all
+interjections — the least useful reading material in the corpus, since §2.4
+wants comprehensible input *with something new in it*.
+
+Two more selectors ranked on the same number. `selectGraded` rejected every
+Japanese anchor as below the floor and fell through to "the first one", so
+§2.4's i+1 choice was a no-op for a whole language; and `buildCandidates`
+carried a comment explaining the zeros as a dictionary-form mismatch, citing a
+figure that had been measured through the same broken function.
+
+This is v1.15.1's defect in a second place, and the same fix: **take tokens, not
+text.** `coverageOfTokens` is the implementation and `coverageOf` is the
+Latin-only convenience in front of it, so English is unchanged by construction.
+
+Counted through the real selector over the real shard, the reader goes from 4
+sentences to **113** at band 1, 187 at bands 1–3, and 249 knowing every word the
+app ships — with coverage figures that are measurements rather than artifacts.
+
+### Added — the script ladder reaches the reader
+
+§4.3's romaji → kana → kanji now applies to the reading feed as well as the
+practice card, with §10's per-kanji furigana fade. A control labelled "Tulisan
+Jepang" previously took effect on one screen and not the other.
+
+- `TextPart` separates what is shown from what a tap *means*. Kana and romaji
+  rewrite the surface, and the lookup behind the word has to reach the token the
+  sentence contains, or the reader stops being able to gloss anything in kanji.
+- Ruby renders inside the word's button, so `TappableText`'s roving tabindex and
+  invariant 35's one-stop-per-block promise are untouched.
+
+### Changed
+
+- **R9 is corrected.** Two of the figures it was filed with had been measured
+  through the broken `coverageOf`. "294 of 300 band-1 anchors score exactly 0"
+  re-measures to **6 of 300**, mean coverage **0.428**. The risk stands
+  unchanged in substance — 0.428 is still far below §2.4's 0.92–0.98, because
+  particles are not vocabulary — but the number is now a measurement.
+- `buildCandidates` keeps its coverage gate off for Japanese: the real figure
+  clears `BUILD_MIN_COVERAGE` for only 21 of 2,152 anchors, against the 1,521
+  buildable sentences v1.15.1 recovered. It is now a choice against a real
+  number rather than a limitation.
+
+906 unit · 74 e2e.
+
+---
+
 ## v1.24.1 — 2026-10-04
 
 ### Fixed — a bad moment was remembered as a fact
