@@ -5,6 +5,41 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.34.0 — 2026-10-04
+
+### Changed — the home screen leads with where the learner is
+
+It led with settings: three blocks of choice cards (language, script, daily
+minutes — eight cards) and a four-line diagnostics list, with the start button
+pinned below all of it. §10 already said *"everything that is not practice lives
+one tap deeper"*, and the settings screen has existed since M5; v1.23.0 made it
+worse by adding a fourth block.
+
+All four moved to settings. In their place:
+
+- **Sejauh ini** — words secured and roughly what share of everyday language
+  they cover, plus the current stage.
+- **Paling dekat terlupa** — the words closest to slipping, which come first
+  next session.
+
+Capability, never a score, and each with an honest empty state rather than a
+zero.
+
+The start button stays pinned in the footer: §10 puts primary actions in the
+thumb zone, and a dashboard above a permanently reachable action satisfies both.
+Both figures load after the first paint from targeted reads, so invariant 12's
+3-second cold start is untouched.
+
+Two things reading the new screen caught: a learner three words in rounded to
+*"kira-kira 0%"* — §2.15's loss framing reached by `Math.round` rather than by
+wording — and a stage line that read *"Tahap 1: 0 dari 481"* directly under
+*"3 kata sudah kamu kunci"*, both true and together nonsense. The percentage is
+dropped below one percent, and home carries one figure rather than two.
+
+955 unit · 79 e2e.
+
+---
+
 ## v1.33.0 — 2026-10-04
 
 ### Fixed — a beginner was asked to correct a sentence they could not read

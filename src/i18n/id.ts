@@ -85,6 +85,39 @@ export const copy = {
     },
     changeMinutes: 'Ubah target harian',
     changeTargets: 'Ubah bahasa',
+    /**
+     * The home screen leads with where the learner is (v1.34.0).
+     *
+     * It used to lead with settings: three blocks of choice cards and a
+     * diagnostics list, with the start button pinned below them — which a user
+     * called "not structured and weird", and v1.23.0 made worse by adding a
+     * fourth block. Those moved to the settings screen, where §10 already said
+     * everything that is not practice belongs.
+     *
+     * What replaces them is capability, never a score (§2.14): how much of
+     * everyday language the words they have secured already cover, and which
+     * words are closest to slipping — both measured, both with an honest empty
+     * state for a learner who has not started.
+     */
+    dashboard: {
+      reachHeading: 'Sejauh ini',
+      /**
+       * Never "0%".
+       *
+       * A learner three words in rounds to zero, and `0%` tells them their work
+       * was worth nothing — the loss framing §2.14 bans, arrived at by
+       * arithmetic rather than by wording. Under one percent the sentence drops
+       * the percentage and keeps the count, which is the part that is theirs.
+       */
+      reach: (percent: number, words: number) =>
+        percent < 1
+          ? `${words.toLocaleString('id-ID')} kata sudah kamu kunci. Terus tambah — angkanya mulai kelihatan setelah beberapa ratus kata.`
+          : `${words.toLocaleString('id-ID')} kata sudah kamu kunci — kira-kira ${percent}% kata yang muncul sehari-hari.`,
+      reachEmpty: 'Satu sesi saja sudah cukup untuk mulai mengisi bagian ini.',
+      slippingHeading: 'Paling dekat terlupa',
+      slippingHint: 'Ini yang muncul duluan di sesi berikutnya.',
+      slippingEmpty: 'Belum ada kata yang mulai memudar. Itu kabar baik.',
+    },
     statusHeading: 'Status aplikasi',
     offlineReady: 'Siap dipakai offline',
     offlinePreparing: 'Menyiapkan mode offline…',

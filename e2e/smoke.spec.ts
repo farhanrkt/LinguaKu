@@ -40,12 +40,9 @@ test('the app registers a service worker and loads with the network cut', async 
 }) => {
   await firstRun(page);
 
-
-  // Wait for the worker to control the page and finish precaching.
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
-    timeout: 30_000,
-  });
-  await expect(page.getByTestId('offline-status')).toHaveText('Siap dipakai offline');
+  // Waits for the worker to control the page, and reads the status line — which
+  // moved to settings in v1.34.0 with the rest of the diagnostics block.
+  await waitForOfflineReady(page);
 
   await context.setOffline(true);
   await page.reload();

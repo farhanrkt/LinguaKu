@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, openScriptLadder, switchLanguage } from './helpers.ts';
 
 /**
  * SPEC §4.3 applies everywhere Japanese is drawn, not only to a practice card.
@@ -101,7 +101,7 @@ const seedJapanese = async (page: Page, fadedKanji: string | null) =>
 
 const openJapaneseReader = async (page: Page, fadedKanji: string | null) => {
   await firstRun(page);
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
   await expect(page.getByTestId('learning-label')).toHaveText(/Jepang/);
   await waitForJapaneseContent(page);
   await seedJapanese(page, fadedKanji);
@@ -136,9 +136,7 @@ test('the reader is written at the rung the learner chose', async ({ page }) => 
 
   // Kanji is not the default; set it explicitly so this does not depend on
   // what `defaultScriptMode` happens to be.
-  await page.getByRole('button', { name: /Kembali/ }).click();
-  await page.getByTestId('script-mode').locator('button[aria-pressed]').nth(2).click();
-  await page.getByTestId('reader-open').click();
+  await setRung(page, 2);
   await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 30_000 });
 
   const kanji = await firstRubyWord(page);
@@ -149,9 +147,7 @@ test('the reader is written at the rung the learner chose', async ({ page }) => 
   expect(kanji.ruby).toBeTruthy();
 
   // Kana replaces the kanji outright; there is nothing left to annotate.
-  await page.getByRole('button', { name: /Kembali/ }).click();
-  await page.getByTestId('script-mode').locator('button[aria-pressed]').nth(1).click();
-  await page.getByTestId('reader-open').click();
+  await setRung(page, 1);
   await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 30_000 });
   expect((await firstRubyWord(page)).withRuby).toBe(0);
 });
@@ -165,9 +161,20 @@ const wordTexts = (page: Page) =>
     }),
   );
 
+/**
+ * Sets the script rung and reopens the reader.
+ *
+ * The ladder lives in settings now (v1.34.0), and the reader has no settings
+ * link — so this leaves the reader first. Callers are on the reader when they
+ * call it, which is the whole reason it exists.
+ */
 const setRung = async (page: Page, rung: 0 | 1 | 2) => {
   await page.getByRole('button', { name: /Kembali/ }).click();
-  await page.getByTestId('script-mode').locator('button[aria-pressed]').nth(rung).click();
+  await expect(page.getByTestId('practise')).toBeVisible({ timeout: 20_000 });
+  const ladder = await openScriptLadder(page);
+  await ladder.locator('button[aria-pressed]').nth(rung).click();
+  await page.getByRole('button', { name: 'Selesai' }).click();
+  await expect(page.getByTestId('practise')).toBeVisible({ timeout: 20_000 });
   await page.getByTestId('reader-open').click();
   await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 30_000 });
 };

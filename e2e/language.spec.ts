@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { answerOne, firstRun, leaveSession } from './helpers.ts';
+import { answerOne, firstRun, leaveSession, switchLanguage } from './helpers.ts';
 
 /**
  * Switching the target language switches everything that hangs off it.
@@ -17,7 +17,7 @@ test('choosing the other language switches what is being taught', async ({ page 
   await firstRun(page);
   await expect(page.getByTestId('learning-label')).toHaveText(/Inggris/);
 
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
 
   await expect(page.getByTestId('learning-label')).toHaveText(/Jepang/);
   await expect(page.getByTestId('learning-label')).not.toHaveText(/Inggris/);
@@ -35,14 +35,14 @@ test('an unfinished session does not follow the learner into the other language'
   // The English session is now open and resumable.
   await expect(page.getByTestId('practise')).toHaveText(/Lanjutkan latihan/);
 
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
 
   // Japanese has no session of its own, so the button offers a fresh one rather
   // than continuing an English queue under a Japanese heading.
   await expect(page.getByTestId('practise')).not.toHaveText(/Lanjutkan latihan/);
 
   // ...and switching back finds the English session exactly where it was left.
-  await page.getByRole('button', { name: /Bahasa Inggris/ }).click();
+  await switchLanguage(page, /Bahasa Inggris/);
   await expect(page.getByTestId('practise')).toHaveText(/Lanjutkan latihan/);
 });
 
@@ -67,6 +67,6 @@ test('the skill check is offered again for a language that has never been placed
 
   // Japanese has never been placed. Hiding the offer here would leave a
   // first-time Japanese learner with no way to be placed at all (D25).
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
   await expect(page.getByTestId('placement-offer')).toBeVisible();
 });

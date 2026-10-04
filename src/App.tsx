@@ -315,6 +315,9 @@ export const App = () => {
       return (
         <SettingsScreen
           profile={screen.profile}
+          offline={offline}
+          durability={durability}
+          voice={voice}
           onChange={(changes) => void handleChange(changes)}
           onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
           onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
@@ -355,9 +358,6 @@ export const App = () => {
       return (
         <Home
           profile={screen.profile}
-          offline={offline}
-          durability={durability}
-          voice={voice}
           resumable={resumable}
           busy={busy}
           placementOffered={placementOffered}
@@ -370,7 +370,6 @@ export const App = () => {
           cueDue={cueDue}
           onDismissCue={() => setCueDue(null)}
           onPractise={() => void handlePractise()}
-          onChange={(changes) => void handleChange(changes)}
         />
       );
   }

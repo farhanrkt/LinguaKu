@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
-import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
+import { activateTarget, scriptModeOnSwitch } from '../../data/repositories/profiles.ts';
+import type { OfflineStatus } from '../../platform/serviceWorker.ts';
+import type { VoiceReport } from '../../platform/speech.ts';
+import type { StorageDurability } from '../../platform/persistence.ts';
+import { Button } from '../../ui/Button.tsx';
 import { defaultDailyNewWords } from '../../core/forecast.ts';
 import { Screen } from '../../ui/Screen.tsx';
 import { loadTopics, type Topic } from '../../data/topics.ts';
-import type { Profile, TargetLang } from '../../data/types.ts';
+import type { DailyMinutes, Profile, ScriptMode, TargetLang } from '../../data/types.ts';
 
 /**
  * One place for everything that is not practice.
@@ -24,7 +28,23 @@ import type { Profile, TargetLang } from '../../data/types.ts';
 
 interface SettingsScreenProps {
   profile: Profile;
-  onChange: (changes: Partial<Pick<Profile, 'topics' | 'dailyNewWords' | 'dataSaver'>>) => void;
+  onChange: (
+    changes: Partial<
+      Pick<Profile, 'topics' | 'dailyNewWords' | 'dataSaver' | 'targets' | 'dailyMinutes' | 'scriptMode'>
+    >,
+  ) => void;
+  /**
+   * Moved here from the home screen in v1.34.0.
+   *
+   * §10 already said it: "everything that is not practice lives one tap
+   * deeper". Three blocks of choice cards and a diagnostics list had
+   * accumulated above the fold on the first screen, which is what a user meant
+   * by "not structured and weird" — and v1.23.0 made it worse by adding a
+   * fourth.
+   */
+  offline: OfflineStatus;
+  durability: StorageDurability;
+  voice: VoiceReport | null;
   onHabit: () => void;
   onSync: () => void;
   onDiagnostics: () => void;
@@ -52,9 +72,23 @@ const PACE_MAX = 40;
 /** Ordered least-intrusive first, which is also the default's position. */
 const DATA_CHOICES = ['auto', 'save', 'full'] as const;
 
+const offlineLabel: Record<OfflineStatus, string> = {
+  ready: copy.home.offlineReady,
+  preparing: copy.home.offlinePreparing,
+  unavailable: copy.home.offlineUnavailable,
+};
+
+const TARGETS: TargetLang[] = ['en', 'ja'];
+const MINUTES: DailyMinutes[] = [4, 8, 15];
+/** SPEC §4.3's ladder, in the order it is climbed. */
+const SCRIPT_MODES: ScriptMode[] = ['romaji', 'kana', 'kanji'];
+
 export const SettingsScreen = ({
   profile,
   onChange,
+  offline,
+  durability,
+  voice,
   onHabit,
   onSync,
   onDiagnostics,
@@ -68,6 +102,17 @@ export const SettingsScreen = ({
   // Absent means "whatever suits my session length", so the control shows that
   // number rather than an empty box the learner has to guess at.
   const paceDefault = defaultDailyNewWords(profile.dailyMinutes);
+  const activeTarget = profile.targets[0] ?? 'en';
+
+  const switchTarget = (next: TargetLang) => {
+    if (next === activeTarget) return;
+    onChange({
+      targets: activateTarget(profile.targets, next),
+      // SPEC §4.3: a first-time Japanese learner starts at romaji, whatever the
+      // profile was carrying from its English days.
+      scriptMode: scriptModeOnSwitch(profile.targets, next, profile.scriptMode),
+    });
+  };
 
   /**
    * Held in a ref *and* mirrored into state: the ref is what the next tap adds
@@ -201,6 +246,72 @@ export const SettingsScreen = ({
           />
         ))}
       </div>
+
+      <h2 className="mt-10 text-lg font-bold">{copy.home.changeTargets}</h2>
+      <div className="mt-3 flex flex-col gap-3">
+        {TARGETS.map((lang) => (
+          <OptionCard
+            key={lang}
+            label={copy.firstRun.targets[lang].label}
+            selected={lang === activeTarget}
+            onToggle={() => switchTarget(lang)}
+          />
+        ))}
+      </div>
+
+      {/* SPEC §4.3: romaji → kana → kanji. Japanese only, because there is no
+          ladder to climb in English — and offered at all because `scriptMode`
+          defaulted to `kana` and had no control, which left every Japanese
+          learner on the middle rung permanently (D96). */}
+      {activeTarget === 'ja' ? (
+        <>
+          <h2 className="mt-10 text-lg font-bold">{copy.home.changeScript}</h2>
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+            {copy.home.scriptHint}
+          </p>
+          <div className="mt-3 flex flex-col gap-3" data-testid="script-mode">
+            {SCRIPT_MODES.map((mode) => (
+              <OptionCard
+                key={mode}
+                label={copy.home.script[mode].label}
+                hint={copy.home.script[mode].hint}
+                selected={profile.scriptMode === mode}
+                onToggle={() => onChange({ scriptMode: mode })}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <h2 className="mt-10 text-lg font-bold">{copy.home.changeMinutes}</h2>
+      <div className="mt-3 flex flex-col gap-3">
+        {MINUTES.map((value) => (
+          <OptionCard
+            key={value}
+            label={copy.firstRun.minutes[value].label}
+            selected={profile.dailyMinutes === value}
+            onToggle={() => onChange({ dailyMinutes: value })}
+          />
+        ))}
+      </div>
+
+      <h2 className="mt-10 text-lg font-bold">{copy.home.statusHeading}</h2>
+      <ul className="mt-3 flex flex-col gap-2 text-sm text-stone-600 dark:text-slate-400">
+        <li data-testid="offline-status">{offlineLabel[offline]}</li>
+        <li>
+          {durability === 'persisted' ? copy.home.storagePersisted : copy.home.storageBestEffort}
+        </li>
+        {/* SPEC §2.6 / risk R1: say what the probe found rather than letting a
+            silent device look like a broken app. */}
+        <li data-testid="audio-status">
+          {voice === null
+            ? copy.home.audioProbing
+            : voice.support === 'ready'
+              ? copy.home.audioReady
+              : copy.home.audioDead}
+        </li>
+      </ul>
+
 
       <h2 className="mt-10 text-lg font-bold">{copy.settings.moreHeading}</h2>
 

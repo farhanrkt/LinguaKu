@@ -51,3 +51,37 @@ describe('the heatmap is named for the language being learned', () => {
     expect(copy.progress.heatmap.heading('en')).toContain('Inggris');
   });
 });
+
+/**
+ * SPEC §2.14: capability, never a score — and never a zero arrived at by
+ * arithmetic.
+ *
+ * v1.34.0 put the learner's reach on the home screen, and a learner whose words
+ * cover less than one percent of running text rounded to `kira-kira 0%`. That
+ * is the loss framing §2.15 bans, reached by `Math.round` rather than by
+ * wording: it tells someone who has just started that their work was worth
+ * nothing.
+ *
+ * Tested here rather than in the browser because the browser cannot reach the
+ * case cheaply — the commonest three English words are already over 1% of all
+ * tokens, so seeding a beginner produces a perfectly good percentage.
+ */
+describe('the reach line never reports zero', () => {
+  it('drops the percentage below one percent, and keeps the count', () => {
+    const line = copy.home.dashboard.reach(0, 3);
+    expect(line).not.toContain('0%');
+    expect(line).toContain('3');
+  });
+
+  it('reports the percentage once there is one worth reporting', () => {
+    expect(copy.home.dashboard.reach(12, 540)).toContain('12%');
+    expect(copy.home.dashboard.reach(1, 40)).toContain('1%');
+  });
+
+  it('says nothing that could be read as a loss', () => {
+    for (const words of [0, 3, 40, 540]) {
+      const line = copy.home.dashboard.reach(Math.min(words, 12), words);
+      expect(line).not.toMatch(/\bXP\b|poin|streak|nyawa|gagal|kalah/i);
+    }
+  });
+});

@@ -1,5 +1,92 @@
 # PROGRESS.md
 
+## v1.34.0 — a first screen that is mostly settings (2026-10-04)
+
+> the landing page, i don't like it, its not structured and weird
+
+It was. In order, above the fold:
+
+1. greeting
+2. today's load
+3. habit cue
+4. placement offer
+5. reader link
+6. progress link
+7. **Ubah bahasa** — two choice cards
+8. **Tulisan Jepang** — three choice cards
+9. **Ubah target harian** — three choice cards
+10. **Status aplikasi** — four diagnostic lines
+11. settings link
+12. *(footer)* the start button
+
+Eight choice cards and a diagnostics list, with the thing the learner opened the
+app to do pinned underneath. And §10 had already written the rule it broke:
+
+> Everything that is not practice lives one tap deeper.
+
+The settings screen has existed since M5 and those blocks were never moved into
+it. v1.23.0 made it worse — that was me, adding the script ladder as a fourth
+block rather than putting it where it belonged.
+
+### What is there instead
+
+Where the learner is:
+
+- **Sejauh ini** — how many words they have secured and roughly what share of
+  everyday language those cover, from `buildLearningPath`, plus the stage they
+  are on.
+- **Paling dekat terlupa** — the handful closest to being forgotten, from
+  `slippingSoon`, with the note that these come first next session.
+
+Capability, never a score (§2.14). Both have an honest empty state rather than a
+zero: a learner who has not started reads *"Satu sesi saja sudah cukup untuk
+mulai mengisi bagian ini"*, not `0%`.
+
+### Two things deliberately not done
+
+**The start button stays in the footer.** §10 puts primary actions in the thumb
+zone, and moving it up the page to make it feel prominent would have traded a
+rule for a feeling. A dashboard above a permanently reachable action satisfies
+both at once.
+
+**Neither figure blocks anything.** Invariant 12 caps icon-tap to first
+answerable question at 3s and `coldstart.spec.ts` holds that line, so these are
+two targeted reads after the first paint — not `buildProgressReport`, which is
+the whole §9 screen — and the practise button is live from the first frame.
+
+### Two things the browser caught after it was built
+
+Reading the new screen turned up both, and neither would have failed a test.
+
+**"kira-kira 0%".** A learner three words in rounds to zero. That is §2.15's loss
+framing arrived at by `Math.round` rather than by wording — it tells someone who
+has just started that their work was worth nothing. Under one percent the
+sentence drops the percentage and keeps the count, which is the part that is
+theirs.
+
+Pinning that took three attempts. In the browser it kept passing with the guard
+removed: `not.toContainText` is satisfied by an element that is *absent*, so a
+learner with one answered word and an empty state passed vacuously — and seeding
+three words does not reach the case either, because the commonest three English
+words are already over one percent of all tokens. It is pinned in
+`src/i18n/ceiling.test.ts`, where the number can be stated.
+
+**A stage line that contradicted the sentence above it.** `securedTotal` sums
+every stage while `current` is the one in progress, so a learner whose three
+words happen to sit in band 2 read *"3 kata sudah kamu kunci"* directly above
+*"Tahap 1: 0 dari 481 kata"*. Both true, together nonsense. One figure on home;
+the full path stays on the progress screen, which has room to explain itself.
+
+### The cost of moving things
+
+Five e2e specs clicked those controls on the home screen, and the language
+picker on the **first-run** screen looks identical to the one in settings — a
+regex that replaced both turned four passing tests into failures that took three
+rounds to separate. The switch lives in one helper now, so the next move costs
+one edit rather than five.
+
+955 unit · 79 e2e.
+
 ## v1.33.0 — an unanswerable question is not a hard one (2026-10-04)
 
 The user's report, verbatim:

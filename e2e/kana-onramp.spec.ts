@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, switchLanguage } from './helpers.ts';
 
 /**
  * SPEC §4.3's ladder is *romaji → kana → kanji*, and the first screen offers
@@ -42,7 +42,7 @@ const waitForJapanese = (page: Page) =>
 test('a day-one Japanese learner is taught the alphabet', async ({ page }) => {
   test.setTimeout(120_000);
   await firstRun(page);
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
   await expect(page.getByTestId('learning-label')).toHaveText(/Jepang/);
 
   // 104 hiragana + 104 katakana, derived from the syllabary rather than a shard.
@@ -68,7 +68,7 @@ test('a day-one Japanese learner is taught the alphabet', async ({ page }) => {
 test('kana shares the session with words rather than blocking them', async ({ page }) => {
   test.setTimeout(120_000);
   await firstRun(page);
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
   await waitForJapanese(page);
 
   await page.getByTestId('practise').click();
@@ -119,7 +119,7 @@ test('kana shares the session with words rather than blocking them', async ({ pa
 test('a beginner is never asked to fix a sentence they cannot read', async ({ page }) => {
   test.setTimeout(120_000);
   await firstRun(page);
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
   await waitForJapanese(page);
 
   await page.getByTestId('practise').click();

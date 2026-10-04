@@ -1,29 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
-import { OptionCard } from '../../ui/OptionCard.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { sessionProgress, type TodaySnapshot } from '../../data/repositories/sessions.ts';
-import { activateTarget, scriptModeOnSwitch } from '../../data/repositories/profiles.ts';
-import type { DailyMinutes, Profile, ScriptMode, Session, TargetLang } from '../../data/types.ts';
-import type { OfflineStatus } from '../../platform/serviceWorker.ts';
-import type { VoiceReport } from '../../platform/speech.ts';
-import type { StorageDurability } from '../../platform/persistence.ts';
+import {
+  buildLearningPath,
+  slippingSoon,
+  type SlippingWord,
+} from '../../data/repositories/progress.ts';
+import type { LearningPath } from '../../core/path.ts';
+import type { Profile, Session } from '../../data/types.ts';
 
-const TARGETS: TargetLang[] = ['en', 'ja'];
-const MINUTES: DailyMinutes[] = [4, 8, 15];
-/** SPEC §4.3's ladder, in the order it is climbed. */
-const SCRIPT_MODES: ScriptMode[] = ['romaji', 'kana', 'kanji'];
 
 interface HomeProps {
   profile: Profile;
-  offline: OfflineStatus;
-  durability: StorageDurability;
   /** An unfinished session, if the learner was interrupted (SPEC §2.13). */
   resumable: Session | null;
   busy: boolean;
-  /** The boot probe's verdict, or null while it is still running (risk R1). */
-  voice: VoiceReport | null;
   /** False while the learner has not yet taken (or declined) placement. */
   placementOffered: boolean;
   /** Today's reviews and remaining new words, or null while it loads. */
@@ -35,7 +28,6 @@ interface HomeProps {
   onRead: () => void;
   onSettings: () => void;
   onPractise: () => void;
-  onChange: (changes: Partial<Pick<Profile, 'targets' | 'dailyMinutes' | 'scriptMode'>>) => void;
   /**
    * SPEC §2.13: the learner's own cue word when it has passed and today holds
    * no practice, otherwise null. Their words, not ours — that is the mechanism.
@@ -44,17 +36,8 @@ interface HomeProps {
   onDismissCue: () => void;
 }
 
-const offlineLabel: Record<OfflineStatus, string> = {
-  ready: copy.home.offlineReady,
-  preparing: copy.home.offlinePreparing,
-  unavailable: copy.home.offlineUnavailable,
-};
-
 export const Home = ({
   profile,
-  offline,
-  durability,
-  voice,
   resumable,
   busy,
   placementOffered,
@@ -65,7 +48,6 @@ export const Home = ({
   onRead,
   onSettings,
   onPractise,
-  onChange,
   cueDue,
   onDismissCue,
 }: HomeProps) => {
@@ -74,15 +56,28 @@ export const Home = ({
   // ticking a set. Tapping the one already active is a no-op; the other language
   // keeps its cards, its ability and its own unfinished session.
   const activeTarget = profile.targets[0] ?? 'en';
-  const switchTarget = (lang: TargetLang) => {
-    if (lang === activeTarget) return;
-    onChange({
-      targets: activateTarget(profile.targets, lang),
-      // SPEC §4.3: a first-time Japanese learner starts at kana, whatever the
-      // profile was carrying from its English days.
-      scriptMode: scriptModeOnSwitch(profile.targets, lang, profile.scriptMode),
+  // The dashboard's figures, loaded **after** the first paint.
+  //
+  // Invariant 12 caps icon-tap to first answerable question at 3s, and the
+  // practise button is in the footer from the first frame — so these are two
+  // targeted reads (the path and the slipping list), never the whole §9 report,
+  // and nothing waits on them.
+  const [path, setPath] = useState<LearningPath | null>(null);
+  const [slipping, setSlipping] = useState<SlippingWord[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    const now = Date.now();
+    void buildLearningPath(profile, now).then((result) => {
+      if (live) setPath(result);
     });
-  };
+    void slippingSoon(profile.id, now, 3).then((result) => {
+      if (live) setSlipping(result);
+    });
+    return () => {
+      live = false;
+    };
+  }, [profile]);
 
   // After the paint: the speech probe can block the main thread outright on a
   // device with no engine, so nothing may release it before there is a screen.
@@ -202,70 +197,54 @@ export const Home = ({
         </p>
       ) : null}
 
-      <h2 className="mt-8 text-lg font-bold">{copy.home.changeTargets}</h2>
-      <div className="mt-3 flex flex-col gap-3">
-        {TARGETS.map((lang) => (
-          <OptionCard
-            key={lang}
-            label={copy.firstRun.targets[lang].label}
-            selected={lang === activeTarget}
-            onToggle={() => switchTarget(lang)}
-          />
-        ))}
-      </div>
-
-      {/* SPEC §4.3: romaji → kana → kanji. Japanese only, because there is no
-          ladder to climb in English — and offered at all because `scriptMode`
-          defaulted to `kana` and had no control, which left every Japanese
-          learner on the middle rung permanently (D96). */}
-      {activeTarget === 'ja' ? (
+      {/* SPEC §2.14: capability, never a score. What the learner has secured and
+          what is closest to slipping — both measured, both with an honest empty
+          state rather than a zero (invariant 18). */}
+      <h2 className="mt-8 text-lg font-bold">{copy.home.dashboard.reachHeading}</h2>
+      {path === null ? (
+        <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.progress.notYet}</p>
+      ) : path.securedTotal === 0 ? (
+        <p className="mt-2 text-stone-600 dark:text-slate-400" data-testid="reach-empty">
+          {copy.home.dashboard.reachEmpty}
+        </p>
+      ) : (
         <>
-          <h2 className="mt-8 text-lg font-bold">{copy.home.changeScript}</h2>
-          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
-            {copy.home.scriptHint}
+          {/* One figure, not two. `securedTotal` sums every stage while
+              `current` is the stage in progress, so a learner whose three words
+              happen to sit in band 2 read "3 kata sudah kamu kunci" directly
+              above "Tahap 1: 0 dari 481" — both true, and together nonsense.
+              The full path lives on the progress screen, which has room to
+              explain it. */}
+          <p className="mt-2 text-lg text-stone-700 dark:text-slate-300" data-testid="reach">
+            {copy.home.dashboard.reach(Math.round(path.reach * 100), path.securedTotal)}
           </p>
-          <div className="mt-3 flex flex-col gap-3" data-testid="script-mode">
-            {SCRIPT_MODES.map((mode) => (
-              <OptionCard
-                key={mode}
-                label={copy.home.script[mode].label}
-                hint={copy.home.script[mode].hint}
-                selected={profile.scriptMode === mode}
-                onToggle={() => onChange({ scriptMode: mode })}
-              />
-            ))}
-          </div>
         </>
-      ) : null}
+      )}
 
-      <h2 className="mt-8 text-lg font-bold">{copy.home.changeMinutes}</h2>
-      <div className="mt-3 flex flex-col gap-3">
-        {MINUTES.map((value) => (
-          <OptionCard
-            key={value}
-            label={copy.firstRun.minutes[value].label}
-            selected={profile.dailyMinutes === value}
-            onToggle={() => onChange({ dailyMinutes: value })}
-          />
-        ))}
-      </div>
-
-      <h2 className="mt-8 text-lg font-bold">{copy.home.statusHeading}</h2>
-      <ul className="mt-3 flex flex-col gap-2 text-sm text-stone-600 dark:text-slate-400">
-        <li data-testid="offline-status">{offlineLabel[offline]}</li>
-        <li>
-          {durability === 'persisted' ? copy.home.storagePersisted : copy.home.storageBestEffort}
-        </li>
-        {/* SPEC §2.6 / risk R1: say what the probe found rather than letting a
-            silent device look like a broken app. */}
-        <li data-testid="audio-status">
-          {voice === null
-            ? copy.home.audioProbing
-            : voice.support === 'ready'
-              ? copy.home.audioReady
-              : copy.home.audioDead}
-        </li>
-      </ul>
+      <h2 className="mt-8 text-lg font-bold">{copy.home.dashboard.slippingHeading}</h2>
+      {slipping === null ? (
+        <p className="mt-2 text-stone-600 dark:text-slate-400">{copy.progress.notYet}</p>
+      ) : slipping.length === 0 ? (
+        <p className="mt-2 text-stone-600 dark:text-slate-400" data-testid="slipping-empty">
+          {copy.home.dashboard.slippingEmpty}
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
+            {copy.home.dashboard.slippingHint}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2" data-testid="slipping">
+            {slipping.map((word) => (
+              <li
+                key={word.itemId}
+                className="rounded-lg bg-stone-100 px-3 py-1 font-semibold text-stone-800 dark:bg-slate-900 dark:text-slate-200"
+              >
+                {word.headword}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {/* Everything that is not practice lives one tap deeper (SPEC §10): the
           home screen's job is to get a learner into a session, and it had grown

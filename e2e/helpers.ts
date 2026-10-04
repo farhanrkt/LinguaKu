@@ -82,7 +82,13 @@ export const waitForOfflineReady = async (page: Page): Promise<void> => {
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
     timeout: 30_000,
   });
+  // The status line moved to settings in v1.34.0, with the rest of the
+  // diagnostics block — the home screen shows the learner's progress now, not
+  // the app's. Checked there and then left, so callers still start from home.
+  await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('offline-status')).toHaveText('Siap dipakai offline');
+  await page.getByRole('button', { name: 'Selesai' }).click();
+  await expect(page.getByTestId('practise')).toBeVisible({ timeout: 20_000 });
 };
 
 /**
@@ -95,6 +101,27 @@ export const waitForOfflineReady = async (page: Page): Promise<void> => {
 export const openFromSettings = async (page: Page, testId: string): Promise<void> => {
   await page.getByTestId('settings-open').click();
   await page.getByTestId(testId).click();
+};
+
+/**
+ * Switches the language the app is teaching.
+ *
+ * It lives in settings, not on the home screen. v1.34.0 moved the language,
+ * script and pace controls there — §10's "everything that is not practice lives
+ * one tap deeper" — and five specs were clicking them on the first screen. One
+ * helper so the next move costs one edit instead of five.
+ */
+export const switchLanguage = async (page: Page, name: RegExp): Promise<void> => {
+  await page.getByTestId('settings-open').click();
+  await page.getByRole('button', { name }).click();
+  await page.getByRole('button', { name: 'Selesai' }).click();
+  await expect(page.getByTestId('practise')).toBeVisible({ timeout: 20_000 });
+};
+
+/** The script-ladder control, which also lives in settings now. */
+export const openScriptLadder = async (page: Page) => {
+  await page.getByTestId('settings-open').click();
+  return page.getByTestId('script-mode');
 };
 
 /**

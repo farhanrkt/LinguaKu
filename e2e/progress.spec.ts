@@ -1,11 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import {
-  answerOne,
-  firstRun,
-  leaveSession,
-  seedDueCardsAtLevel,
-  seedKnownVocabulary,
-} from './helpers.ts';
+import { answerOne, firstRun, leaveSession, seedDueCardsAtLevel, seedKnownVocabulary } from './helpers.ts';
 
 /**
  * M5 acceptance (SPEC §12): *"every §9 item renders from real local data;
@@ -266,4 +260,32 @@ test('the progress screen shows which words are closest to slipping', async ({ p
   await expect(slipping).toBeVisible();
   await expect(slipping).not.toContainText('Belum ada kata');
   await expect(slipping).not.toContainText('%');
+});
+
+/**
+ * SPEC §2.14: capability, never a score — and never a zero arrived at by
+ * arithmetic.
+ *
+ * v1.34.0 put the learner's reach on the home screen, and a learner three words
+ * in rounded to `kira-kira 0%`. That is the loss framing §2.15 bans, reached by
+ * `Math.round` rather than by wording: it tells someone who has just started
+ * that their work was worth nothing.
+ */
+test('the home screen never tells a beginner their progress is zero', async ({ page }) => {
+  await firstRun(page);
+  // Three words out of 5,245 is 0.06%, which `Math.round` turns into 0. Seeded
+  // rather than earned: the line has to *render* for this to test anything, and
+  // an earlier version answered one item, got the empty state, and passed
+  // vacuously — `not.toContainText` is satisfied by an element that is absent.
+  await seedKnownVocabulary(page, 3);
+
+  // That the line *renders* and carries their count. Whether it can ever say
+  // "0%" is pinned in `src/i18n/ceiling.test.ts`: the browser cannot reach that
+  // case cheaply, because the commonest three English words are already over
+  // one percent of all tokens.
+  const reach = page.getByTestId('reach');
+  await expect(reach).toBeVisible({ timeout: 20_000 });
+  await expect(reach).toContainText('3');
+  // And the banned framings are still absent from the first screen.
+  await expect(page.locator('body')).not.toContainText(/\bXP\b|poin|streak|nyawa/i);
 });

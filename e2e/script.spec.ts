@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { firstRun } from './helpers.ts';
+import { firstRun, switchLanguage } from './helpers.ts';
 
 /**
  * SPEC §4.3: *"script mode for Japanese (romaji → kana → kanji, with romaji
@@ -19,11 +19,16 @@ test('the Japanese script ladder is offered, and starts where §4.3 says', async
 
   // English has no ladder to climb, so there is nothing to offer.
   await expect(page.getByTestId('learning-label')).toHaveText(/Inggris/);
+  await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('script-mode')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Selesai' }).click();
 
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
   await expect(page.getByTestId('learning-label')).toHaveText(/Jepang/);
 
+  // The ladder lives in settings now (v1.34.0), with the rest of what is not
+  // practice — §10's rule, finally applied to the blocks that were ignoring it.
+  await page.getByTestId('settings-open').click();
   const ladder = page.getByTestId('script-mode');
   await expect(ladder).toBeVisible();
 
@@ -35,11 +40,10 @@ test('the Japanese script ladder is offered, and starts where §4.3 says', async
   await expect(rungs.nth(2)).toContainText('Kanji');
 
   // §4.3's ladder is romaji → kana → kanji, and romaji is the rung a learner
-  // *leaves* once kana is fluent. This assertion used to pin `kana`, on the
-  // strength of a comment that reversed its own source — so a beginner who had
-  // not been taught a character started one rung above where they were, and met
-  // sentences they could not read. The syllabary is taught from the first
-  // session now (v1.32.0), which is what makes romaji a rung and not a dead end.
+  // *leaves* once kana is fluent. This used to pin `kana`, on the strength of a
+  // comment that reversed its own source — so a beginner who had been taught no
+  // characters started above where they stood. The syllabary is taught from the
+  // first session now (v1.32.0), which is what makes romaji a rung.
   await expect(rungs.nth(0)).toHaveAttribute('aria-pressed', 'true');
   await expect(rungs.nth(1)).toHaveAttribute('aria-pressed', 'false');
 
@@ -47,9 +51,8 @@ test('the Japanese script ladder is offered, and starts where §4.3 says', async
   await rungs.nth(2).click();
   await expect(rungs.nth(2)).toHaveAttribute('aria-pressed', 'true');
 
-  // Wait for the write, not for the render: `handleChange` updates React state
-  // first and persists after, so reloading on the rendered state alone races
-  // the database and would make this test flaky rather than wrong.
+  // Wait for the write, not the render: `handleChange` updates React state
+  // first and persists after, so reloading on the rendered state races it.
   await expect
     .poll(
       () =>
@@ -76,17 +79,20 @@ test('the Japanese script ladder is offered, and starts where §4.3 says', async
     .toBe('kanji');
 
   await page.reload();
-  await expect(page.getByTestId('script-mode').locator('button[aria-pressed]').nth(2)).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await page.getByTestId('settings-open').click();
+  await expect(
+    page.getByTestId('script-mode').locator('button[aria-pressed]').nth(2),
+  ).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('the ladder goes away with the language it belongs to', async ({ page }) => {
   await firstRun(page);
-  await page.getByRole('button', { name: /Bahasa Jepang/ }).click();
+  await switchLanguage(page, /Bahasa Jepang/);
+  await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('script-mode')).toBeVisible();
+  await page.getByRole('button', { name: 'Selesai' }).click();
 
-  await page.getByRole('button', { name: /Bahasa Inggris/ }).click();
+  await switchLanguage(page, /Bahasa Inggris/);
+  await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('script-mode')).toHaveCount(0);
 });
