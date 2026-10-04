@@ -35,10 +35,11 @@ import {
   ProductionTask,
   RecognitionTask,
   type AnswerPayload,
+  SentenceText,
 } from './TaskViews.tsx';
 import { saveMnemonic } from '../../data/repositories/mnemonics.ts';
 import { ContrastiveNote, DrillPrompt } from './DrillViews.tsx';
-import type { Profile, Session } from '../../data/types.ts';
+import type { Profile, ScriptMode, Session } from '../../data/types.ts';
 import type { LadderDecision } from '../../core/ladder.ts';
 
 /**
@@ -481,6 +482,7 @@ export const SessionScreen = ({
     ) : entry.task.kind === 'exposure' ? (
       <ExposureTask
         task={entry.task}
+        scriptMode={profile.scriptMode}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
         onDefer={() => void once(handleSkip)}
@@ -490,6 +492,7 @@ export const SessionScreen = ({
     ) : entry.task.kind === 'recognition' ? (
       <RecognitionTask
         task={entry.task}
+        scriptMode={profile.scriptMode}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
         onPlayAudio={playAudio}
@@ -499,6 +502,7 @@ export const SessionScreen = ({
       <KanjiTask
         key={entry.task.itemId}
         task={entry.task}
+        scriptMode={profile.scriptMode}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
         onPlayAudio={playAudio}
@@ -511,6 +515,7 @@ export const SessionScreen = ({
       <ProductionTask
         key={entry.task.itemId}
         task={entry.task}
+        scriptMode={profile.scriptMode}
         lang={lang}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
@@ -521,6 +526,7 @@ export const SessionScreen = ({
       <FreeProductionTask
         key={entry.task.itemId}
         task={entry.task}
+        scriptMode={profile.scriptMode}
         lang={lang}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
@@ -531,6 +537,7 @@ export const SessionScreen = ({
       <DictationTask
         key={entry.task.itemId}
         task={entry.task}
+        scriptMode={profile.scriptMode}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
         onPlayAudio={playAudio}
@@ -540,6 +547,7 @@ export const SessionScreen = ({
       <ClozeTask
         key={entry.task.itemId}
         task={entry.task}
+        scriptMode={profile.scriptMode}
         onAnswer={(payload) => void once(() => handleAnswer(payload))}
         busy={busy}
         onPlayAudio={playAudio}
@@ -617,7 +625,11 @@ export const SessionScreen = ({
         ) : reveal ? (
           <>
             <SwipeCard right={{ label: copy.session.swipe.next, onCommit: handleNext }}>
-              <AnsweredCard task={reveal.task} raw={reveal.raw} />
+              <AnsweredCard
+                task={reveal.task}
+                raw={reveal.raw}
+                scriptMode={profile.scriptMode}
+              />
             </SwipeCard>
             <Feedback reveal={reveal} />
           </>
@@ -670,7 +682,15 @@ export const SessionScreen = ({
  * catch — a shade that clears AA at full strength does not at 60%. It retires by
  * losing its controls and saying so, at full contrast.
  */
-const AnsweredCard = ({ task, raw }: { task: Task; raw: string }) => {
+const AnsweredCard = ({
+  task,
+  raw,
+  scriptMode,
+}: {
+  task: Task;
+  raw: string;
+  scriptMode: ScriptMode;
+}) => {
   const same = raw.trim().toLowerCase() === task.answer.trim().toLowerCase();
   const filled = (
     <span className="mx-1 inline-block rounded-lg bg-teal-50 px-2 py-0.5 font-bold text-teal-900 dark:bg-teal-950 dark:text-teal-200">
@@ -695,7 +715,7 @@ const AnsweredCard = ({ task, raw }: { task: Task; raw: string }) => {
             {task.cloze.after}
           </>
         ) : (
-          task.sentence.text
+          <SentenceText task={task} scriptMode={scriptMode} />
         )}
       </p>
 

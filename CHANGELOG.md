@@ -5,6 +5,49 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.23.0 — 2026-10-04
+
+### Added — the script ladder nobody could see
+
+SPEC §10 lists *"Furigana auto-fades per-kanji as stability rises"* among the UX
+requirements, and §4.3 defines the ladder: romaji → kana → kanji. M6 built all
+of it — `furiganaFor`, `isFaded`, `kanjiIn`, D42's token-level ruby, and
+`Profile.scriptMode`, written at first run and re-derived on a language switch.
+
+`furiganaFor` was called by no screen, and `scriptMode` was read by none. A
+Japanese learner saw raw kanji with no readings, permanently, while the database
+recorded them on the kana rung.
+
+- Sentences in a session render through the ladder, with per-kanji fading. The
+  tokens, readings and stability ride on the task; the segments are built in the
+  view, because the mode can change while a card is on screen and stability
+  cannot. A kanji with no card is `null`, never `0` — null means never studied,
+  which is exactly when the reading is needed.
+- `headwordIn` writes the word chip and the free-production prompt at the same
+  rung as the sentence. Rendering かれはよくがっこうをけっせきする。 above a chip
+  reading 欠席 put the learner at two rungs at once. `headword` stays the answer
+  and what a verdict shows, so display and grading cannot drift.
+- Romaji is set with spaces. `karehayokugakkouokessekisuru` defeats the only
+  thing that rung exists for; `furigana.test.ts` had asserted the spaced form
+  since M6 and no renderer honoured it. The separator is suppressed before
+  closing punctuation so `suru。` stays attached.
+- A script-mode control on the home screen, Japanese-only. Part of the minimum
+  rather than a follow-up: kana mode *replaces* kanji, so the renderer without a
+  control would have meant a Japanese learner never saw one.
+- `<ruby>` with `<rp>` brackets rather than positioned spans — it wraps with the
+  line, survives text zoom, and `rt` inherits its colour.
+
+### Changed
+
+- The dead-export scan now excludes test files. An export whose only caller is
+  its own test is not covered code; it is code that was built and never
+  connected, which is this repository's most common defect. The rerun found
+  fifteen names.
+
+886 unit · 71 e2e.
+
+---
+
 ## v1.22.0 — 2026-10-04
 
 ### Fixed — the app marked its own output wrong

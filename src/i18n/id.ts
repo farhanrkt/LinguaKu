@@ -56,6 +56,32 @@ export const copy = {
     greeting: 'Halo!',
     learningLabel: 'Kamu sedang belajar',
     minutesLabel: 'Target harian',
+    /**
+     * SPEC §4.3's ladder, as a choice rather than a silent default.
+     *
+     * `scriptMode` has been on the profile since M6 and defaulted to `kana` for
+     * Japanese, which replaces every kanji with its reading — and nothing read
+     * it and nothing could change it, so a Japanese learner had no way up the
+     * ladder and no way to see it. The romaji hint says what §4.3 says about
+     * romaji: it is the rung you leave. That is a fact about the writing system,
+     * not a judgement about the learner.
+     */
+    changeScript: 'Tulisan Jepang',
+    scriptHint: 'Kamu bisa ganti kapan saja. Ini tidak mengubah kata yang kamu pelajari.',
+    script: {
+      romaji: {
+        label: 'Romaji (watashi)',
+        hint: 'Paling cepat dibaca di awal, dan tangga yang paling cepat kamu tinggalkan.',
+      },
+      kana: {
+        label: 'Kana (わたし)',
+        hint: 'Kanji diganti dengan bacaannya.',
+      },
+      kanji: {
+        label: 'Kanji dengan bacaan di atasnya (私)',
+        hint: 'Bacaannya hilang sendiri untuk kanji yang sudah kuat di ingatanmu.',
+      },
+    },
     changeMinutes: 'Ubah target harian',
     changeTargets: 'Ubah bahasa',
     statusHeading: 'Status aplikasi',

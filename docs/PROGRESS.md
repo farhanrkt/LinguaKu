@@ -1,5 +1,111 @@
 # PROGRESS.md
 
+## v1.23.0 — the script ladder nobody could see (2026-10-04)
+
+M6 built SPEC §4.3 in full. `src/core/furigana.ts` is 100-odd lines of careful
+work: the romaji → kana → kanji ladder, §10's per-kanji fade, and D42's argument
+for why furigana attaches to a token rather than a character — okurigana spans
+kanji and kana, rendaku voices 紙 to がみ inside 手紙, and 今日 is きょう as a
+whole word with no split at all. `Profile.scriptMode` was written at first run,
+defaulted to `kana` for Japanese, and re-derived on a language switch.
+
+**`furiganaFor` was called by no screen. `scriptMode` was read by none.**
+
+So a Japanese learner saw raw kanji with no readings, permanently, while the
+database recorded that they were on the kana rung.
+
+### Why the earlier scan missed it
+
+The dead-export scan that found `slippingSoon` (v1.16.0), `cancelSpeech`
+(v1.19.0) and seven more (v1.19.1) counts occurrences of each exported name
+across `src`, `scripts` and `e2e`. `furiganaFor` has a caller: `furigana.test.ts`
+exercises it thoroughly. So does `kanjiIn`. So does `isKana`.
+
+Rerunning the same scan over **non-test source only** found fifteen names,
+including these three. That is the scan that should have been run all along: an
+export whose only caller is its own test is not covered code, it is code that
+was built and never connected — which is the single most common defect in this
+repository's history.
+
+### The three decisions
+
+**The data rides on the task, the segments are built in the view.**
+`furiganaFor` is pure and synchronous, so the pipeline's tokens and readings and
+the learner's per-kanji stability are resolved in `buildTask`, the last place
+that can read the database. The *segments* are not, because `scriptMode` can
+change while a card is on screen and a card's stability cannot.
+
+A kanji with no card maps to `null`, never `0`. Zero stability would be a claim
+that the learner studied the character and forgot it; null is the truth, and
+`isFaded(null)` is false, so a missing card **shows** the reading rather than
+withholding it. That is invariant 18's rule applied to a scaffold.
+
+**The whole card is at one rung.** The first working build rendered the
+sentence through the ladder and left the headword chip alone, which produced
+this, in kana mode:
+
+> かれはよくがっこうをけっせきする。
+> `欠席`
+
+The learner at two rungs at once, and the lower one is the one they chose.
+`headwordIn` writes the chip and the free-production prompt at the current rung;
+`headword` itself stays the answer and what a verdict shows, so display and
+grading cannot drift apart.
+
+**Romaji is written with spaces.** Joining romaji tokens with nothing gives
+
+> karehayokugakkouokessekisuru。
+
+which defeats the only thing §4.3's romaji rung exists for — getting an
+Indonesian speaker producing sound on day one, which §3.2 says works *because*
+Japanese /a i u e o/ maps cleanly onto Indonesian vowels. `furigana.test.ts` had
+asserted the spaced form since M6, with a literal `.join(' ')`, and no renderer
+ever honoured it. The separator is a prop on `Furigana` and is suppressed before
+closing punctuation, so `suru。` stays attached rather than becoming `suru 。`.
+
+### The control is part of the minimum, not a follow-up
+
+Kana mode *replaces* kanji with their readings. Shipping the renderer without a
+way to change rung would have put every Japanese learner permanently in kana and
+meant they never saw a kanji at all — worse than shipping neither half. So the
+ladder is on the home screen beside the language, Japanese-only, with the romaji
+hint saying what §4.3 says about romaji: it is the rung you leave. That is a
+fact about the writing system, not a judgement about the learner.
+
+### Markup
+
+`<ruby>` with `<rp>` brackets, not a stack of positioned spans. Ruby wraps and
+reflows with the line, survives text zoom, and `rt` inherits its colour — so the
+dark-mode contrast gate's verdict on body text is its verdict here too. `<rp>`
+is for the fallback path: without it, a browser with no ruby support runs 私 and
+わたし together into something that is neither.
+
+A plain token renders as plain text rather than `<ruby>` with an empty `<rt>`,
+which would reserve the line space above it for nothing and make a sentence with
+no kanji taller than one with kanji.
+
+### Checked by looking
+
+All three rungs were driven in the browser, which is where the headword
+mismatch and the unspaced romaji were found — neither is visible in a unit test,
+and the second had a passing test asserting the opposite.
+
+The e2e gates the half that is deterministic: the control exists, it is
+Japanese-only, it starts on the rung §4.3 names, and the choice survives a
+reload. That last assertion caught a race of its own — `handleChange` updates
+React state first and persists after, so reloading on the rendered state alone
+beats the write. The test waits on IndexedDB instead, which is the thing it
+actually means.
+
+### Left for the next slice
+
+The **reader** still renders Japanese without furigana. It runs its text
+through `TappableText`, whose roving-tabindex contract is invariant 35, and
+putting ruby inside a composite with managed tab stops needs its own thought
+rather than a copy of this. Recorded rather than done.
+
+886 unit · 71 e2e.
+
 ## v1.22.0 — the app marked its own output wrong (2026-10-04)
 
 Found the same way as v1.21.0: reading SPEC §2's acceptance criteria against the

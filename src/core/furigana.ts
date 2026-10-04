@@ -90,5 +90,27 @@ export const furiganaFor = (input: FuriganaInput): RubySegment[] =>
     return { text: token, ruby: allFaded ? null : reading };
   });
 
+/**
+ * The headword as the learner's current rung writes it (SPEC §4.3).
+ *
+ * The sentence and the word have to agree. Showing かれはよくがっこうをけっせき
+ * する。 and then labelling the word 欠席 puts the learner at two rungs at once,
+ * and the lower one is the one they chose.
+ *
+ * Falls back to the headword wherever there is no reading to fall back *to* —
+ * a word already written in kana, or one of the 2.9% of kanji headwords the
+ * pipeline ships without a reading. Inventing one is not an option, and the
+ * kanji is at least the truth.
+ */
+export const headwordIn = (
+  scriptMode: ScriptMode,
+  headword: string,
+  reading: string | null,
+): string => {
+  if (scriptMode === 'kanji' || reading === null || reading.length === 0) return headword;
+  if (!hasKanji(headword)) return scriptMode === 'romaji' ? toRomaji(headword) : headword;
+  return scriptMode === 'romaji' ? toRomaji(toHiragana(reading)) : toHiragana(reading);
+};
+
 /** The kanji a sentence would teach — what needs cards for fading to mean anything. */
 export const kanjiIn = (text: string): string[] => [...new Set([...text].filter(isKanji))];

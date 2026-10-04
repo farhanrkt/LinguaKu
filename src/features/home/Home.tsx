@@ -5,13 +5,15 @@ import { OptionCard } from '../../ui/OptionCard.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { sessionProgress, type TodaySnapshot } from '../../data/repositories/sessions.ts';
 import { activateTarget, scriptModeOnSwitch } from '../../data/repositories/profiles.ts';
-import type { DailyMinutes, Profile, Session, TargetLang } from '../../data/types.ts';
+import type { DailyMinutes, Profile, ScriptMode, Session, TargetLang } from '../../data/types.ts';
 import type { OfflineStatus } from '../../platform/serviceWorker.ts';
 import type { VoiceReport } from '../../platform/speech.ts';
 import type { StorageDurability } from '../../platform/persistence.ts';
 
 const TARGETS: TargetLang[] = ['en', 'ja'];
 const MINUTES: DailyMinutes[] = [4, 8, 15];
+/** SPEC §4.3's ladder, in the order it is climbed. */
+const SCRIPT_MODES: ScriptMode[] = ['romaji', 'kana', 'kanji'];
 
 interface HomeProps {
   profile: Profile;
@@ -211,6 +213,30 @@ export const Home = ({
           />
         ))}
       </div>
+
+      {/* SPEC §4.3: romaji → kana → kanji. Japanese only, because there is no
+          ladder to climb in English — and offered at all because `scriptMode`
+          defaulted to `kana` and had no control, which left every Japanese
+          learner on the middle rung permanently (D96). */}
+      {activeTarget === 'ja' ? (
+        <>
+          <h2 className="mt-8 text-lg font-bold">{copy.home.changeScript}</h2>
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+            {copy.home.scriptHint}
+          </p>
+          <div className="mt-3 flex flex-col gap-3" data-testid="script-mode">
+            {SCRIPT_MODES.map((mode) => (
+              <OptionCard
+                key={mode}
+                label={copy.home.script[mode].label}
+                hint={copy.home.script[mode].hint}
+                selected={profile.scriptMode === mode}
+                onToggle={() => onChange({ scriptMode: mode })}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <h2 className="mt-8 text-lg font-bold">{copy.home.changeMinutes}</h2>
       <div className="mt-3 flex flex-col gap-3">

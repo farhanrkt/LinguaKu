@@ -276,6 +276,12 @@ invariant 46), and the sync screen names them among what it uploads, because
 free text the learner typed is not covered by consent given for a review
 history. Tested in `src/core/delta.test.ts` and `src/platform/sync.test.ts`.
 
+The decomposition's companion — §10's *"furigana auto-fades per-kanji as
+stability rises"* and §4.3's romaji → kana → kanji ladder — was built in M6 and
+rendered by nothing until v1.23.0. `furiganaFor` had no caller outside its own
+tests and `Profile.scriptMode` had no reader, so a Japanese learner sat on the
+kana rung permanently with no furigana and no way to move. See D96.
+
 ## §2.12 Metacognitive calibration
 
 **Mechanism:** judgment-of-learning accuracy is trainable, and miscalibration

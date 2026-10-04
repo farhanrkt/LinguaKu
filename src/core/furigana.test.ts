@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FURIGANA_FADE_STABILITY_DAYS,
-  furiganaFor,
-  isFaded,
-  kanjiIn,
-} from './furigana.ts';
+import { FURIGANA_FADE_STABILITY_DAYS, furiganaFor, headwordIn, isFaded, kanjiIn } from './furigana.ts';
 import { isKana, isKanji, toHiragana, toKatakana, toRomaji } from './kana.ts';
 
 const build = (
@@ -165,5 +160,37 @@ describe('kanjiIn', () => {
 
   it('returns nothing for a kana-only sentence', () => {
     expect(kanjiIn('ひらがなだけ')).toEqual([]);
+  });
+});
+
+/**
+ * SPEC §4.3: the sentence and the word it teaches have to be written at the
+ * same rung. Showing かれはよくがっこうをけっせきする。 and labelling the word
+ * 欠席 puts the learner at two rungs at once, and the lower one is theirs.
+ */
+describe('headwordIn', () => {
+  it('writes a kanji headword as its reading below the kanji rung', () => {
+    expect(headwordIn('kana', '欠席', 'けっせき')).toBe('けっせき');
+    expect(headwordIn('romaji', '欠席', 'けっせき')).toBe('kesseki');
+  });
+
+  it('leaves the kanji alone at the kanji rung', () => {
+    expect(headwordIn('kanji', '欠席', 'けっせき')).toBe('欠席');
+  });
+
+  it('accepts a katakana reading, which is how the pipeline ships them', () => {
+    expect(headwordIn('kana', '学校', 'ガッコウ')).toBe('がっこう');
+  });
+
+  it('falls back to the headword when there is nothing to fall back to', () => {
+    // 2.9% of kanji headwords ship without a reading. Inventing one is not an
+    // option and the kanji is at least true.
+    expect(headwordIn('kana', '欠席', null)).toBe('欠席');
+    expect(headwordIn('kana', '欠席', '')).toBe('欠席');
+  });
+
+  it('transliterates a kana headword for the romaji rung', () => {
+    expect(headwordIn('romaji', 'ねこ', 'ねこ')).toBe('neko');
+    expect(headwordIn('kana', 'ねこ', 'ねこ')).toBe('ねこ');
   });
 });

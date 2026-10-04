@@ -10,7 +10,9 @@ import {
   isSpeechInputAvailable,
   recognizeOnce,
 } from '../../platform/speechRecognition.ts';
-import type { Confidence } from '../../data/types.ts';
+import { Furigana } from '../../ui/Furigana.tsx';
+import { furiganaFor, headwordIn } from '../../core/furigana.ts';
+import type { Confidence, ScriptMode } from '../../data/types.ts';
 import type { Task } from './task.ts';
 
 export interface AnswerPayload {
@@ -20,6 +22,12 @@ export interface AnswerPayload {
 
 interface TaskProps {
   task: Task;
+  /**
+   * SPEC §4.3's romaji → kana → kanji ladder. Required rather than defaulted:
+   * a view that forgot it would quietly show a Japanese learner the script they
+   * have not reached, and there is no safe value to fall back to.
+   */
+  scriptMode: ScriptMode;
   onAnswer: (payload: AnswerPayload) => void;
   onPlayAudio: () => void;
   audioAvailable: boolean;
@@ -58,7 +66,43 @@ const AudioButton = ({ onPlay, available }: { onPlay: () => void; available: boo
  * *not* is an answer key (invariant 29), which is why this shows meaning and
  * never grades against it.
  */
-const WordMeaning = ({ task }: { task: Task }) => {
+/**
+ * A task's sentence, with the readings a learner still needs above it.
+ *
+ * SPEC §10: *"Furigana auto-fades per-kanji as stability rises."* Every decision
+ * about which script to show and when a reading goes lives in
+ * `src/core/furigana.ts`; this resolves it against the task and hands the
+ * result to the markup. English falls through to plain text, because the
+ * pipeline only emits tokens and readings for Japanese (D10).
+ */
+export const SentenceText = ({
+  task,
+  scriptMode,
+}: {
+  task: Task;
+  scriptMode: ScriptMode;
+}) => {
+  const { tokens, readings } = task.sentence;
+  if (tokens === undefined || readings === undefined) return <>{task.sentence.text}</>;
+
+  const stability = task.kanjiStability ?? {};
+  return (
+    <Furigana
+      // Romaji is written with spaces between words. Kana and kanji are not.
+      separator={scriptMode === 'romaji' ? ' ' : ''}
+      segments={furiganaFor({
+        tokens,
+        readings,
+        // `?? null` catches a character with no entry, not one with a stability
+        // of zero — zero is a real measurement and null means never studied.
+        stabilityOf: (kanji) => stability[kanji] ?? null,
+        scriptMode,
+      })}
+    />
+  );
+};
+
+const WordMeaning = ({ task, scriptMode }: { task: Task; scriptMode: ScriptMode }) => {
   const senses = task.gloss ?? [];
   return (
     <div className="mt-4">
@@ -67,7 +111,7 @@ const WordMeaning = ({ task }: { task: Task }) => {
           data-testid="task-headword"
           className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200"
         >
-          {task.headword}
+          {headwordIn(scriptMode, task.headword, task.reading ?? null)}
         </span>
         {senses.length > 0 ? (
           <span data-testid="task-gloss" className="ml-2 text-lg text-stone-600 dark:text-slate-400">
@@ -92,6 +136,7 @@ export const ExposureTask = ({
   audioAvailable,
   busy,
   onDefer,
+  scriptMode,
 }: TaskProps & { onDefer?: () => void }) => (
   <div>
     <SwipeCard
@@ -113,10 +158,12 @@ export const ExposureTask = ({
       {copy.session.exposure.instruction}
     </p>
 
-    <p className="mt-6 text-2xl leading-snug font-bold">{task.sentence.text}</p>
+    <p className="mt-6 text-2xl leading-snug font-bold">
+      <SentenceText task={task} scriptMode={scriptMode} />
+    </p>
     <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
     {/* SPEC §2.3 L0: sentence + audio + gloss. */}
-    <WordMeaning task={task} />
+    <WordMeaning task={task} scriptMode={scriptMode} />
 
     {/* SPEC §2.5 + §2.9: where a chunk has an L1 trap, naming it is the whole
         value of teaching the phrase whole rather than word by word. */}
@@ -154,13 +201,22 @@ export const ExposureTask = ({
 );
 
 /** L1 — recognition. Distractors come from the same frequency band (§2.3). */
-export const RecognitionTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }: TaskProps) => (
+export const RecognitionTask = ({
+  task,
+  onAnswer,
+  onPlayAudio,
+  audioAvailable,
+  busy,
+  scriptMode,
+}: TaskProps) => (
   <div>
     <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
       {copy.session.recognition.heading}
     </p>
 
-    <p className="mt-4 text-2xl leading-snug font-bold">{task.sentence.text}</p>
+    <p className="mt-4 text-2xl leading-snug font-bold">
+      <SentenceText task={task} scriptMode={scriptMode} />
+    </p>
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
 
     <div className="mt-6 flex flex-col gap-3">
@@ -609,6 +665,7 @@ export const FreeProductionTask = ({
   onAnswer,
   busy,
   lang,
+  scriptMode,
 }: TaskProps & { lang: string }) => {
   const [value, setValue] = useState('');
   const [missing, setMissing] = useState(false);
@@ -642,7 +699,9 @@ export const FreeProductionTask = ({
       <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
         {copy.session.free.heading}
       </p>
-      <p className="mt-2 text-lg">{copy.session.free.instruction(task.headword)}</p>
+      <p className="mt-2 text-lg">
+        {copy.session.free.instruction(headwordIn(scriptMode, task.headword, task.reading ?? null))}
+      </p>
       <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{copy.session.free.graded}</p>
 
       <textarea
@@ -660,7 +719,7 @@ export const FreeProductionTask = ({
 
       {missing ? (
         <p className="mt-2 text-sm text-amber-800 dark:text-amber-300" role="status">
-          {copy.session.free.missing(task.headword)}
+          {copy.session.free.missing(headwordIn(scriptMode, task.headword, task.reading ?? null))}
         </p>
       ) : null}
 

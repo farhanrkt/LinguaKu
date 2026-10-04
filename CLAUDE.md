@@ -278,6 +278,15 @@ needs React state to work, it is in the wrong place.
     kanji, and §4.3 starts the learner at `kana`. The headword stays first — it
     is what the verdict shows.
 
+48. **A card is written at one rung** (D96). §4.3's romaji → kana → kanji
+    applies to the sentence *and* the headword: `furiganaFor` for the sentence,
+    `headwordIn` for the chip and the prompt. `headword` stays the answer and
+    what a verdict shows, so display and grading cannot drift. Furigana rides on
+    the task (tokens, readings, per-kanji stability — `null`, never `0`, for a
+    kanji with no card) and the segments are built in the view, because the mode
+    can change while a card is on screen. Romaji is set with spaces; kana and
+    kanji are not.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`

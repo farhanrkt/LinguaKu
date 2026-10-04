@@ -11,6 +11,7 @@ import { selectGraded } from '../../core/coverage.ts';
 import { tokenizeLatin } from '../../core/tokenize.ts';
 import { presentableLevel, TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
 import { getMnemonic } from '../../data/repositories/mnemonics.ts';
+import { kanjiStability } from '../../data/repositories/kanji.ts';
 import { baselineMnemonic } from './mnemonic.ts';
 import type { LadderLevel } from '../../data/types.ts';
 
@@ -44,9 +45,33 @@ export interface Task {
   itemId: string;
   cardId: string;
   headword: string;
+  /**
+   * The headword's reading, for SPEC §4.3's rungs below kanji. The *display*
+   * form is `headwordIn(scriptMode, headword, reading)`; `headword` stays the
+   * answer and what a verdict shows, so the two never drift.
+   */
+  reading?: string;
   ladderLevel: LadderLevel;
   kind: TaskKind;
-  sentence: { id: string; text: string };
+  sentence: {
+    id: string;
+    text: string;
+    /**
+     * Japanese only: build-time tokens and their katakana readings (D10). The
+     * app never tokenizes at runtime, so furigana is assembled from these —
+     * `furiganaFor` needs both and has nothing to do without them.
+     */
+    tokens?: readonly string[];
+    readings?: readonly string[];
+  };
+  /**
+   * Stability in days per kanji in the sentence, `null` where the learner has
+   * no card for it (SPEC §10's per-kanji fade). Resolved at build time because
+   * `furiganaFor` is pure and synchronous, and because a card's stability does
+   * not change while the card is on screen — but the *script mode* can, so the
+   * segments are built in the view rather than here.
+   */
+  kanjiStability?: Record<string, number | null>;
   translation: string;
   /** Recognition only: the correct translation plus distractors, shuffled. */
   options?: string[];
@@ -253,6 +278,7 @@ export const buildTask = async (
     itemId,
     cardId: cardIdFor(profileId, itemId),
     headword: item.headword,
+    ...(item.reading !== undefined ? { reading: item.reading } : {}),
     ...(gloss.length > 0 ? { gloss } : {}),
   };
 
@@ -300,11 +326,25 @@ export const buildTask = async (
   const effective: TaskKind =
     (kind === 'cloze-supported' || kind === 'cloze-unaided') && !cloze ? 'recognition' : kind;
 
+  // SPEC §10: *"Furigana auto-fades per-kanji as stability rises."* Both halves
+  // ride on the task — the pipeline's tokens and readings, and how well this
+  // learner knows each character — because `furiganaFor` is pure and
+  // synchronous and this is the last place that can read the database.
+  const tokens = sentence.tokens;
+  const readings = sentence.readings;
+  const japanese = item.lang === 'ja' && tokens !== undefined && readings !== undefined;
   const withSentence = {
     ...base,
     ladderLevel: effectiveLevel,
     ceiling: TEXT_ONLY_MAX_LEVEL,
-    sentence: { id: sentence.id, text: sentence.text },
+    sentence: {
+      id: sentence.id,
+      text: sentence.text,
+      ...(japanese ? { tokens, readings } : {}),
+    },
+    ...(japanese
+      ? { kanjiStability: await kanjiStability(profileId, sentence.text) }
+      : {}),
     translation: sentence.tr.text,
   };
 
