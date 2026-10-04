@@ -474,6 +474,24 @@ export const copy = {
       weak: 'Mulai pudar',
       leech: 'Diajarkan ulang',
     },
+    /**
+     * SPEC §2.14: autonomy includes changing your mind.
+     *
+     * A skip buries a word for 3 days the first time and 60 by the fourth, and
+     * until v1.24.0 nothing could bring it back — `undeferItem` was written for
+     * this and never called. The copy says what was actually recorded (a
+     * request, not a judgement) and when it lapses on its own, so taking it
+     * back is a choice rather than a rescue.
+     */
+    deferred: {
+      heading: 'Kata yang kamu tunda',
+      intro:
+        'Kamu bilang belum perlu kata-kata ini, jadi kami tidak memunculkannya dulu. Kalau berubah pikiran, ketuk saja — tidak ada yang hilang dari jadwalmu.',
+      until: (days: number) =>
+        days <= 0 ? 'Muncul lagi hari ini.' : `Muncul lagi ${days} hari lagi.`,
+      restore: 'Ajarkan lagi',
+      empty: 'Tidak ada kata yang sedang kamu tunda.',
+    },
   },
 
   /** SPEC §10: one place for everything that is not practice. */

@@ -7,6 +7,11 @@ import {
   type GlossaryEntry,
   type GlossaryStrength,
 } from '../../data/repositories/glossary.ts';
+import {
+  activeDeferrals,
+  undeferItem,
+  type Deferral,
+} from '../../data/repositories/deferrals.ts';
 import type { Profile } from '../../data/types.ts';
 
 /**
@@ -83,9 +88,76 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
   );
 };
 
+const DAY = 86_400_000;
+
+/**
+ * The words the learner set aside, and the way back (SPEC §2.14).
+ *
+ * A skip is a request — *not this, not now* — and it buries the word for 3 days
+ * the first time and 60 by the fourth. `undeferItem` has existed for a learner
+ * who changes their mind since v1.1.0 and nothing called it, so a mis-tap was
+ * irreversible for up to two months.
+ *
+ * It lives here rather than in the session, because the session is where the
+ * mistake is made and an answered card retires (invariant 39) — a control that
+ * reaches back into a card that is gone is exactly the kind of second code path
+ * D77 refuses. This is a list, and a list is the honest place to undo something.
+ */
+const Deferrals = ({
+  rows,
+  now,
+  onRestore,
+}: {
+  rows: readonly Deferral[];
+  /**
+   * Captured when the list was read, not read during render: `Date.now()` in a
+   * component body is an impure call and the React compiler rejects it — the
+   * same rule that moved `SwipeCard`'s threshold out of render (D77).
+   */
+  now: number;
+  onRestore: (itemId: string) => void;
+}) => {
+  if (rows.length === 0) return null;
+  return (
+    <section className="mt-10" data-testid="deferred">
+      <h2 className="text-lg font-bold">{copy.glossary.deferred.heading}</h2>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {copy.glossary.deferred.intro}
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {rows.map((row) => (
+          <li
+            key={row.itemId}
+            className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border-2 border-stone-200 px-4 py-2 dark:border-slate-800"
+          >
+            <span>
+              <span className="block font-semibold">{row.headword}</span>
+              <span className="block text-sm text-stone-600 dark:text-slate-400">
+                {copy.glossary.deferred.until(Math.ceil((row.until - now) / DAY))}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => onRestore(row.itemId)}
+              data-testid="deferred-restore"
+              className="min-h-12 shrink-0 rounded-2xl border-2 border-teal-700 px-4 font-semibold text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 motion-safe:transition-colors dark:border-teal-400 dark:text-teal-300"
+            >
+              {copy.glossary.deferred.restore}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+};
+
 export const GlossaryScreen = ({ profile, onBack }: GlossaryScreenProps) => {
   const [search, setSearch] = useState('');
   const [state, setState] = useState<{ entries: GlossaryEntry[]; total: number } | null>(null);
+  const [deferrals, setDeferrals] = useState<{ rows: Deferral[]; now: number }>({
+    rows: [],
+    now: 0,
+  });
 
   useEffect(() => {
     let live = true;
@@ -98,6 +170,28 @@ export const GlossaryScreen = ({ profile, onBack }: GlossaryScreenProps) => {
       live = false;
     };
   }, [profile.id, profile.targets, search]);
+
+  useEffect(() => {
+    let live = true;
+    const now = Date.now();
+    void activeDeferrals(profile.id, now).then((rows) => {
+      if (live) setDeferrals({ rows, now });
+    });
+    return () => {
+      live = false;
+    };
+  }, [profile.id]);
+
+  const restore = (itemId: string) => {
+    // Optimistic, and safe to be: the row is only ever removed from this list,
+    // and a failed write would simply leave the word deferred — which is the
+    // state the learner already had.
+    setDeferrals((current) => ({
+      ...current,
+      rows: current.rows.filter((row) => row.itemId !== itemId),
+    }));
+    void undeferItem(profile.id, itemId, Date.now());
+  };
 
   return (
     <Screen footer={<Button onClick={onBack}>{copy.progress.back}</Button>}>
@@ -140,6 +234,10 @@ export const GlossaryScreen = ({ profile, onBack }: GlossaryScreenProps) => {
           ) : null}
         </>
       )}
+
+      {/* Outside the search-dependent branch: a learner looking for a word they
+          set aside should find this whether or not the glossary has entries. */}
+      <Deferrals rows={deferrals.rows} now={deferrals.now} onRestore={restore} />
     </Screen>
   );
 };

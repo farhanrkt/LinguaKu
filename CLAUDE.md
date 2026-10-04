@@ -287,6 +287,13 @@ needs React state to work, it is in the wrong place.
     can change while a card is on screen. Romaji is set with spaces; kana and
     kanji are not.
 
+49. **A deferral can be taken back** (D97). `undeferItem` **expires** the row
+    rather than deleting it, because `times` is the escalation record and
+    `deferredItemIds` already keeps lapsed rows for that reason. The undo lives
+    in the glossary, not the session: an answered card retires (invariant 39),
+    and a control that reaches back into a card that is gone is the second code
+    path D77 refuses.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`

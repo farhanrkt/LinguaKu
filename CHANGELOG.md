@@ -5,6 +5,40 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.24.0 — 2026-10-04
+
+### Added — a word you set aside can be asked for again
+
+SPEC §2.14 is autonomy, and autonomy includes changing your mind.
+`deferrals.ts` says so itself: *"§2.14 is about autonomy rather than deletion,
+and a permanently vanished item cannot be reconsidered."* `undeferItem` was
+written for it — *"Undo, for a learner who changes their mind"* — and no screen
+called it.
+
+The window escalates: 3 days at the first skip, then 7, 21 and 60. "Belum perlu
+kata ini" is a 56px control in the thumb zone directly below the primary action,
+so a mis-tap removed a word for up to two months with no way back.
+
+- The glossary now lists the words the composer is still leaving alone, soonest
+  to return first, each with the day it would come back on its own and a button
+  to ask for it now. It sits outside the search-dependent branch, so a learner
+  hunting for a word they set aside finds it whether or not they have answered
+  anything yet.
+- It is in the glossary rather than the session on purpose: an answered card
+  retires (invariant 39) and a skip leaves no card at all, so a control reaching
+  back into it is the second code path D77 refuses.
+
+### Changed
+
+- `undeferItem` **expires** the deferral instead of deleting the row. `times` is
+  the escalation record and `deferredItemIds` already keeps lapsed rows for that
+  reason; deleting would have treated a learner who declined four times and
+  reconsidered once as one who had never declined at all.
+
+892 unit · 72 e2e.
+
+---
+
 ## v1.23.0 — 2026-10-04
 
 ### Added — the script ladder nobody could see

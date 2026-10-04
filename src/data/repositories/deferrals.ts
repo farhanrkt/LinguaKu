@@ -63,7 +63,58 @@ export const deferredItemIds = async (
   return new Set(rows.filter((row) => row.until > now).map((row) => row.itemId));
 };
 
-/** Undo, for a learner who changes their mind. */
-export const undeferItem = async (profileId: string, itemId: string): Promise<void> => {
-  await db.deferredItems.delete([profileId, itemId]);
+/**
+ * Words the learner has declined that the composer is still leaving alone.
+ *
+ * SPEC §2.14 is autonomy, and autonomy includes changing your mind — the window
+ * above is 3 days at the first skip and 60 at the fourth, so a mis-tap is
+ * expensive and was, until v1.24.0, irreversible: `undeferItem` was written for
+ * exactly this and no screen called it. Soonest to return comes first, because
+ * that is the one a learner is most likely to be asking about.
+ */
+export interface Deferral {
+  itemId: string;
+  headword: string;
+  /** When the composer will stop skipping it on its own. */
+  until: Timestamp;
+  times: number;
+}
+
+export const activeDeferrals = async (
+  profileId: string,
+  now: Timestamp,
+): Promise<Deferral[]> => {
+  const rows = (await db.deferredItems.where('profileId').equals(profileId).toArray())
+    .filter((row) => row.until > now)
+    .sort((a, b) => a.until - b.until);
+  if (rows.length === 0) return [];
+
+  const items = await db.items.bulkGet(rows.map((row) => row.itemId));
+  return rows.flatMap((row, index) => {
+    const item = items[index];
+    // An item the content shards no longer carry has nothing to show and
+    // nothing to bring back. Dropping it from the list is honest; inventing a
+    // headword for it would not be.
+    if (!item) return [];
+    return [{ itemId: row.itemId, headword: item.headword, until: row.until, times: row.times }];
+  });
+};
+
+/**
+ * Undo, for a learner who changes their mind.
+ *
+ * It **expires** the deferral rather than deleting it. `times` is the record of
+ * how often this word has been declined, and the escalation depends on it — the
+ * same reason `deferredItemIds` leaves lapsed rows in place. Deleting the row
+ * would mean a learner who had declined four times and reconsidered once was
+ * treated, on their next skip, as someone who had never declined at all.
+ */
+export const undeferItem = async (
+  profileId: string,
+  itemId: string,
+  now: Timestamp,
+): Promise<void> => {
+  const existing = await db.deferredItems.get([profileId, itemId]);
+  if (!existing) return;
+  await db.deferredItems.put({ ...existing, until: now });
 };

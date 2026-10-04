@@ -1,5 +1,79 @@
 # PROGRESS.md
 
+## v1.24.0 — a word you set aside, and no way back (2026-10-04)
+
+The second name off the non-test dead-export scan that found §4.3's script
+ladder. `src/data/repositories/deferrals.ts` ends with this:
+
+```ts
+/** Undo, for a learner who changes their mind. */
+export const undeferItem = async (profileId: string, itemId: string): Promise<void> => {
+```
+
+No screen called it.
+
+### What that cost
+
+The deferral window escalates on purpose, and the file argues the case well:
+*"One skip is 'not today'; four is 'stop showing me this'. A fixed window would
+either nag someone who has clearly declined or bury a word they merely postponed
+once."* It is 3 days, then 7, then 21, then 60.
+
+"Belum perlu kata ini" is a 56px control at the bottom of every card, in the
+thumb zone, directly below the primary action. A mis-tap there removed a word
+for three days; a second one for a week; a fourth for two months. And the same
+file says why that is the wrong outcome:
+
+> It is capped, because §2.14 is about autonomy rather than deletion, and a
+> permanently vanished item cannot be reconsidered.
+
+The cap was there. The reconsidering was not.
+
+### Expire, don't delete
+
+`undeferItem` deleted the row — which also deletes `times`, the count the
+escalation is computed from. `deferredItemIds` deliberately leaves *lapsed*
+rows in place for exactly that reason, and the undo path contradicted it: a
+learner who had declined four times and changed their mind once would, on their
+next skip, be treated as someone who had never declined at all.
+
+So the undo sets `until` to now and keeps the row. The composer stops skipping
+the word, and the history of having declined it survives. There is a unit test
+that declines twice, undoes, declines again and asserts the window is 21 days
+rather than 3.
+
+### Why the glossary and not the session
+
+The session is where the mistake is made, so an undo there would be the most
+direct fix. It is also the one place it cannot go: an answered card **retires**
+(invariant 39) — every control goes, which is what makes a second answer
+impossible rather than merely refused — and a skip does not even leave a card
+behind to attach something to. A control that reaches back into a card that is
+gone is the second code path D77 refuses on principle.
+
+A list is the honest place to undo something, and the glossary already exists as
+the passive read §2.2 explicitly permits. The section sits below the word list
+and outside its search-dependent branch, so a learner hunting for a word they
+set aside finds it whether or not they have answered anything yet.
+
+Each row says when the word would have come back on its own. That matters: it
+makes taking it back a **choice** rather than a rescue, which is the §2.14
+framing — and it is information the learner would otherwise have no way to get.
+
+`activeDeferrals` drops a word the content shards no longer carry rather than
+inventing a headword for it, which is invariant 18's rule in a different shape.
+
+### One thing the compiler caught
+
+The first version computed "comes back in N days" with `Date.now()` in the
+component body. The React compiler rejects it as an impure call during render —
+the same rule that moved `SwipeCard`'s drag threshold out of render in v1.12.0.
+The timestamp is captured when the list is read instead, which is also more
+correct: every row is measured against one instant rather than against whenever
+React happened to re-render.
+
+892 unit · 72 e2e.
+
 ## v1.23.0 — the script ladder nobody could see (2026-10-04)
 
 M6 built SPEC §4.3 in full. `src/core/furigana.ts` is 100-odd lines of careful
