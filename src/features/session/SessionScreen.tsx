@@ -326,7 +326,9 @@ export const SessionScreen = ({
       const result =
         task.kind === 'free'
           ? ({ outcome: 'correct', reason: 'exact', distance: 0, tolerance: 0, matched: task.answer } as const)
-          : gradeAnswer(payload.raw, task.answer);
+          : // SPEC §2.7 / §4.3: a Japanese headword written in kanji also accepts
+            // its reading, which is the form `KanaInput` can actually produce.
+            gradeAnswer(payload.raw, [task.answer, ...(task.alsoAccepted ?? [])]);
       // L0 is errorless exposure: the learner confirms, they do not answer.
       const grade = task.kind === 'exposure' ? 3 : gradeForOutcome(result.outcome);
       const wasNew = task.ladderLevel === 0;

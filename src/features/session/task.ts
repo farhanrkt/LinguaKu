@@ -1,9 +1,10 @@
 import { db } from '../../data/db.ts';
 import { makeCloze, type Cloze } from '../../core/cloze.ts';
+import { acceptedAnswers } from '../../core/grader.ts';
 import { mulberry32, shuffle } from '../../core/rng.ts';
 import { cardIdFor } from '../../data/repositories/reviews.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
-import type { TargetLang } from '../../data/types.ts';
+import type { Item, TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
 import { glossFor } from '../../data/glosses.ts';
 import { selectGraded } from '../../core/coverage.ts';
@@ -63,8 +64,16 @@ export interface Task {
   cloze?: Cloze;
   /** Kanji cards only (SPEC §2.11). */
   kanji?: KanjiFace;
-  /** What a typed answer is graded against. */
+  /** What a typed answer is graded against, and what the verdict shows. */
   answer: string;
+  /**
+   * Other forms that answer counts as (SPEC §2.7, §4.3) — in practice the
+   * hiragana reading of a kanji headword. `KanaInput` has no kanji conversion
+   * step, so for the 71.9% of Japanese lexemes written with kanji the reading
+   * is the only form a learner without a system IME can type, and §4.3 has
+   * them at `kana` script mode anyway. Built by `acceptedAnswers`.
+   */
+  alsoAccepted?: readonly string[];
   /** SPEC §2.12: confidence is asked before the reveal on recall rungs. */
   asksConfidence: boolean;
   /**
@@ -149,6 +158,25 @@ export interface BuildTaskOptions {
    */
   hasAudioFor?: (sentenceId: string) => boolean;
 }
+
+/**
+ * The `alsoAccepted` fragment, or nothing at all.
+ *
+ * Spread rather than returned as a value because `exactOptionalPropertyTypes`
+ * is on: an absent field and a field set to `undefined` are different types,
+ * and a one-element list (the answer itself) would just be graded twice.
+ */
+const alsoAcceptedFor = (
+  item: Item,
+  answer: string,
+): { alsoAccepted?: readonly string[] } => {
+  const accepted = acceptedAnswers({
+    lang: item.lang,
+    answer,
+    ...(item.reading !== undefined ? { reading: item.reading } : {}),
+  });
+  return accepted.length > 1 ? { alsoAccepted: accepted.slice(1) } : {};
+};
 
 export const buildTask = async (
   profileId: string,
@@ -288,6 +316,7 @@ export const buildTask = async (
       ...withSentence,
       kind: effective,
       answer: item.headword,
+      ...alsoAcceptedFor(item, item.headword),
       asksConfidence: effective === 'production',
     };
   }
@@ -313,11 +342,15 @@ export const buildTask = async (
     };
   }
 
+  const clozeAnswer = cloze?.answer ?? item.headword;
   return {
     ...withSentence,
     kind: effective,
     ...(cloze ? { cloze } : {}),
-    answer: cloze?.answer ?? item.headword,
+    answer: clozeAnswer,
+    // `makeCloze` slices the matched headword out of the sentence, so a cloze
+    // answer *is* the headword and the headword's reading applies to it.
+    ...alsoAcceptedFor(item, clozeAnswer),
     asksConfidence: true,
   };
 };

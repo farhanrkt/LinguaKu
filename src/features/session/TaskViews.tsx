@@ -626,7 +626,11 @@ export const FreeProductionTask = ({
    * sentence.
    */
   const submit = () => {
-    if (!missing && !usesWord({ sentence: value, word: task.answer, lang })) {
+    // Any accepted form counts: a learner writing a Japanese sentence with わたし
+    // used the word, and 私 is not the only spelling of it (SPEC §2.7, §4.3).
+    const forms = [task.answer, ...(task.alsoAccepted ?? [])];
+    const used = forms.some((word) => usesWord({ sentence: value, word, lang }));
+    if (!missing && !used) {
       setMissing(true);
       return;
     }

@@ -5,6 +5,55 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.22.0 — 2026-10-04
+
+### Fixed — the app marked its own output wrong
+
+SPEC §2.7's acceptance criterion names *"romaji↔kana equivalence"* first. The
+grader carried a note where the implementation should have been — *"Romaji↔kana
+equivalence is M6 and plugs in as another normalization pass"* — and M6 shipped
+`src/core/kana.ts` with every conversion it needed. Nothing plugged it in.
+
+Two live consequences.
+
+**`KanaInput` has a katakana toggle**, so the app handed the learner a button
+that writes ネコ and then graded ネコ against ねこ as two mistakes at a tolerance
+of zero: flatly wrong, not even a near-miss. Half-width katakana from an IME
+failed the same way.
+
+**`KanaInput` has no kanji conversion step**, and 71.9% of the Japanese lexemes
+this app ships are written with kanji (4,963 of 6,904; 97.1% of those carry a
+hiragana reading). The production rung grades against the headword, so for most
+of the vocabulary the expected answer could not be typed at all, and the reading
+was marked wrong. §4.3 starts a Japanese learner at `kana` script mode, the rung
+below kanji — so asking for 私 while teaching わたし grades a rung they have not
+reached.
+
+Against the unfixed build, answering 私 with わたし returned *"Jawabannya “私”.
+Kita pelan-pelan lagi untuk kata ini."* — wrong **and demoted**. The demotion is
+a `ReviewLog` row, and that log is append-only (invariant 1), so it is not a bad
+grade but an uncorrectable one, and it lands in the retention rate §9 reports.
+
+### Changed
+
+- `foldKana` (NFKC, then katakana → hiragana) and a romaji route, both gated on
+  kana appearing in the expected answer: `romajiToKana('bank')` is ばんk, and
+  comparing that could only ever make English grading worse.
+- Where kana is involved the edit distance is measured on one script. タベマス
+  against たべます is not five mistakes.
+- `acceptedAnswers` puts the reading beside a kanji headword, headword first
+  because that is the form the verdict shows. The cloze rung gets it too —
+  `makeCloze` slices the matched headword out of the sentence, so a cloze answer
+  *is* the headword — and the free rung checks `usesWord` against every form.
+- New `GradeReason: 'script'`. Internal: the UI reports correct, near-miss or
+  wrong and never the reason.
+- `isKana`, `toHiragana` and `romajiToKana` now have callers outside their own
+  tests. `docs/SCIENCE.md` §2.7 no longer says "M6".
+
+881 unit · 69 e2e.
+
+---
+
 ## v1.21.0 — 2026-10-04
 
 ### Fixed — sync did not carry what three documents said it carried

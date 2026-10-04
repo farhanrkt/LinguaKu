@@ -168,10 +168,22 @@ tolerance scaled to item length, English contractions. Near-misses are shown
 **Acceptance:** grader unit tests cover romaji↔kana, typos within tolerance,
 and contractions.
 
-**Status:** grader **shipped** (M2); speech input is M7. Distance is
-Damerau-Levenshtein, not plain Levenshtein: an adjacent transposition is the
-commonest typing slip, and charging 2 for it would tell a learner who knew the
-answer that they were wrong. Romaji↔kana is M6.
+**Status:** **shipped** (grader M2, speech input M7, kana/romaji v1.22.0).
+Distance is Damerau-Levenshtein, not plain Levenshtein: an adjacent
+transposition is the commonest typing slip, and charging 2 for it would tell a
+learner who knew the answer that they were wrong.
+
+Romaji↔kana was listed here as "M6" for six milestones after M6 shipped the
+conversions. `src/core/kana.ts` had `toHiragana`, `romajiToKana` and `isKana`,
+reachable only from their own tests, while `grader.ts` carried a note saying the
+pass "plugs in as another normalization pass" — and nothing plugged it in. Two
+consequences, both live: the app's own katakana toggle produced answers it then
+marked wrong, and the production rung graded against a kanji headword that
+`KanaInput` cannot type, which is 71.9% of the shipped Japanese vocabulary.
+A wrong verdict there is also a *demotion*, written to the append-only log.
+Fixed in v1.22.0 (D95, invariant 47): `foldKana` plus a romaji route, both gated
+on kana being expected, and `acceptedAnswers` offering the reading beside the
+headword.
 
 ## §2.8 Interleaving and mixed practice
 

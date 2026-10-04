@@ -1,5 +1,129 @@
 # PROGRESS.md
 
+## v1.22.0 — the app marked its own output wrong (2026-10-04)
+
+Found the same way as v1.21.0: reading SPEC §2's acceptance criteria against the
+code that claims them. §2.7's reads, in full:
+
+> **Accept:** grader unit tests cover romaji↔kana equivalence, typos within
+> tolerance, and English contractions.
+
+Two of the three were covered. The third had a note in `grader.ts` where the
+implementation should have been — *"Romaji↔kana equivalence is M6 and plugs in
+as another normalization pass"* — and M6 was six milestones ago. It shipped
+`src/core/kana.ts` with `toHiragana`, `toKatakana`, `romajiToKana` and `isKana`,
+every conversion the pass needs, and three of those four were reachable only
+from their own test file.
+
+### The button that wrote the wrong answer
+
+`KanaInput` has a katakana toggle. It is a real control with `aria-pressed` and
+a label, and pressing it makes the kana palette write katakana.
+
+`normalizeAnswer` did NFC, case, punctuation and whitespace. Nothing folded
+kana. So ネコ against ねこ was two mistakes at a tolerance of zero —
+`mismatch`, flatly wrong, not even a near-miss. Half-width katakana (ﾈｺ), which
+some IMEs emit, failed the same way in a different Unicode block.
+
+The app shipped a button that produced an answer it then marked wrong.
+
+### The answer the input cannot type
+
+Worse, and bigger. `KanaInput` is a kana keyboard: `romajiToKana` plus a palette.
+There is no kanji conversion step — that is the whole reason the component
+exists, per its own comment, because "Japanese production is where an IME
+headache would stop a learner cold".
+
+The production rung grades against `item.headword`. Measured over the shipped
+shards:
+
+| band | lexemes | with kanji in the headword | of those, carrying a reading |
+|---|---|---|---|
+| 1 | 500 | 356 (71.2%) | 355 (99.7%) |
+| 2 | 500 | 386 (77.2%) | 381 (98.7%) |
+| 3 | 1,000 | 728 (72.8%) | 719 (98.8%) |
+| 4 | 2,000 | 1,243 (62.2%) | 1,208 (97.2%) |
+| 5 | 2,904 | 2,250 (77.5%) | 2,156 (95.8%) |
+| **all** | **6,904** | **4,963 (71.9%)** | **4,819 (97.1%)** |
+
+So for 71.9% of the Japanese vocabulary, the expected answer could not be
+produced by the input the app provides, and the hiragana reading — which 97.1%
+of those items carry — was marked wrong.
+
+§4.3 decides whether accepting the reading is a concession or the point:
+
+> script mode for Japanese (romaji → kana → kanji, with romaji actively
+> deprecated after kana fluency)
+
+`defaultScriptMode` starts a Japanese learner at **kana**. Kanji is the rung
+above. Asking for 私 while teaching わたし grades a rung the learner has not
+reached.
+
+### What it actually cost
+
+Driven in a browser against the unfixed build, answering 私 with わたし:
+
+> **Jawabannya “私”. Kita pelan-pelan lagi untuk kata ini.**
+
+Wrong *and demoted*. The demotion is a `ReviewLog` row, and invariant 1 makes
+`ReviewLog` append-only — so it is not a bad grade, it is an **uncorrectable**
+one, and it lands in the retention rate §9 reports. That is the difference
+between this and a cosmetic grading complaint.
+
+### Three decisions in the fix
+
+- **The romaji route is gated on kana being expected.** `romajiToKana('bank')`
+  is ばんk; comparing *that* against an English answer could only ever make
+  grading worse. The gate is "does the expected answer contain kana", which
+  needs no language argument and so cannot be passed wrong.
+- **Where kana is involved the distance is measured on one script.** タベマス
+  against たべます is not five mistakes, and reading it as five would push a
+  genuine near-miss out of tolerance on the strength of the script alone.
+- **The headword stays first in the accepted list**, because it is the form the
+  verdict shows. The learner types わたし and is then shown 私, which is
+  teaching rather than merely grading. `makeCloze` slices the matched headword
+  out of the sentence, so a cloze answer *is* the headword and the same reading
+  applies; the free rung (L6) checks `usesWord` against every form, because a
+  sentence written with わたし used the word.
+
+### A test that was deleted rather than kept
+
+The browser evidence above came from an e2e that seeded a due L5 card on a
+kanji lexeme and answered it with the reading. It passed against the fix and
+failed against the unfixed build with exactly the verdict quoted — and it was
+**too racy to keep as a gate**: it depends on a whole language's content
+importing and on what §2.8's interleaving puts ahead of the seeded card, and it
+passed alone while failing behind the rest of the suite. Three attempts to pin
+it down each moved the flake rather than removing it, including one where the
+walk-to-the-card loop skipped the very card it was walking towards (a skip is a
+deferral — invariant 23) and another where a generic `getByRole('textbox')`
+answered it.
+
+A gate that fails for reasons unrelated to what it guards teaches the next
+reader to ignore it. So the wiring is covered by
+`src/features/session/task.test.ts` instead — deterministic, with the anchor
+fetch stubbed — and the browser run is recorded here and in the test's header,
+where it is evidence rather than a flaky gate.
+
+### One thing observed and not explained
+
+While chasing that flake, a session twice planned two items and delivered one:
+the progress read "1 dari 2" and the summary reported only the drill, so
+`buildTask` must have returned `null` and the item was dropped with no trace —
+the failure mode `task.ts` already documents for chunks. The obvious cause is
+not it: **0 of 6,904 Japanese and 0 of 5,245 English lexemes** have an anchor
+that fails to resolve in their own band's shard, measured. Recorded as an
+observation, not a diagnosis.
+
+### Retired by being used
+
+`isKana`, `toHiragana` and `romajiToKana` now have callers outside their tests.
+A dead-export scan that counts test files misses this class entirely, which is
+how `furiganaFor` — §4.3's whole script ladder, and the next thing to look at —
+is still waiting.
+
+881 unit · 69 e2e.
+
 ## v1.21.0 — sync did not carry what three documents said it carried (2026-10-04)
 
 Found by reading the acceptance criteria in SPEC §2 against the code that

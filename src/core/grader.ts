@@ -1,4 +1,5 @@
-import type { Grade } from '../data/types.ts';
+import { isKana, romajiToKana, toHiragana } from './kana.ts';
+import type { Grade, TargetLang } from '../data/types.ts';
 
 /**
  * SCIENCE: the generation effect — producing an answer beats recognizing one,
@@ -9,7 +10,12 @@ import type { Grade } from '../data/types.ts';
  * telling them they failed teaches them that the app is unfair, not that they
  * misspelled something.
  *
- * Romaji↔kana equivalence is M6 and plugs in as another normalization pass.
+ * Romaji↔kana equivalence is the third pass, and it is here for a concrete
+ * reason rather than completeness: `KanaInput` ships a **katakana toggle**, so
+ * the app hands a learner a button that writes ネコ, and SPEC §4.3 puts a new
+ * Japanese learner at `kana` script mode by default — below the kanji the
+ * headwords are written in. Without this pass the app marks its own output
+ * wrong.
  */
 
 export type AnswerOutcome = 'correct' | 'near-miss' | 'wrong';
@@ -21,6 +27,8 @@ export type GradeReason =
   | 'formatting'
   /** Matched once contractions were expanded ("I'm" vs "I am"). */
   | 'contraction'
+  /** The same word in another script: katakana, half-width kana, or romaji. */
+  | 'script'
   /** Within the typo tolerance for an answer this long. */
   | 'typo'
   /** Not the same answer. */
@@ -144,6 +152,66 @@ export const editDistance = (a: string, b: string): number => {
   return previous[b.length]!;
 };
 
+// ------------------------------------------------------------ kana / romaji
+
+/**
+ * SPEC §2.7's *"optional kana/romaji equivalence"*.
+ *
+ * `NFKC` first, because half-width katakana (ﾈｺ) is a real IME output and lives
+ * in its own Unicode block; then katakana → hiragana, so one script is
+ * compared against one script. Hiragana is the target because that is how
+ * `lexemes.b*.json` ships readings.
+ */
+export const foldKana = (text: string): string => toHiragana(text.normalize('NFKC'));
+
+const hasKana = (text: string): boolean => [...text].some(isKana);
+
+/** Only Latin letters and the spacing normalizeAnswer already collapsed. */
+const LATIN_ONLY = /^[a-z' ]+$/;
+
+/**
+ * Whether two normalized answers are the same word in different scripts.
+ *
+ * Gated on kana being involved at all, because the romaji route must never
+ * touch English: `romajiToKana('bank')` is ばんk, and comparing *that* could
+ * only ever make grading worse. `final` is true — this is a settled answer,
+ * not a half-typed one, so a trailing `n` is ん.
+ */
+const sameWordDifferentScript = (answer: string, expected: string): boolean => {
+  if (!hasKana(expected)) return false;
+  const want = foldKana(expected);
+  if (foldKana(answer) === want) return true;
+  return LATIN_ONLY.test(answer) && foldKana(romajiToKana(answer, true)) === want;
+};
+
+/**
+ * Every form a typed answer may legitimately take.
+ *
+ * `KanaInput` is a kana keyboard: `romajiToKana` plus a kana palette, with no
+ * kanji conversion step. 71.9% of the Japanese lexemes this app ships have
+ * kanji in the headword (4,963 of 6,904, measured over `lexemes.b1`–`b5`), and
+ * 97.1% of those carry a hiragana reading — so for most of the vocabulary the
+ * reading is the *only* form a learner without a system IME can produce, and
+ * grading against the kanji alone marks a correct answer wrong.
+ *
+ * SPEC §4.3 settles whether that is a concession or the point: a new Japanese
+ * learner starts at `kana` script mode, and kanji is the rung above. Asking for
+ * 私 while teaching わたし grades a rung the learner has not reached.
+ *
+ * The kanji stays first, because it is the form the verdict shows: the learner
+ * types the reading and is then shown the word.
+ */
+export const acceptedAnswers = (input: {
+  lang: TargetLang;
+  answer: string;
+  reading?: string | null;
+}): readonly string[] => {
+  const reading = input.reading?.trim() ?? '';
+  if (input.lang !== 'ja' || reading.length === 0) return [input.answer];
+  if (foldKana(reading) === foldKana(input.answer)) return [input.answer];
+  return [input.answer, reading];
+};
+
 /**
  * Tolerance scales with length (SPEC §2.7): one slip in a long word is a typo,
  * whereas one letter wrong in a three-letter word is a different word. Capped,
@@ -191,8 +259,16 @@ export const gradeAnswer = (
       };
     } else if (expandContractions(answer) === expandContractions(expected)) {
       result = { outcome: 'correct', reason: 'contraction', distance: 0, tolerance, matched: candidate };
+    } else if (sameWordDifferentScript(answer, expected)) {
+      result = { outcome: 'correct', reason: 'script', distance: 0, tolerance, matched: candidate };
     } else {
-      const distance = editDistance(answer, expected);
+      // Where kana is involved, the distance is measured on one script. タベマス
+      // against たべます is not five mistakes, and reading it as five would
+      // push a near-miss out of tolerance on the strength of the script alone.
+      const kana = hasKana(expected) || hasKana(answer);
+      const distance = kana
+        ? editDistance(foldKana(answer), foldKana(expected))
+        : editDistance(answer, expected);
       result = {
         outcome: distance <= tolerance ? 'near-miss' : 'wrong',
         reason: distance <= tolerance ? 'typo' : 'mismatch',

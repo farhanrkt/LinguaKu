@@ -270,6 +270,14 @@ needs React state to work, it is in the wrong place.
     **ended** — `startedAt` dropped any session that straddled a sync, forever,
     because the cursor had moved past it. A version 1 delta still reads.
 
+47. **Kana, romaji and the reading are the same answer** (D95). The grader folds
+    NFKC then katakana → hiragana, and tries romaji — both only where the
+    expected answer contains kana, because `romajiToKana('bank')` is ばんk.
+    `acceptedAnswers` puts the reading beside a kanji headword: `KanaInput` has
+    no kanji conversion step, 71.9% of shipped Japanese lexemes are written with
+    kanji, and §4.3 starts the learner at `kana`. The headword stays first — it
+    is what the verdict shows.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`
