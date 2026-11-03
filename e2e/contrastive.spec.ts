@@ -67,7 +67,7 @@ test('a drill explains itself in Indonesian, right or wrong', async ({ page }) =
   const note = page.getByTestId('contrastive-note');
   await expect(note).toBeVisible();
   await expect(note).toContainText('Di bahasa Indonesia');
-  await expect(note).toContainText('Di bahasa Inggris');
+  await expect(note).toContainText('Dalam bahasa Inggris');
   await expect(note).toContainText('Bandingkan');
 });
 

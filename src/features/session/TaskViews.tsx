@@ -12,9 +12,10 @@ import {
 } from '../../platform/speechRecognition.ts';
 import { Furigana } from '../../ui/Furigana.tsx';
 import { furiganaFor, headwordIn } from '../../core/furigana.ts';
-import { toHiragana } from '../../core/kana.ts';
+import { toHiragana, toRomaji } from '../../core/kana.ts';
 import type { Confidence, ScriptMode } from '../../data/types.ts';
-import type { Task } from './task.ts';
+import type { ClozeHint, KanjiFace, Task } from './task.ts';
+import type { Cloze } from '../../core/cloze.ts';
 
 export interface AnswerPayload {
   raw: string;
@@ -81,6 +82,24 @@ const AudioButton = ({ onPlay, available }: { onPlay: () => void; available: boo
  * result to the markup. English falls through to plain text, because the
  * pipeline only emits tokens and readings for Japanese (D10).
  */
+const segmentsOf = (task: Task, scriptMode: ScriptMode) => {
+  const { tokens, readings } = task.sentence;
+  if (tokens === undefined || readings === undefined) return null;
+  const stability = task.kanjiStability ?? {};
+  const readable = new Set(task.readableKana ?? []);
+  return furiganaFor({
+    tokens,
+    readings,
+    // `?? null` catches a character with no entry, not one with a stability
+    // of zero — zero is a real measurement and null means never studied.
+    stabilityOf: (kanji) => stability[kanji] ?? null,
+    // §4.3's fade: a word is drawn in kana once the learner can read every
+    // character in it, so the romaji rung empties itself.
+    readsKana: (character) => readable.has(toHiragana(character)),
+    scriptMode,
+  });
+};
+
 export const SentenceText = ({
   task,
   scriptMode,
@@ -88,29 +107,88 @@ export const SentenceText = ({
   task: Task;
   scriptMode: ScriptMode;
 }) => {
-  const { tokens, readings } = task.sentence;
-  if (tokens === undefined || readings === undefined) return <>{task.sentence.text}</>;
+  const segments = segmentsOf(task, scriptMode);
+  if (segments === null) return <>{task.sentence.text}</>;
+  // Romaji is written with spaces between words. Kana and kanji are not.
+  return <Furigana separator={scriptMode === 'romaji' ? ' ' : ''} segments={segments} />;
+};
 
-  const stability = task.kanjiStability ?? {};
-  const readable = new Set(task.readableKana ?? []);
+const Blank = () => (
+  <span className="mx-1 inline-block min-w-24 border-b-4 border-teal-700 align-bottom dark:border-teal-400">
+    &nbsp;
+  </span>
+);
+
+/**
+ * The sentence with its word removed. Japanese is drawn in the learner's own
+ * script around the blank — the corpus spelling would have put kanji in front
+ * of a learner on the romaji rung.
+ */
+export const ClozeFrame = ({
+  task,
+  cloze,
+  scriptMode,
+}: {
+  task: Task;
+  cloze: Cloze;
+  scriptMode: ScriptMode;
+}) => {
+  const segments = segmentsOf(task, scriptMode);
+  if (segments === null || cloze.tokenIndex === undefined) {
+    return (
+      <>
+        {cloze.before}
+        <Blank />
+        {cloze.after}
+      </>
+    );
+  }
+  const separator = scriptMode === 'romaji' ? ' ' : '';
   return (
-    <Furigana
-      // Romaji is written with spaces between words. Kana and kanji are not.
-      separator={scriptMode === 'romaji' ? ' ' : ''}
-      segments={furiganaFor({
-        tokens,
-        readings,
-        // `?? null` catches a character with no entry, not one with a stability
-        // of zero — zero is a real measurement and null means never studied.
-        stabilityOf: (kanji) => stability[kanji] ?? null,
-        // §4.3's fade: a word is drawn in kana once the learner can read every
-        // character in it, so the romaji rung empties itself.
-        readsKana: (character) => readable.has(toHiragana(character)),
-        scriptMode,
-      })}
-    />
+    <>
+      <Furigana segments={segments.slice(0, cloze.tokenIndex)} separator={separator} />
+      {separator}
+      <Blank />
+      {separator}
+      <Furigana segments={segments.slice(cloze.tokenIndex + 1)} separator={separator} />
+    </>
   );
 };
+
+/** The first letter (or first kana) of the missing word, and how long it is. */
+const HintLine = ({ hint, scriptMode }: { hint: ClozeHint; scriptMode: ScriptMode }) => {
+  const shown =
+    hint.script === 'latin'
+      ? `${hint.first}${' _'.repeat(hint.rest)}`
+      : scriptMode === 'romaji'
+        ? `${toRomaji(hint.first)}…`
+        : `${hint.first}${'＿'.repeat(hint.rest)}`;
+  return (
+    <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="cloze-hint">
+      {copy.session.cloze.hint(shown)}
+    </p>
+  );
+};
+
+/**
+ * "Saya tidak tahu": a miss, said plainly.
+ *
+ * Every typed rung disabled its submit button on an empty field, so a learner
+ * who had forgotten the word had to type something invented and press "Yakin"
+ * or "Ragu" — inventing a confidence too, which the §2.12 calibration chart
+ * then read as a judgement. This records an honest miss and nothing else.
+ */
+const DontKnow = ({ onAnswer, busy }: { onAnswer: TaskProps['onAnswer']; busy?: boolean | undefined }) => (
+  <button
+    type="button"
+    onClick={() => onAnswer({ raw: '', confidence: null })}
+    disabled={busy === true}
+    data-testid="dont-know"
+    className="mt-3 min-h-12 w-full rounded-2xl text-sm font-semibold text-stone-600 underline-offset-4 hover:underline disabled:opacity-50 dark:text-slate-400"
+  >
+    {copy.session.dontKnow}
+  </button>
+);
 
 const WordMeaning = ({ task, scriptMode }: { task: Task; scriptMode: ScriptMode }) => {
   const senses = task.gloss ?? [];
@@ -245,6 +323,7 @@ export const KanaTask = ({ task, onAnswer, busy }: TaskProps) => {
           >
             {copy.session.kana.submit}
           </Button>
+          <DontKnow onAnswer={onAnswer} busy={busy} />
         </form>
       ) : (
         <>
@@ -351,12 +430,21 @@ export const RecognitionTask = ({
 }: TaskProps) => (
   <div>
     <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
-      {copy.session.recognition.heading}
+      {task.cloze ? copy.session.recognition.wordHeading : copy.session.recognition.heading}
     </p>
 
-    <p className="mt-4 text-2xl leading-snug font-bold" data-testid="task-sentence">
-      <SentenceText task={task} scriptMode={scriptMode} />
-    </p>
+    {task.cloze ? (
+      <>
+        <p className="mt-4 text-2xl leading-snug font-bold" data-testid="task-sentence">
+          <ClozeFrame task={task} cloze={task.cloze} scriptMode={scriptMode} />
+        </p>
+        <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
+      </>
+    ) : (
+      <p className="mt-4 text-2xl leading-snug font-bold" data-testid="task-sentence">
+        <SentenceText task={task} scriptMode={scriptMode} />
+      </p>
+    )}
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
 
     <div className="mt-6 flex flex-col gap-3">
@@ -445,12 +533,20 @@ export const DictationTask = ({ onAnswer, onPlayAudio, busy }: TaskProps) => {
           </Button>
         </div>
       </form>
+      <DontKnow onAnswer={onAnswer} busy={busy} />
     </div>
   );
 };
 
 /** L2/L3 — contextual production, with or without the Indonesian support. */
-export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }: TaskProps) => {
+export const ClozeTask = ({
+  task,
+  onAnswer,
+  onPlayAudio,
+  audioAvailable,
+  busy,
+  scriptMode,
+}: TaskProps) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const supported = task.kind === 'cloze-supported';
@@ -472,17 +568,14 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }:
         {supported ? copy.session.cloze.supported : copy.session.cloze.unaided}
       </p>
 
-      <p className="mt-4 text-2xl leading-snug font-bold">
-        {task.cloze?.before}
-        <span className="mx-1 inline-block min-w-24 border-b-4 border-teal-700 align-bottom dark:border-teal-400">
-          &nbsp;
-        </span>
-        {task.cloze?.after}
+      <p className="mt-4 text-2xl leading-snug font-bold" data-testid="cloze-sentence">
+        {task.cloze ? <ClozeFrame task={task} cloze={task.cloze} scriptMode={scriptMode} /> : null}
       </p>
 
       {supported ? (
         <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
       ) : null}
+      {task.hint ? <HintLine hint={task.hint} scriptMode={scriptMode} /> : null}
 
       <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
 
@@ -521,6 +614,7 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }:
           </Button>
         </div>
       </form>
+      <DontKnow onAnswer={onAnswer} busy={busy} />
     </div>
   );
 };
@@ -533,29 +627,24 @@ export const ClozeTask = ({ task, onAnswer, onPlayAudio, audioAvailable, busy }:
  * self-generated mnemonics are stronger than given ones, so the baseline is
  * deliberately thin and the copy invites replacing it.
  */
-export const KanjiTask = ({
-  task,
-  onAnswer,
+/**
+ * A kanji's whole face: parts, meanings, readings and the mnemonic.
+ *
+ * Shown at the first meeting and again on every verdict, because a learner who
+ * missed the meaning or the reading needs exactly this — and the mnemonic is
+ * editable in both places, since a miss is when a better one gets written.
+ */
+export const KanjiDetails = ({
+  face,
   onSaveMnemonic,
-}: TaskProps & { onSaveMnemonic: (text: string) => Promise<void> }) => {
-  const face = task.kanji;
-  const [text, setText] = useState(face?.mnemonic ?? '');
+}: {
+  face: KanjiFace;
+  onSaveMnemonic?: (text: string) => Promise<void>;
+}) => {
+  const [text, setText] = useState(face.mnemonic);
   const [saved, setSaved] = useState(false);
-  if (!face) return null;
-
   return (
     <div>
-      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
-        {copy.session.kanji.heading}
-      </p>
-      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
-        {copy.session.kanji.instruction}
-      </p>
-
-      <p className="mt-6 text-center text-7xl leading-none font-bold" data-testid="kanji-literal">
-        {face.literal}
-      </p>
-
       {face.components.length > 0 ? (
         <div className="mt-6">
           <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
@@ -587,6 +676,14 @@ export const KanjiTask = ({
         />
       ) : null}
 
+      {face.readings.length > 1 ? (
+        <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="kanji-readings">
+          {copy.session.kanji.allReadings(
+            face.readings.map((reading) => `${reading} (${toRomaji(reading)})`).join(', '),
+          )}
+        </p>
+      ) : null}
+
       <div className="mt-6">
         <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
           {copy.session.kanji.mnemonicHeading}
@@ -596,45 +693,156 @@ export const KanjiTask = ({
             </span>
           ) : null}
         </p>
-        <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
-          {copy.session.kanji.mnemonicHint}
-        </p>
-        <textarea
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-            setSaved(false);
-          }}
-          aria-label={copy.session.kanji.mnemonicPlaceholder}
-          placeholder={copy.session.kanji.mnemonicPlaceholder}
-          rows={3}
-          data-testid="mnemonic-input"
-          className="mt-2 w-full rounded-2xl border-2 border-stone-300 p-3 focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
-        />
-        <div className="mt-2 flex items-center gap-3">
-          <Button
-            variant="quiet"
-            data-testid="mnemonic-save"
-            className="w-auto border-2 border-stone-300 px-4 dark:border-slate-700"
-            onClick={() => {
-              void onSaveMnemonic(text).then(() => setSaved(true));
-            }}
-          >
-            {copy.session.kanji.save}
-          </Button>
-          {saved ? (
-            <span className="text-sm text-teal-800 dark:text-teal-300" role="status">
-              {copy.session.kanji.saved}
-            </span>
-          ) : null}
-        </div>
+        {onSaveMnemonic ? (
+          <>
+            <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
+              {copy.session.kanji.mnemonicHint}
+            </p>
+            <textarea
+              value={text}
+              onChange={(event) => {
+                setText(event.target.value);
+                setSaved(false);
+              }}
+              aria-label={copy.session.kanji.mnemonicPlaceholder}
+              placeholder={copy.session.kanji.mnemonicPlaceholder}
+              rows={3}
+              data-testid="mnemonic-input"
+              className="mt-2 w-full rounded-2xl border-2 border-stone-300 p-3 focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+            />
+            <div className="mt-2 flex items-center gap-3">
+              <Button
+                variant="quiet"
+                data-testid="mnemonic-save"
+                className="w-auto border-2 border-stone-300 px-4 dark:border-slate-700"
+                onClick={() => {
+                  void onSaveMnemonic(text).then(() => setSaved(true));
+                }}
+              >
+                {copy.session.kanji.save}
+              </Button>
+              {saved ? (
+                <span className="text-sm text-teal-800 dark:text-teal-300" role="status">
+                  {copy.session.kanji.saved}
+                </span>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <p className="mt-1 text-stone-700 dark:text-slate-300">{face.mnemonic}</p>
+        )}
       </div>
+    </div>
+  );
+};
 
-      <div className="mt-8">
-        <Button onClick={() => onAnswer({ raw: face.literal, confidence: null })}>
-          {copy.session.kanji.confirm}
-        </Button>
-      </div>
+/**
+ * The kanji card (SPEC §2.11): component breakdown, readings, and a mnemonic the
+ * learner can rewrite — and, after the first meeting, a question.
+ *
+ * It used to be a card that showed everything and was "answered" by tapping
+ * "Oke, paham", graded Good every time: four taps over two weeks reached the
+ * mastery bar and faded the character's furigana without one question asked
+ * (§2.2). Now the first meeting is errorless, L1 asks what it means and L2 and
+ * up ask how it is read.
+ */
+export const KanjiTask = ({
+  task,
+  onAnswer,
+  onSaveMnemonic,
+  busy,
+}: TaskProps & { onSaveMnemonic: (text: string) => Promise<void> }) => {
+  const face = task.kanji;
+  const [value, setValue] = useState('');
+  if (!face) return null;
+
+  const submit = (confidence: Confidence) => {
+    if (value.trim().length === 0) return;
+    onAnswer({ raw: value, confidence });
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
+        {copy.session.kanji.heading}
+      </p>
+      <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+        {face.mode === 'meaning'
+          ? copy.session.kanji.meaningQuestion
+          : face.mode === 'reading'
+            ? copy.session.kanji.readingQuestion
+            : copy.session.kanji.instruction}
+      </p>
+
+      <p className="mt-6 text-center text-7xl leading-none font-bold" data-testid="kanji-literal">
+        {face.literal}
+      </p>
+
+      {face.mode === 'meaning' ? (
+        <>
+          <p className="mt-4 text-center text-sm text-stone-500 dark:text-slate-400">
+            {copy.session.kanji.meaningNote}
+          </p>
+          <div className="mt-4 flex flex-col gap-3" data-testid="kanji-options">
+            {(task.options ?? []).map((option) => (
+              <OptionCard
+                key={option}
+                label={option}
+                selected={false}
+                disabled={busy === true}
+                onToggle={() => onAnswer({ raw: option, confidence: null })}
+              />
+            ))}
+          </div>
+        </>
+      ) : face.mode === 'reading' ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit('yakin');
+          }}
+        >
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            aria-label={copy.session.kanji.readingPlaceholder}
+            placeholder={copy.session.kanji.readingPlaceholder}
+            data-testid="kanji-reading-input"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-center text-2xl focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
+          />
+          <div className="mt-4 flex gap-3">
+            <Button type="submit" disabled={value.trim().length === 0 || busy === true}>
+              {copy.session.cloze.sure}
+            </Button>
+            <Button
+              variant="quiet"
+              disabled={value.trim().length === 0 || busy === true}
+              onClick={() => submit('ragu')}
+              className="border-2 border-stone-300 dark:border-slate-700"
+            >
+              {copy.session.cloze.unsure}
+            </Button>
+          </div>
+          <DontKnow onAnswer={onAnswer} busy={busy} />
+        </form>
+      ) : (
+        <>
+          <KanjiDetails face={face} onSaveMnemonic={onSaveMnemonic} />
+          <div className="mt-8">
+            <Button
+              onClick={() => onAnswer({ raw: face.literal, confidence: null })}
+              disabled={busy === true}
+              data-testid="kanji-confirm"
+            >
+              {copy.session.kanji.confirm}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -690,7 +898,13 @@ const SpeakButton = ({
 };
 
 /** L5 — production. The Indonesian alone, and a blank field (SPEC §2.3). */
-export const ProductionTask = ({ task, onAnswer, lang, busy }: TaskProps & { lang: string }) => {
+export const ProductionTask = ({
+  task,
+  onAnswer,
+  lang,
+  busy,
+  scriptMode,
+}: TaskProps & { lang: string }) => {
   const [value, setValue] = useState('');
   const input = useRef<HTMLInputElement>(null);
 
@@ -746,6 +960,11 @@ export const ProductionTask = ({ task, onAnswer, lang, busy }: TaskProps & { lan
           </p>
         </>
       )}
+      {task.frame ? (
+        <p className="mt-3 text-xl leading-snug font-semibold" data-testid="production-frame">
+          <ClozeFrame task={task} cloze={task.frame} scriptMode={scriptMode} />
+        </p>
+      ) : null}
       <p className="mt-2 text-sm font-semibold text-teal-800 dark:text-teal-300">
         {copy.session.production.oneWord}
       </p>
@@ -797,6 +1016,7 @@ export const ProductionTask = ({ task, onAnswer, lang, busy }: TaskProps & { lan
           </Button>
         </div>
       </form>
+      <DontKnow onAnswer={onAnswer} busy={busy} />
     </div>
   );
 };

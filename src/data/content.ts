@@ -243,6 +243,7 @@ const toKanjiItem = (wire: WireKanji, lang: TargetLang): Item => ({
   anchorSentenceIds: [],
   componentsOf: wire.breakdown,
   ...(wire.meanings.length > 0 ? { meanings: wire.meanings } : {}),
+  ...(wire.on.length + wire.kun.length > 0 ? { readings: [...wire.on, ...wire.kun] } : {}),
   // KANJIDIC2's newspaper frequency where it has one; otherwise the tail.
   freqRank: wire.freq ?? UNKNOWN_KANJI_RANK,
   band: bandForRank(wire.freq ?? UNKNOWN_KANJI_RANK),
@@ -262,6 +263,15 @@ export interface ImportResult {
  * Ensures the given bands' vocabulary is present locally, and warms the anchor
  * sentences for them so the first question does not wait on a fetch.
  */
+/**
+ * The shape rows are imported in. Bumped when `toItem`/`toKanjiItem` start
+ * writing a field the stored rows lack — a shard whose bytes did not change
+ * would otherwise never be re-read, and the new field would exist only on
+ * fresh installs. v2: kanji carry every reading (`Item.readings`).
+ */
+const IMPORT_FORMAT = 2;
+const importKey = (sha256: string): string => `${sha256}@${IMPORT_FORMAT}`;
+
 export const ensureBands = async (
   lang: TargetLang,
   bands: readonly FrequencyBand[],
@@ -281,7 +291,7 @@ export const ensureBands = async (
     if (!wanted) continue;
 
     const existing = await db.contentShards.get(shard.path);
-    if (existing?.sha256 === shard.sha256) {
+    if (existing?.sha256 === importKey(shard.sha256)) {
       result.skipped.push(shard.path);
       continue;
     }
@@ -317,7 +327,7 @@ export const ensureBands = async (
     await db.contentShards.put({
       path: shard.path,
       lang,
-      sha256: body.sha256 ?? shard.sha256,
+      sha256: importKey(body.sha256 ?? shard.sha256),
       importedAt: Date.now(),
       sentences: 0,
       items: rows.length,

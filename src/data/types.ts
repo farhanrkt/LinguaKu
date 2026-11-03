@@ -148,6 +148,12 @@ export interface Item {
    */
   meanings?: string[];
   /**
+   * Kanji only: every reading KANJIDIC2 lists — on'yomi then kun'yomi, as
+   * written, notation included (`splitKanjiReading` unpacks it). `reading`
+   * holds one of these; a reading-recall card accepts any of them.
+   */
+  readings?: string[];
+  /**
    * Chunks only (SPEC §2.5): the Indonesian meaning, and the L1 trap where
    * there is one.
    *

@@ -148,6 +148,8 @@ export const copy = {
     // SPEC §2.14: declining is a first-class action, not a hidden escape. The
     // wording is the spec's own — "belum perlu", not "lewati" — because it says
     // the word is fine and the timing is not.
+    /** An honest miss on a typed card — no invented answer, no confidence. */
+    dontKnow: 'Saya tidak tahu',
     skipItem: 'Belum perlu kata ini',
     // A drill or a sentence puzzle is not a word, and skipping one defers
     // nothing — it only moves on.
@@ -203,8 +205,12 @@ export const copy = {
     },
     recognition: {
       heading: 'Yang mana artinya?',
+      /** L1 as a word choice: which word completes the sentence. */
+      wordHeading: 'Kata mana yang melengkapi kalimat ini?',
     },
     cloze: {
+      /** The first letter and length of the missing word. */
+      hint: (shown: string) => `Petunjuk: ${shown}`,
       supported: 'Lengkapi kalimatnya',
       unaided: 'Lengkapi tanpa bantuan',
       placeholder: 'Ketik kata yang hilang',
@@ -226,9 +232,12 @@ export const copy = {
       freeUnverified: (word: string) =>
         `Kalimatmu tersimpan. Kata “${word}” tidak terdeteksi otomatis, jadi tidak kami tandai benar.`,
       freeVerified: (word: string) => `Tepat — kata “${word}” ada di kalimatmu.`,
-      promoted: 'Kata ini naik tingkat.',
-      demoted: 'Kita pelan-pelan lagi untuk kata ini.',
-      leech: 'Kata ini kita ajarkan ulang dengan contoh lain.',
+      promoted: (character: boolean) =>
+        character ? 'Huruf ini naik ke tugas berikutnya.' : 'Kata ini naik ke tugas berikutnya.',
+      demoted: (character: boolean) =>
+        character ? 'Huruf ini kita ulang dengan tugas yang lebih ringan.' : 'Kata ini kita ulang dengan tugas yang lebih ringan.',
+      leech: (character: boolean) =>
+        character ? 'Huruf ini kita ajarkan ulang.' : 'Kata ini kita ajarkan ulang dengan contoh lain.',
       next: 'Lanjut',
     },
 
@@ -266,6 +275,7 @@ export const copy = {
       // "Contoh: ka" printed the answer on the か card.
       placeholder: 'Tulis dalam huruf Latin',
       scriptLabel: { hiragana: 'Hiragana', katakana: 'Katakana' },
+      verdict: (character: string, romaji: string) => `${character} dibaca “${romaji}”.`,
       /** The same sound in the *other* script, named as that script. */
       counterpart: (other: string, romaji: string, otherScript: string) =>
         `Bunyi yang sama (${romaji}) ditulis ${other} dalam ${otherScript}.`,
@@ -297,6 +307,13 @@ export const copy = {
        */
       inWord: (word: string, reading: string) =>
         `Dipakai dalam ${word}, dibaca ${reading}.`,
+      /** L1: the character, and four meanings to choose from. */
+      meaningQuestion: 'Apa arti huruf ini?',
+      meaningNote: 'Pilihan artinya dalam bahasa Inggris.',
+      /** L2 and up: how the character is read. */
+      readingQuestion: 'Bagaimana huruf ini dibaca?',
+      readingPlaceholder: 'Tulis dengan huruf Latin atau kana',
+      allReadings: (list: string) => `Semua bacaan: ${list}.`,
       mnemonicHeading: 'Cara mengingat',
       // SPEC §2.11: the learner's own mnemonic beats a given one, so the copy
       // invites editing rather than presenting ours as the answer.

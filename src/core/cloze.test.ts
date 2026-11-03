@@ -58,3 +58,27 @@ describe('makeCloze', () => {
     expect(makeCloze('a . b', '+')).toBeNull();
   });
 });
+
+describe('what a cloze leaves to go on', () => {
+  it('measures the context around the blank', async () => {
+    const { clozeContext, MIN_CLOZE_CONTEXT } = await import('./cloze.ts');
+    // "Yesterday?" with the word removed is "___ ?": nothing to recall from.
+    expect(clozeContext(makeCloze('Yesterday?', 'yesterday')!)).toBeLessThan(MIN_CLOZE_CONTEXT);
+    expect(clozeContext(makeCloze('I saw him yesterday.', 'yesterday')!)).toBeGreaterThanOrEqual(MIN_CLOZE_CONTEXT);
+  });
+
+  it('blanks a Japanese token and counts only words around it', async () => {
+    const { makeTokenCloze, clozeContext } = await import('./cloze.ts');
+    const tokens = ['私', 'は', 'ねこ', 'が', 'すき', 'です', '。'];
+    const cloze = makeTokenCloze(tokens, 'ねこ')!;
+    expect(cloze).toEqual({ before: '私は', answer: 'ねこ', after: 'がすきです。', tokenIndex: 2 });
+    expect(clozeContext(cloze, tokens)).toBe(5);
+    expect(makeTokenCloze(tokens, 'いぬ')).toBeNull();
+  });
+
+  it('hints with the first letter and the length', async () => {
+    const { clozeHint } = await import('./cloze.ts');
+    expect(clozeHint('she')).toBe('s__');
+    expect(clozeHint("don't")).toBe("d__'_");
+  });
+});

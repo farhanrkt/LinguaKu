@@ -1,5 +1,11 @@
 import { db } from '../../data/db.ts';
-import { makeCloze, type Cloze } from '../../core/cloze.ts';
+import {
+  clozeContext,
+  makeCloze,
+  makeTokenCloze,
+  MIN_CLOZE_CONTEXT,
+  type Cloze,
+} from '../../core/cloze.ts';
 import { acceptedAnswers } from '../../core/grader.ts';
 import {
   isKana,
@@ -101,8 +107,26 @@ export interface Task {
    * phrase has one — "take a shower" does, "have lunch" does not.
    */
   chunkNote?: string;
-  /** Cloze rungs only. */
+  /** Cloze rungs, and the word-choice form of L1. */
   cloze?: Cloze;
+  /**
+   * A multiple-choice task: graded on the option chosen, verbatim. The typo
+   * tolerance of §2.7 is for words a learner types, not ones they pick — two
+   * options can be one letter apart, and that letter is the question.
+   */
+  choice?: boolean;
+  /**
+   * The first letter and length of the missing word, on the cloze rungs (see
+   * `clozeHint`). Japanese gives the first kana of the reading instead, drawn
+   * in the learner's script by the view.
+   */
+  hint?: ClozeHint;
+  /**
+   * L5 without a gloss: the sentence with the word removed, so the learner
+   * knows *which* word the Indonesian is asking for. Without it, "Satu kata
+   * saja" over "Aku biasanya makan di luar." could mean any of five words.
+   */
+  frame?: Cloze;
   /** Kanji cards only (SPEC §2.11). */
   kanji?: KanjiFace;
   /** SPEC §4.3's syllabary, as a card. Present only on a `kana` task. */
@@ -125,6 +149,14 @@ export interface Task {
    * review log records the rung the learner really answered at.
    */
   ceiling: LadderLevel;
+}
+
+export interface ClozeHint {
+  /** The first letter (Latin) or first kana (Japanese, in hiragana). */
+  first: string;
+  /** How many more letters or kana the word has. */
+  rest: number;
+  script: 'latin' | 'kana';
 }
 
 const kindForLevel = (level: LadderLevel): TaskKind => {
@@ -170,6 +202,13 @@ export interface KanaFace {
 }
 
 export interface KanjiFace {
+  /**
+   * What the card asks. A kanji used to be a card that showed everything and
+   * was "answered" by tapping "Oke, paham" — graded Good every time, so four
+   * taps over two weeks reached the mastery bar and faded its furigana without
+   * a single question. Now only the first meeting is errorless.
+   */
+  mode: 'intro' | 'meaning' | 'reading';
   literal: string;
   /** The component breakdown, e.g. 校 → 木 + 交 (decision D41). */
   components: string[];
@@ -194,9 +233,81 @@ export interface KanjiFace {
   /** The learner's own mnemonic if they wrote one, otherwise the baseline. */
   mnemonic: string;
   mnemonicIsMine: boolean;
+  /** Every reading, unpacked and in hiragana, for the verdict (and recall). */
+  readings: string[];
 }
 
 const DISTRACTORS = 3;
+
+/** Lexemes of one band, cached: a session asks for the same band many times. */
+const bandLexemes = new Map<string, Item[]>();
+const lexemesOfBand = async (lang: TargetLang, band: FrequencyBand): Promise<Item[]> => {
+  const key = `${lang}:${band}`;
+  const cached = bandLexemes.get(key);
+  if (cached) return cached;
+  const items = (await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray()).filter(
+    (item) => item.band === band,
+  );
+  bandLexemes.set(key, items);
+  return items;
+};
+
+/**
+ * SPEC §2.3 L1: three other words from the same frequency band, of similar
+ * length, none of them already in the sentence.
+ *
+ * L1 used to ask which of four *Indonesian sentences* translated the English
+ * one, with three random sentences from the band as distractors — "I need
+ * money." against "Tom benar." — answerable from any one word, and not a test
+ * of the word the card was for.
+ */
+const pickWordDistractors = async (item: Item, sentenceText: string, seed: number): Promise<string[]> => {
+  const inSentence = sentenceText.toLowerCase();
+  const pool = (await lexemesOfBand(item.lang, item.band)).filter(
+    (other) =>
+      other.id !== item.id &&
+      other.headword.toLowerCase() !== item.headword.toLowerCase() &&
+      !inSentence.includes(other.headword.toLowerCase()),
+  );
+  const length = [...item.headword].length;
+  const close = pool.filter((other) => Math.abs([...other.headword].length - length) <= 2);
+  return shuffle(close.length >= DISTRACTORS ? close : pool, mulberry32(seed))
+    .slice(0, DISTRACTORS)
+    .map((other) => other.headword);
+};
+
+/** Kanji of a band with an English meaning, cached like the lexemes. */
+const kanjiPool = new Map<string, Item[]>();
+const kanjiOfBand = async (band: FrequencyBand): Promise<Item[]> => {
+  const key = String(band);
+  const cached = kanjiPool.get(key);
+  if (cached) return cached;
+  const all = (await db.items.where('[lang+kind]').equals(['ja', 'kanji']).toArray()).filter(
+    (item) => (item.meanings ?? []).length > 0,
+  );
+  const sameBand = all.filter((item) => item.band === band);
+  const pool = sameBand.length > DISTRACTORS * 4 ? sameBand : all;
+  kanjiPool.set(key, pool);
+  return pool;
+};
+
+/** The meaning a kanji's choice card offers: its first few senses. */
+export const kanjiMeaningOf = (meanings: readonly string[]): string => meanings.slice(0, 3).join(', ');
+
+/** Every reading of a kanji, notation unpacked, deduplicated, in hiragana. */
+const kanjiReadingsOf = (item: Item): string[] => {
+  const raw = item.readings ?? (item.reading ? [item.reading] : []);
+  const forms = raw.flatMap((entry) => {
+    const { reading, okurigana } = splitKanjiReading(entry);
+    const base = toHiragana(reading);
+    return okurigana === null ? [base] : [base, `${base}${toHiragana(okurigana)}`];
+  });
+  return [...new Set(forms.filter((form) => form.length > 0))];
+};
+
+/** Capitalized like the answer, so the capital letter is not the giveaway. */
+const likeAnswer = (word: string, answer: string): string =>
+  /^\p{Lu}/u.test(answer) ? word.charAt(0).toUpperCase() + word.slice(1) : word;
 
 /**
  * SPEC §2.3: distractors come from the same frequency band, so a learner
@@ -352,26 +463,61 @@ export const buildTask = async (
   // "every lexeme needs a sentence" rule is about lexemes, not characters.
   if (item.kind === 'kanji') {
     const mine = await getMnemonic(profileId, itemId);
-    return {
+    const rung = Math.min(level, TEXT_ONLY_MAX_LEVEL) as LadderLevel;
+    const meaning = kanjiMeaningOf(item.meanings ?? []);
+    const readings = kanjiReadingsOf(item);
+    // L0 meets the character; L1 asks what it means; L2 and up ask how it is
+    // read. A kanji with no meaning to offer skips straight to its reading,
+    // and one with neither stays an introduction rather than an empty question.
+    const mode: KanjiFace['mode'] =
+      rung === 0 ? 'intro' : rung === 1 && meaning.length > 0 ? 'meaning' : readings.length > 0 ? 'reading' : meaning.length > 0 ? 'meaning' : 'intro';
+    const face: KanjiFace = {
+      mode,
+      literal: item.headword,
+      components: componentsOf(item),
+      ...kanjiReadingOf(item.reading),
+      meanings: item.meanings ?? [],
+      mnemonic: mine?.text ?? baselineMnemonic(item.headword, componentsOf(item)),
+      mnemonicIsMine: mine !== null,
+      readings,
+    };
+    const base = {
       itemId,
       cardId: cardIdFor(profileId, itemId),
       headword: item.headword,
-      ladderLevel: Math.min(level, TEXT_ONLY_MAX_LEVEL) as LadderLevel,
+      ladderLevel: mode === 'intro' ? (0 as LadderLevel) : rung,
       ceiling: TEXT_ONLY_MAX_LEVEL,
-      kind: 'kanji',
+      kind: 'kanji' as const,
       sentence: { id: item.id, text: item.headword },
       translation: '',
-      answer: item.headword,
-      asksConfidence: false,
-      kanji: {
-        literal: item.headword,
-        components: componentsOf(item),
-        ...kanjiReadingOf(item.reading),
-        meanings: item.meanings ?? [],
-        mnemonic: mine?.text ?? baselineMnemonic(item.headword, componentsOf(item)),
-        mnemonicIsMine: mine !== null,
-      },
+      kanji: face,
     };
+
+    if (mode === 'meaning') {
+      const others = (await kanjiOfBand(item.band))
+        .filter((other) => other.id !== item.id)
+        .map((other) => kanjiMeaningOf(other.meanings ?? []))
+        .filter((other) => other.length > 0 && other !== meaning);
+      const distractors = shuffle([...new Set(others)], mulberry32(seed)).slice(0, DISTRACTORS);
+      return {
+        ...base,
+        options: shuffle([meaning, ...distractors], mulberry32(seed + 1)),
+        answer: meaning,
+        choice: true,
+        asksConfidence: false,
+      };
+    }
+
+    if (mode === 'reading') {
+      return {
+        ...base,
+        answer: readings[0]!,
+        ...(readings.length > 1 ? { alsoAccepted: readings.slice(1) } : {}),
+        asksConfidence: true,
+      };
+    }
+
+    return { ...base, answer: item.headword, asksConfidence: false };
   }
 
   // Which example sentence teaches this word is an i+1 decision (SPEC §2.4):
@@ -444,6 +590,21 @@ export const buildTask = async (
 
   // A dictation card on a silent device is presented (and logged) one rung down.
   const effectiveLevel = presentableLevel(level, false);
+  const kind = kindForLevel(effectiveLevel);
+
+  /**
+   * A blank this sentence can actually carry: over the pipeline's tokens for
+   * Japanese, and with enough left around it to be contextual recall rather
+   * than a guess (`MIN_CLOZE_CONTEXT`).
+   */
+  const viableCloze = (anchor: AnchorSentence): Cloze | null => {
+    const made = anchor.tokens
+      ? makeTokenCloze(anchor.tokens, item.headword)
+      : makeCloze(anchor.text, item.headword);
+    return made !== null && clozeContext(made, anchor.tokens) >= MIN_CLOZE_CONTEXT ? made : null;
+  };
+  const wantsBlank =
+    kind === 'recognition' || kind === 'cloze-supported' || kind === 'cloze-unaided' || kind === 'production';
 
   const lapses = card?.fsrs.lapses ?? 0;
   let sentence: AnchorSentence;
@@ -455,11 +616,19 @@ export const buildTask = async (
     sentence =
       selectGraded(anchors, options.known ?? new Set(), item.lang)?.item ?? anchors[0]!;
   }
+  // The i+1 choice stands unless it cannot carry a blank this rung needs; then
+  // another of the word's own sentences that can.
+  let cloze = wantsBlank ? viableCloze(sentence) : null;
+  if (wantsBlank && cloze === null) {
+    const alternative = anchors.find((anchor) => viableCloze(anchor) !== null);
+    if (alternative) {
+      sentence = alternative;
+      cloze = viableCloze(alternative);
+    }
+  }
 
-  const cloze = makeCloze(sentence.text, item.headword);
   // A cloze rung with no blank to make is unanswerable — fall back a rung
   // rather than show a sentence with nothing missing.
-  const kind = kindForLevel(effectiveLevel);
   const effective: TaskKind =
     (kind === 'cloze-supported' || kind === 'cloze-unaided') && !cloze ? 'recognition' : kind;
 
@@ -488,6 +657,13 @@ export const buildTask = async (
     translation: sentence.tr.text,
   };
 
+  // The removed token's own reading, where the pipeline has one: it is what
+  // the sentence says, and the lexeme's stored reading can disagree with it.
+  const tokenReading =
+    japanese && cloze?.tokenIndex !== undefined ? toHiragana(readings[cloze.tokenIndex] ?? '') : '';
+  const accepted = (answer: string) =>
+    alsoAcceptedFor(tokenReading.length > 0 ? { ...item, reading: tokenReading } : item, answer);
+
   // SPEC §2.3 L5/L6 — the production rungs. Both grade against the headword
   // itself: L5 because that *is* the answer, L6 because the only thing about a
   // free sentence we can honestly check is whether the learner used the word.
@@ -498,16 +674,37 @@ export const buildTask = async (
       answer: item.headword,
       ...alsoAcceptedFor(item, item.headword),
       asksConfidence: effective === 'production',
+      // Without a gloss the Indonesian sentence is the only prompt, so the
+      // sentence itself shows which word is wanted.
+      ...(effective === 'production' && (base.gloss ?? []).length === 0 && cloze ? { frame: cloze } : {}),
     };
   }
 
   if (effective === 'recognition') {
+    if (cloze) {
+      // Which word completes the sentence? Four words from the same band.
+      const distractors = (await pickWordDistractors(item, sentence.text, seed)).map((word) =>
+        likeAnswer(word, cloze.answer),
+      );
+      return {
+        ...withSentence,
+        kind: 'recognition',
+        cloze,
+        options: shuffle([cloze.answer, ...distractors], mulberry32(seed + 1)),
+        answer: cloze.answer,
+        choice: true,
+        asksConfidence: false,
+      };
+    }
+    // No sentence of this word can carry a blank (a Japanese verb in a
+    // conjugated form, say): the translation choice is the fallback.
     const distractors = await pickDistractors(sentence, item.lang, item.band, seed);
     return {
       ...withSentence,
       kind: 'recognition',
       options: shuffle([sentence.tr.text, ...distractors], mulberry32(seed + 1)),
       answer: sentence.tr.text,
+      choice: true,
       asksConfidence: false,
     };
   }
@@ -523,14 +720,19 @@ export const buildTask = async (
   }
 
   const clozeAnswer = cloze?.answer ?? item.headword;
+  const hint: ClozeHint =
+    tokenReading.length > 0
+      ? { first: [...tokenReading][0]!, rest: [...tokenReading].length - 1, script: 'kana' }
+      : { first: [...clozeAnswer][0] ?? '', rest: [...clozeAnswer].length - 1, script: 'latin' };
   return {
     ...withSentence,
     kind: effective,
     ...(cloze ? { cloze } : {}),
+    hint,
     answer: clozeAnswer,
     // `makeCloze` slices the matched headword out of the sentence, so a cloze
     // answer *is* the headword and the headword's reading applies to it.
-    ...alsoAcceptedFor(item, clozeAnswer),
+    ...accepted(clozeAnswer),
     asksConfidence: true,
   };
 };

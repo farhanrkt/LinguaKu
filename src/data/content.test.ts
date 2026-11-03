@@ -199,7 +199,8 @@ describe('ensureBands', () => {
 
     await ensureBands('en', [1], republished);
     const recorded = await db.contentShards.get('lexemes.b1.json');
-    expect(recorded?.sha256).toBe(await hashOf('lexemes.b1.json'));
+    // The content hash, tagged with the row format it was imported in.
+    expect(recorded?.sha256.split('@')[0]).toBe(await hashOf('lexemes.b1.json'));
     expect(recorded?.sha256).not.toBe('a-hash-the-cache-will-not-serve');
 
     // ...so the next boot tries again rather than believing it is current.

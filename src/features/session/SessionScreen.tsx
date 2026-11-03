@@ -42,6 +42,7 @@ import {
   RecognitionTask,
   type AnswerPayload,
   KanaTask,
+  KanjiDetails,
   SentenceText,
 } from './TaskViews.tsx';
 import { saveMnemonic } from '../../data/repositories/mnemonics.ts';
@@ -334,17 +335,27 @@ export const SessionScreen = ({
       // L6 is free production: there is no right answer to match, and the only
       // thing we can honestly check is that the learner used the word (§2.3).
       // The view enforces that before submitting, so reaching here is a pass.
-      const result =
+      const result: GradeResult =
         task.kind === 'free'
-          ? ({ outcome: 'correct', reason: 'exact', distance: 0, tolerance: 0, matched: task.answer } as const)
-          : // SPEC §2.7 / §4.3: a Japanese headword written in kanji also accepts
-            // its reading, which is the form `KanaInput` can actually produce.
-            gradeAnswer(payload.raw, [task.answer, ...(task.alsoAccepted ?? [])]);
+          ? { outcome: 'correct', reason: 'exact', distance: 0, tolerance: 0, matched: task.answer }
+          : task.choice === true
+            ? // A picked option is right only if it is the answer, verbatim:
+              // two options one letter apart differ by exactly what is asked.
+              payload.raw === task.answer
+              ? { outcome: 'correct', reason: 'exact', distance: 0, tolerance: 0, matched: task.answer }
+              : { outcome: 'wrong', reason: 'mismatch', distance: Number.POSITIVE_INFINITY, tolerance: 0, matched: task.answer }
+            : // SPEC §2.7 / §4.3: a Japanese headword written in kanji also accepts
+              // its reading, which is the form `KanaInput` can actually produce.
+              gradeAnswer(payload.raw, [task.answer, ...(task.alsoAccepted ?? [])]);
       // L0 is errorless exposure: the learner confirms, they do not answer.
       // A first meeting is not a test: the confirmation is the response, and
       // the only honest grade for it is "fine". True of an exposure card and of
       // a character the learner is seeing for the first time (SPEC §4.3).
-      const errorless = task.kind === 'exposure' || (task.kind === 'kana' && task.ladderLevel === 0);
+      // A kanji's first meeting is errorless too; every later one asks
+      // something (its meaning, then its reading) — see `KanjiFace.mode`.
+      const errorless =
+        task.kind === 'exposure' ||
+        ((task.kind === 'kana' || task.kind === 'kanji') && task.ladderLevel === 0);
       // A free sentence the matcher could not confirm is the learner's word
       // against ours: Hard, not Good, and never announced as correct.
       const unverified = task.kind === 'free' && payload.verified === false;
@@ -352,8 +363,10 @@ export const SessionScreen = ({
 
       // SPEC §2.9 / §3.3: a wrong answer that matches a known Indonesian-L1
       // pattern is evidence about that pattern, and it is logged as such.
+      // "Saya tidak tahu" sends an empty answer: a plain miss, with nothing in
+      // it to diagnose and no confidence to calibrate against.
       const hits =
-        result.outcome === 'wrong' && !errorless
+        result.outcome === 'wrong' && !errorless && payload.raw.trim().length > 0
           ? detectInterference({
               raw: payload.raw,
               expected: task.answer,
@@ -653,7 +666,13 @@ export const SessionScreen = ({
                 scriptMode={profile.scriptMode}
               />
             </SwipeCard>
-            <Feedback reveal={reveal} lang={lang} />
+            <Feedback
+              reveal={reveal}
+              lang={lang}
+              onSaveMnemonic={async (text) => {
+                await saveMnemonic(profile.id, reveal.task.itemId, text, Date.now());
+              }}
+            />
           </>
         ) : drillReveal ? (
           <>
@@ -780,7 +799,17 @@ const AnsweredDrill = ({ reveal }: { reveal: DrillReveal }) => (
  * matches an Indonesian-L1 pattern, the contrastive note comes with it — in
  * Indonesian, with the L1 pattern named first.
  */
-const Feedback = ({ reveal, lang }: { reveal: Reveal; lang: TargetLang }) => {
+const Feedback = ({
+  reveal,
+  lang,
+  onSaveMnemonic,
+}: {
+  reveal: Reveal;
+  lang: TargetLang;
+  onSaveMnemonic: (text: string) => Promise<void>;
+}) => {
+  // Kana and kanji are characters; the copy says so rather than "kata".
+  const character = reveal.task.kind === 'kanji' || reveal.task.kind === 'kana';
   const { result, decision, answer } = reveal;
   const tone =
     reveal.unverified
@@ -806,11 +835,11 @@ const Feedback = ({ reveal, lang }: { reveal: Reveal; lang: TargetLang }) => {
       <div className={`rounded-2xl p-4 ${tone}`} role="status" data-testid="feedback">
         <p className="font-semibold">{message}</p>
         {decision.leech ? (
-          <p className="mt-1 text-sm">{copy.session.feedback.leech}</p>
+          <p className="mt-1 text-sm">{copy.session.feedback.leech(character)}</p>
         ) : decision.change === 'promoted' ? (
-          <p className="mt-1 text-sm">{copy.session.feedback.promoted}</p>
+          <p className="mt-1 text-sm">{copy.session.feedback.promoted(character)}</p>
         ) : decision.change === 'demoted' ? (
-          <p className="mt-1 text-sm">{copy.session.feedback.demoted}</p>
+          <p className="mt-1 text-sm">{copy.session.feedback.demoted(character)}</p>
         ) : null}
       </div>
 
@@ -821,6 +850,20 @@ const Feedback = ({ reveal, lang }: { reveal: Reveal; lang: TargetLang }) => {
         one place the meaning is useful on *every* card rather than just L0.
         Where there is no entry, that is said rather than left blank (D59).
       */}
+      {reveal.task.kind === 'kanji' && reveal.task.kanji ? (
+        // A kanji's verdict shows the kanji — its parts, meanings and every
+        // reading — not a dictionary-miss line about a sentence it never had.
+        <div
+          className="mt-3 rounded-2xl border-2 border-stone-200 p-3 dark:border-slate-800"
+          data-testid="kanji-verdict"
+        >
+          <KanjiDetails face={reveal.task.kanji} onSaveMnemonic={onSaveMnemonic} />
+        </div>
+      ) : reveal.task.kind === 'kana' && reveal.task.kana ? (
+        <p className="mt-3 rounded-2xl border-2 border-stone-200 p-3 text-lg dark:border-slate-800">
+          {copy.session.kana.verdict(reveal.task.kana.character, reveal.task.kana.romaji)}
+        </p>
+      ) : (
       <div className="mt-3 rounded-2xl border-2 border-stone-200 p-3 dark:border-slate-800">
         <p className="text-xs tracking-wide text-stone-500 uppercase dark:text-slate-400">
           {copy.session.meaning.label}
@@ -839,6 +882,7 @@ const Feedback = ({ reveal, lang }: { reveal: Reveal; lang: TargetLang }) => {
           </p>
         ) : null}
       </div>
+      )}
 
       {reveal.interference.map((category) => (
         <div className="mt-3" key={category.id}>

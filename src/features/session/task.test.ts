@@ -367,3 +367,85 @@ describe('a task carries the characters the learner can read (SPEC §4.3)', () =
     expect((await taskFor(['ね']))?.readableKana).toContain('ね');
   });
 });
+
+describe('a kanji asks something after its first meeting (SPEC §2.2, §2.11)', () => {
+  const kanji = (literal: string, meanings: string[], readings: string[]): Item => ({
+    id: `ja:kanji:${literal}`,
+    lang: 'ja',
+    kind: 'kanji',
+    headword: literal,
+    reading: readings[0]!,
+    readings,
+    meanings,
+    anchorSentenceIds: [],
+    componentsOf: [],
+    freqRank: 10,
+    band: 1,
+    sourceRef: { dataset: 'kanjidic2', externalId: literal },
+  });
+
+  beforeEach(async () => {
+    await db.items.bulkPut([
+      kanji('日', ['day', 'sun'], ['ニチ', 'ひ']),
+      kanji('水', ['water'], ['スイ', 'みず']),
+      kanji('火', ['fire'], ['カ', 'ひ']),
+      kanji('木', ['tree', 'wood'], ['モク', 'き']),
+    ]);
+  });
+
+  it('introduces at L0, with nothing to answer', async () => {
+    await db.cards.put(card('ja:kanji:日', 0));
+    const task = await buildTask(PROFILE, 'ja:kanji:日', 1);
+    expect(task?.kanji?.mode).toBe('intro');
+    expect(task?.ladderLevel).toBe(0);
+  });
+
+  it('asks for the meaning at L1, as a choice graded verbatim', async () => {
+    await db.cards.put(card('ja:kanji:日', 1));
+    const task = await buildTask(PROFILE, 'ja:kanji:日', 1);
+    expect(task?.kanji?.mode).toBe('meaning');
+    expect(task?.choice).toBe(true);
+    expect(task?.answer).toBe('day, sun');
+    expect(task?.options).toContain('day, sun');
+    expect(task?.options?.length).toBe(4);
+  });
+
+  it('asks for the reading from L2, accepting any of them', async () => {
+    await db.cards.put(card('ja:kanji:日', 2));
+    const task = await buildTask(PROFILE, 'ja:kanji:日', 1);
+    expect(task?.kanji?.mode).toBe('reading');
+    const accepted = [task!.answer, ...(task!.alsoAccepted ?? [])];
+    expect(gradeAnswer('nichi', accepted).outcome).toBe('correct');
+    expect(gradeAnswer('ひ', accepted).outcome).toBe('correct');
+    expect(gradeAnswer('mizu', accepted).outcome).toBe('wrong');
+  });
+});
+
+describe('L1 asks for the word, not for a translation of the sentence (SPEC §2.3)', () => {
+  beforeEach(async () => {
+    await db.items.bulkPut([
+      item({ id: 'ja:lex:ねこ', headword: 'ねこ', freqRank: 50 }),
+      item({ id: 'ja:lex:いぬ', headword: 'いぬ', freqRank: 51 }),
+      item({ id: 'ja:lex:とり', headword: 'とり', freqRank: 52 }),
+      item({ id: 'ja:lex:さかな', headword: 'さかな', freqRank: 53 }),
+    ]);
+  });
+
+  it('blanks the word and offers four words from its band', async () => {
+    await db.cards.put(card('ja:lex:ねこ', 1));
+    const task = await buildTask(PROFILE, 'ja:lex:ねこ', 7);
+    expect(task?.kind).toBe('recognition');
+    expect(task?.choice).toBe(true);
+    expect(task?.cloze?.answer).toBe('ねこ');
+    expect(task?.cloze?.tokenIndex).toBe(2);
+    expect(task?.options).toContain('ねこ');
+    expect(task?.options?.length).toBe(4);
+  });
+
+  it('gives a cloze rung a hint drawn from the sentence’s own reading', async () => {
+    await db.cards.put(card('ja:lex:ねこ', 3));
+    const task = await buildTask(PROFILE, 'ja:lex:ねこ', 7);
+    expect(task?.kind).toBe('cloze-unaided');
+    expect(task?.hint).toEqual({ first: 'ね', rest: 1, script: 'kana' });
+  });
+});
