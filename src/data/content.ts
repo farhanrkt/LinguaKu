@@ -180,6 +180,28 @@ export const fetchShard = async <T>(url: string): Promise<T | null> => {
   return (await response.json()) as T;
 };
 
+/**
+ * A band's words held in memory without importing them.
+ *
+ * Placement probes the whole frequency scale, and only bands 1–3 are imported
+ * up front — so it could never ask a word past rank 2,000, and every learner
+ * who knew more than that got the same answer. Reading 4–5 for the probe pool
+ * costs one fetch each (runtime-cached) and writes nothing.
+ */
+export const peekLexemes = async (
+  lang: TargetLang,
+  band: FrequencyBand,
+): Promise<Array<{ id: string; headword: string; freqRank: number }>> => {
+  const shard = await fetchShard<{ lexemes?: WireLexeme[] }>(
+    `${CONTENT_BASE}/${lang}/lexemes.b${band}.json`,
+  );
+  return (shard?.lexemes ?? []).map((wire) => ({
+    id: wire.id,
+    headword: wire.headword,
+    freqRank: wire.freqRank,
+  }));
+};
+
 export const fetchManifest = (lang: TargetLang): Promise<ContentManifest> =>
   fetchJson<ContentManifest>(`${CONTENT_BASE}/${lang}/manifest.json`);
 

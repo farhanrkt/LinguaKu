@@ -12,7 +12,11 @@ import { DiagnosticsScreen } from './features/settings/DiagnosticsScreen.tsx';
 import { SettingsScreen } from './features/settings/SettingsScreen.tsx';
 import { HabitScreen } from './features/habit/HabitScreen.tsx';
 import { copy } from './i18n/id.ts';
-import { hasBeenPlaced, refreshListeningAbility } from './data/repositories/abilities.ts';
+import {
+  hasBeenPlaced,
+  learnerBands,
+  refreshListeningAbility,
+} from './data/repositories/abilities.ts';
 import { createProfile, getCurrentProfile, updateProfile } from './data/repositories/profiles.ts';
 import {
   findResumable,
@@ -110,7 +114,11 @@ export const App = () => {
   /** Starts or resumes a session. The only path into the practice loop. */
   const beginSession = useCallback(async (profile: Profile) => {
     const lang = profile.targets[0] ?? 'en';
-    await ensureBands(lang, STARTER_BANDS).catch(() => undefined);
+    // Every band up to the learner's frontier, not just the starter three: a
+    // learner placed past band 3 was otherwise taught band 3 forever.
+    await learnerBands(profile.id, lang)
+      .then((bands) => ensureBands(lang, bands))
+      .catch(() => undefined);
     // The boot probe's verdict stands for the whole session (risk R1), so the
     // composer knows here whether minimal-pair drills can be scheduled at all.
     const session =
@@ -158,10 +166,12 @@ export const App = () => {
     void todaySnapshot(screen.profile, Date.now()).then(setToday);
     const lang = screen.profile.targets[0];
     if (!lang) return;
-    void ensureBands(lang, STARTER_BANDS).catch(() => {
-      // Offline on first run: the session screen reports having no material
-      // rather than the app failing to load.
-    });
+    void learnerBands(screen.profile.id, lang)
+      .then((bands) => ensureBands(lang, bands))
+      .catch(() => {
+        // Offline on first run: the session screen reports having no material
+        // rather than the app failing to load.
+      });
   }, [screen]);
 
   const handleStart = useCallback(async (targets: TargetLang[], dailyMinutes: DailyMinutes) => {
@@ -221,7 +231,9 @@ export const App = () => {
       if (!lang) return;
       void loadContrastive(lang);
       void loadTopics(lang);
-      void ensureBands(lang, STARTER_BANDS).catch(() => undefined);
+      void learnerBands(profile.id, lang)
+        .then((bands) => ensureBands(lang, bands))
+        .catch(() => undefined);
       const [resume, placed] = await Promise.all([
         findResumable(profile.id, lang),
         hasBeenPlaced(profile.id, lang),
@@ -269,7 +281,13 @@ export const App = () => {
             // Re-read rather than assume: skipping leaves the offer standing,
             // taking it does not (SPEC §4.2 — offered, never enforced).
             const { profile } = screen;
-            void hasBeenPlaced(profile.id, profile.targets[0] ?? 'en').then(setPlacementOffered);
+            const lang = profile.targets[0] ?? 'en';
+            void hasBeenPlaced(profile.id, lang).then(setPlacementOffered);
+            // A placement past band 3 opens the bands it found; start fetching
+            // them now, so the first session can already teach from there.
+            void learnerBands(profile.id, lang)
+              .then((bands) => ensureBands(lang, bands))
+              .catch(() => undefined);
             setScreen({ name: 'home', profile });
           }}
         />

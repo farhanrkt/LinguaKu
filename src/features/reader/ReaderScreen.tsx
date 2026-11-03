@@ -10,11 +10,10 @@ import {
   type PassageItem,
   type ReaderItem,
 } from '../../core/reader.ts';
-import { knownItemIds, lexemeIdFor } from '../../core/coverage.ts';
+import { knownForSelection, knownItemIds, lexemeIdFor } from '../../core/coverage.ts';
 import { isKanji, toHiragana } from '../../core/kana.ts';
 import { furiganaFor, type RubySegment } from '../../core/furigana.ts';
 import { kanjiStability } from '../../data/repositories/kanji.ts';
-import { bandForAbility } from '../../core/placement.ts';
 import { glossFor } from '../../data/glosses.ts';
 import { loadPassages, type Passage } from '../../data/passages.ts';
 import { PassageView } from './PassageView.tsx';
@@ -25,7 +24,7 @@ import {
   holdBackDownloads,
   isAlreadyCached,
 } from '../../platform/connection.ts';
-import { vocabularyAbility } from '../../data/repositories/abilities.ts';
+import { learnerFrontier } from '../../data/repositories/abilities.ts';
 import { mineItem, minedItemIds, unmineItem } from '../../data/repositories/mining.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Item, Profile, ScriptMode, TargetLang } from '../../data/types.ts';
@@ -142,6 +141,8 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
    */
   const [stability, setStability] = useState<Record<string, number | null>>({});
   const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
+  /** Words the learner has actually retrieved — what the word panel calls known. */
+  const [retrieved, setRetrieved] = useState<ReadonlySet<string>>(new Set());
   const [mined, setMined] = useState<ReadonlySet<string>>(new Set());
   const [tapped, setTapped] = useState<Tapped | null>(null);
   /** SPEC §8's graded reader proper — running text, English only for now. */
@@ -162,9 +163,17 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
   useEffect(() => {
     void (async () => {
       const cards = await db.cards.where('profileId').equals(profile.id).toArray();
-      const knownSet = knownItemIds(cards, Date.now());
-      const ability = await vocabularyAbility(profile.id, lang);
-      const frontier = bandForAbility(ability.theta);
+      const frontier = await learnerFrontier(profile.id, lang);
+      // Material is chosen against what the learner can read, which includes
+      // the common words below their frontier; the word panel still says
+      // "known" only of words they have actually retrieved.
+      const knownSet = knownForSelection(
+        cards,
+        await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray(),
+        frontier,
+        Date.now(),
+      );
+      setRetrieved(knownItemIds(cards, Date.now()));
 
       // The frontier band and the one below it: enough to read comfortably,
       // with the frontier supplying what is new.
@@ -379,7 +388,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
       {tapped ? (
         <WordPanel
           tapped={tapped}
-          known={known.has(tapped.itemId)}
+          known={retrieved.has(tapped.itemId)}
           onMine={() => void handleMine()}
           onClose={() => setTapped(null)}
         />

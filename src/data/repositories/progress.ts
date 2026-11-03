@@ -25,7 +25,7 @@ import {
 import { categoryStandings } from './contrastive.ts';
 import { readingAttempts } from './reading.ts';
 import { buildAttempts } from './builds.ts';
-import { vocabularyAbility } from './abilities.ts';
+import { learnerFrontier, vocabularyAbility } from './abilities.ts';
 import { rankForAbility } from '../../core/placement.ts';
 import { AUDIO_LEVEL, isMastered } from '../../core/ladder.ts';
 import { loadContrastive } from '../contrastive.ts';
@@ -122,6 +122,7 @@ export const buildLearningPath = async (
       secured: secured.get(entry.band) ?? 0,
       share: entry.share,
     })),
+    await learnerFrontier(profile.id, lang),
   );
 };
 

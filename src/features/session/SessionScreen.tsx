@@ -30,7 +30,8 @@ import { BuildView } from './BuildView.tsx';
 import { gradeBuild } from '../../core/sentenceBuild.ts';
 import { isBuildId } from '../../core/sentenceBuild.ts';
 import { recordBuildAnswer } from '../../data/repositories/builds.ts';
-import { knownItemIds } from '../../core/coverage.ts';
+import { knownForSelection, knownItemIds } from '../../core/coverage.ts';
+import { learnerFrontier } from '../../data/repositories/abilities.ts';
 import { db } from '../../data/db.ts';
 import {
   ClozeTask,
@@ -141,6 +142,10 @@ export const SessionScreen = ({
   // The known-set drives the i+1 choice of which sentence teaches a word
   // (SPEC §2.4). Loaded once per session, not per card.
   const [known, setKnown] = useState<ReadonlySet<string>>(new Set());
+  const [readable, setReadable] = useState<ReadonlySet<string>>(new Set());
+  // The first card waits for both sets: built before them and again after, it
+  // could swap its sentence under the learner a moment after appearing.
+  const [contextReady, setContextReady] = useState(false);
   // Both start empty rather than null, and **nothing waits on them**. Neither is
   // needed to render the first question, and SPEC §5.4 gives that question a 3s
   // budget from icon tap — a clip index that 404s (no audio ships yet) and a
@@ -151,8 +156,21 @@ export const SessionScreen = ({
 
   useEffect(() => {
     void (async () => {
-      const cards = await db.cards.where('profileId').equals(profile.id).toArray();
-      setKnown(knownItemIds(cards, Date.now()));
+      try {
+        const cards = await db.cards.where('profileId').equals(profile.id).toArray();
+        const now = Date.now();
+        setKnown(knownItemIds(cards, now));
+        setReadable(
+          knownForSelection(
+            cards,
+            await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray(),
+            await learnerFrontier(profile.id, lang),
+            now,
+          ),
+        );
+      } finally {
+        setContextReady(true);
+      }
     })();
     void loadClipIndex(lang).then(setClips);
     void loadContrastive(lang).then(setPack);
@@ -170,6 +188,7 @@ export const SessionScreen = ({
   // Load the entry at the cursor. Skipping unbuildable items keeps a single
   // missing sentence from stalling the whole session.
   useEffect(() => {
+    if (!contextReady) return;
     let cancelled = false;
     void (async () => {
       for (let index = cursor; index < session.itemIds.length; index++) {
@@ -184,7 +203,7 @@ export const SessionScreen = ({
             ? await buildDrillTask(lang, id, seed).then((task) =>
                 task ? ({ kind: 'drill', task } as const) : null,
               )
-            : await buildTask(profile.id, id, seed, { known, hasAudioFor }).then((task) =>
+            : await buildTask(profile.id, id, seed, { known, readable, hasAudioFor }).then((task) =>
                 task ? ({ kind: 'item', task } as const) : null,
               );
         if (cancelled) return;
@@ -208,7 +227,9 @@ export const SessionScreen = ({
     profile.id,
     session.itemIds,
     session.startedAt,
+    contextReady,
     known,
+    readable,
     lang,
     clips,
     pack,

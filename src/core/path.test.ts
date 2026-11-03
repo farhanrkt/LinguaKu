@@ -78,3 +78,19 @@ describe('buildPath', () => {
     expect(path.stages.map((s) => s.band)).toEqual([1, 2, 3, 4, 5]);
   });
 });
+
+describe('the path follows the frontier', () => {
+  it('marks stages below it skipped and stands the learner on it', async () => {
+    const { buildPath } = await import('./path.ts');
+    const path = buildPath(
+      [
+        { band: 1, total: 10, secured: 0, share: 0.5 },
+        { band: 2, total: 10, secured: 0, share: 0.1 },
+        { band: 3, total: 10, secured: 2, share: 0.1 },
+      ],
+      3,
+    );
+    expect(path.stages.map((stage) => stage.state)).toEqual(['skipped', 'skipped', 'current']);
+    expect(path.current?.band).toBe(3);
+  });
+});

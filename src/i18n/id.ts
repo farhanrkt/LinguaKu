@@ -744,6 +744,7 @@ export const copy = {
       count: (secured: number, total: number) => `${secured} dari ${total} kata`,
       worth: (percent: number) => `Kalau tahap ini selesai: ${percent}% kata sehari-hari.`,
       here: 'Kamu di sini',
+      skipped: 'Dilewati sesuai tingkatmu',
       done: 'Selesai',
       /**
        * What the remaining share actually is, which is not the same in both

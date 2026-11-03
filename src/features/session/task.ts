@@ -329,8 +329,14 @@ const pickDistractors = async (
 };
 
 export interface BuildTaskOptions {
-  /** Lexeme ids the learner currently knows, for the i+1 anchor choice (SPEC §2.4). */
+  /** Item ids the learner has retrieved — which kana they can read (SPEC §4.3). */
   known?: ReadonlySet<string>;
+  /**
+   * What the i+1 sentence choice may assume the learner reads (SPEC §2.4):
+   * `known` plus the common words below their frontier (`knownForSelection`).
+   * Defaults to `known`.
+   */
+  readable?: ReadonlySet<string>;
   /**
    * SPEC §2.6: whether this sentence can be presented as audio — a pre-cached
    * clip or a working TTS voice. Defaults to "no", which withholds L4 rather
@@ -614,7 +620,8 @@ export const buildTask = async (
     sentence = anchors[lapses % anchors.length]!;
   } else {
     sentence =
-      selectGraded(anchors, options.known ?? new Set(), item.lang)?.item ?? anchors[0]!;
+      selectGraded(anchors, options.readable ?? options.known ?? new Set(), item.lang)?.item ??
+      anchors[0]!;
   }
   // The i+1 choice stands unless it cannot carry a blank this rung needs; then
   // another of the word's own sentences that can.

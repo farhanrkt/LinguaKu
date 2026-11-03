@@ -32,6 +32,12 @@ export interface StageInput {
 export type StageState =
   /** Every word in it secured. */
   | 'done'
+  /**
+   * Below the learner's frontier: placement (or the starting assumption, D3)
+   * put them past it, so new words do not come from here. Said on the path
+   * rather than drawn as an empty stage the learner is somehow failing.
+   */
+  | 'skipped'
   /** Where the learner is working now — the first stage not yet finished. */
   | 'current'
   /** Not started, or barely. */
@@ -65,7 +71,7 @@ export interface LearningPath {
  * how `estimateCoverage` reads the same data on the progress screen — the two
  * must not disagree about the same learner.
  */
-export const buildPath = (input: readonly StageInput[]): LearningPath => {
+export const buildPath = (input: readonly StageInput[], frontier?: number): LearningPath => {
   const ordered = [...input].sort((a, b) => a.band - b.band);
 
   let cumulative = 0;
@@ -90,6 +96,10 @@ export const buildPath = (input: readonly StageInput[]): LearningPath => {
     let state: StageState = 'ahead';
     if (complete) {
       state = 'done';
+    } else if (frontier !== undefined && stage.band < frontier) {
+      // New words come from the frontier (`learnerFrontier`), so that is where
+      // "kamu di sini" belongs — not the first stage with gaps in it.
+      state = 'skipped';
     } else if (!currentFound && total > 0) {
       state = 'current';
       currentFound = true;

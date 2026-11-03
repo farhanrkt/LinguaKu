@@ -3,8 +3,9 @@ import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { db } from '../../data/db.ts';
-import { loadPseudowords } from '../../data/content.ts';
-import { saveAbility } from '../../data/repositories/abilities.ts';
+import { loadPseudowords, peekLexemes } from '../../data/content.ts';
+import { connectionHint, holdBackDownloads } from '../../platform/connection.ts';
+import { LAST_WORD_BAND, saveAbility } from '../../data/repositories/abilities.ts';
 import { bandForAbility, priorFor, type AbilityEstimate } from '../../core/placement.ts';
 import {
   buildProbePool,
@@ -48,16 +49,30 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [items, pseudowords] = await Promise.all([
+      // Bands 4–5 are not imported until a learner reaches them, but placement
+      // has to be able to ask about them or it cannot find anyone past rank
+      // 2,000. Read in memory, and only where the learner's data setting does
+      // not hold optional downloads back (D80).
+      const hold = holdBackDownloads(profile.dataSaver ?? 'auto', connectionHint());
+      const [items, pseudowords, higher] = await Promise.all([
         db.items.where('[lang+kind]').equals([lang, 'lexeme']).sortBy('freqRank'),
         loadPseudowords(lang).catch(() => [] as string[]),
+        hold
+          ? Promise.resolve([])
+          : Promise.all(
+              ([4, 5] as const).map((band) => peekLexemes(lang, band).catch(() => [])),
+            ).then((rows) => rows.flat()),
       ]);
       if (cancelled) return;
+      const imported = new Set(items.map((item) => item.id));
+      const scale = [...items, ...higher.filter((word) => !imported.has(word.id))].sort(
+        (a, b) => a.freqRank - b.freqRank,
+      );
 
       // Spread the probes evenly across the rank range rather than taking the
       // first N, or every question would come from band 1.
-      const step = Math.max(1, Math.floor(items.length / PROBE_WORDS));
-      const spread = items.filter((_, index) => index % step === 0).slice(0, PROBE_WORDS);
+      const step = Math.max(1, Math.floor(scale.length / PROBE_WORDS));
+      const spread = scale.filter((_, index) => index % step === 0).slice(0, PROBE_WORDS);
 
       setPool(buildProbePool(spread, pseudowords, profile.createdAt));
       setPhase({ name: 'intro' });
@@ -65,7 +80,7 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
     return () => {
       cancelled = true;
     };
-  }, [lang, profile.createdAt]);
+  }, [lang, profile.createdAt, profile.dataSaver]);
 
   const advance = useCallback(
     (current: PlacementState) => {
@@ -181,8 +196,10 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
   // SPEC §4.1 and §2.15: report a band, never a bare level. The standard error
   // *is* the band — showing the point estimate alone would be the fake
   // precision the spec bans.
-  const low = bandForAbility(phase.estimate.theta - phase.estimate.standardError);
-  const high = bandForAbility(phase.estimate.theta + phase.estimate.standardError);
+  // Stages the learning path shows: past band 5 there are no words to teach,
+  // and "tingkat 6" named a stage the path did not have.
+  const low = Math.min(LAST_WORD_BAND, bandForAbility(phase.estimate.theta - phase.estimate.standardError));
+  const high = Math.min(LAST_WORD_BAND, bandForAbility(phase.estimate.theta + phase.estimate.standardError));
   // A band three tiers wide is not a placement, it is noise wearing a number.
   const tooVague = high - low >= 3;
 

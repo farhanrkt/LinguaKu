@@ -87,6 +87,10 @@ const Path = ({ path, lang }: { path: LearningPath; lang: TargetLang }) => {
                 <span className="text-xs font-semibold text-teal-800 dark:text-teal-300">
                   {copy.progress.path.done}
                 </span>
+              ) : stage.state === 'skipped' ? (
+                <span className="text-xs font-semibold text-stone-600 dark:text-slate-400">
+                  {copy.progress.path.skipped}
+                </span>
               ) : null}
               <span className="ml-auto text-sm text-stone-600 tabular-nums dark:text-slate-400">
                 {copy.progress.path.count(stage.secured, stage.total)}

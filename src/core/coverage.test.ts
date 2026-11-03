@@ -263,3 +263,21 @@ describe('coverage is counted over tokens, not over whatever punctuation leaves'
     expect(coverageOfTokens([], new Set(), 'ja').coverage).toBe(1);
   });
 });
+
+describe('knownForSelection', () => {
+  it('assumes unstudied words below the frontier, and nothing else', async () => {
+    const { knownForSelection } = await import('./coverage.ts');
+    const items = [
+      { id: 'en:lex:the', band: 1 },
+      { id: 'en:lex:among', band: 3 },
+      { id: 'en:lex:lapsed', band: 2 },
+    ];
+    // Studied and just failed: a real gap, not an assumption.
+    const first = applyRating(emptyFsrsState(NOW), 3, NOW).state;
+    const failed = applyRating(first, 1, first.dueAt).state;
+    const known = knownForSelection([{ itemId: 'en:lex:lapsed', fsrs: failed }], items, 3, NOW);
+    expect(known.has('en:lex:the')).toBe(true);
+    expect(known.has('en:lex:among')).toBe(false);
+    expect(known.has('en:lex:lapsed')).toBe(false);
+  });
+});

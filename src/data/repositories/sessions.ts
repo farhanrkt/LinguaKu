@@ -2,7 +2,7 @@ import Dexie from 'dexie';
 import { db } from '../db.ts';
 import { dueCardCount, dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
-import { knownItemIds, coverageOf } from '../../core/coverage.ts';
+import { knownForSelection, knownItemIds, coverageOf } from '../../core/coverage.ts';
 import { buildIdFor, isBuildable, parseBuildId } from '../../core/sentenceBuild.ts';
 import { tokensOf } from '../../core/reader.ts';
 import { recentBuildIds } from './builds.ts';
@@ -16,9 +16,8 @@ import {
   type DailyNewResult,
   type ThrottleResult,
 } from '../../core/forecast.ts';
-import { bandForAbility } from '../../core/placement.ts';
 import { DEFAULT_ITEM_DIFFICULTY, DEFAULT_RATING } from '../../core/elo.ts';
-import { vocabularyAbility } from './abilities.ts';
+import { learnerFrontier } from './abilities.ts';
 import { allCategoryScores, recentDrillIds, weakestCategories } from './contrastive.ts';
 import { minedItemIds } from './mining.ts';
 import { deferredItemIds } from './deferrals.ts';
@@ -474,8 +473,8 @@ export const planSession = async (
   options: PlanOptions = {},
 ): Promise<SessionPlan> => {
   const lang = profile.targets[0] ?? 'en';
-  const ability = await vocabularyAbility(profile.id, lang);
-  const frontier = bandForAbility(ability.theta);
+  // The same frontier the import, the reader and the path use.
+  const frontier = await learnerFrontier(profile.id, lang);
 
   // SPEC §7.2: the new-item cap adapts to review debt automatically. A learner
   // should never have to work out for themselves that they are drowning.
@@ -508,11 +507,19 @@ export const planSession = async (
   // pays for on every session start.
   const known = knownItemIds(allCards, now);
   const started = new Set(allCards.map((card) => card.itemId));
+  // What a sentence-building puzzle may assume the learner can read: their own
+  // words, plus the commonest ones below the frontier (`knownForSelection`).
+  const readable = knownForSelection(
+    allCards,
+    await db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray(),
+    frontier,
+    now,
+  );
   const [due, fresh, drills, builds] = await Promise.all([
     dueCandidates(profile, now, deferred),
     newCandidates(profile, newAllowance, frontier, deferred, started),
     drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false, known),
-    buildCandidates(profile, now, frontier, MAX_BUILDS, known),
+    buildCandidates(profile, now, frontier, MAX_BUILDS, readable),
   ]);
 
   const composed = composeSession({

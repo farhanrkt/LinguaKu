@@ -204,3 +204,33 @@ export const selectGraded = <T extends GradedCandidate>(
 
   return inBand ?? oneNew ?? easy;
 };
+
+/**
+ * The known-set for **choosing material** — never for claiming progress.
+ *
+ * `knownItemIds` holds only words the learner has retrieved, and the composer
+ * introduces new words from the frontier down (D3: an English learner starts
+ * mid-frequency because the commonest words are assumed). So the commonest
+ * words — the ones every sentence is made of — were never "known", and every
+ * coverage-based feature starved: measured with the reader's own selector, a
+ * default learner with 300 known words could read 1 sentence, where knowing
+ * the top 50 alone opens 1,000. The reader looked empty for months.
+ *
+ * Here a never-studied word below the frontier counts as known, because the
+ * frontier is exactly the claim that it is. A word the learner *has* studied
+ * keeps its real state, so a lapse below the frontier is still a gap. Progress
+ * figures keep using `knownItemIds`: an assumption is not an achievement.
+ */
+export const knownForSelection = (
+  cards: readonly KnownCard[],
+  items: readonly { id: string; band: number }[],
+  frontier: number,
+  now: Timestamp,
+): Set<string> => {
+  const known = knownItemIds(cards, now);
+  const studied = new Set(cards.map((card) => card.itemId));
+  for (const item of items) {
+    if (item.band < frontier && !studied.has(item.id)) known.add(item.id);
+  }
+  return known;
+};

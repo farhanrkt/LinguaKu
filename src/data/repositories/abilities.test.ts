@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
-import { getAbility, refreshListeningAbility, vocabularyAbility } from './abilities.ts';
+import {
+  getAbility,
+  learnerBands,
+  learnerFrontier,
+  refreshListeningAbility,
+  saveAbility,
+  vocabularyAbility,
+} from './abilities.ts';
 import { bandForAbility } from '../../core/placement.ts';
 import { LISTENING_MIN_ANSWERS } from '../../core/listening.ts';
 import type { Card, Item, LadderLevel, ReviewLog, TargetLang } from '../types.ts';
@@ -127,5 +134,31 @@ describe('the cold start (D3)', () => {
     // beginner in band 3, which is what one shared θ = 0 prior did (贈, 欠席).
     expect(bandForAbility((await vocabularyAbility(PROFILE, 'ja')).theta)).toBe(1);
     expect(bandForAbility((await vocabularyAbility(PROFILE, 'en')).theta)).toBe(3);
+  });
+});
+
+describe('the frontier everything shares', () => {
+  beforeEach(async () => {
+    await db.delete();
+    await db.open();
+  });
+
+  it('never names a stage past the last one with words', async () => {
+    await saveAbility(PROFILE, 'en', 'vocab', { theta: 3.5, standardError: 0.3 }, NOW);
+    expect(await learnerFrontier(PROFILE, 'en')).toBe(5);
+    // Placed high, the learner gets every band up to it imported.
+    expect(await learnerBands(PROFILE, 'en')).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('keeps the starter bands for a beginner', async () => {
+    expect(await learnerBands(PROFILE, 'ja')).toEqual([1, 2, 3]);
+  });
+
+  it('opens the next band once this one is nearly finished', async () => {
+    // A Japanese beginner (band 1) who has started every band-1 word.
+    const words = Array.from({ length: 10 }, (_, i) => ({ ...item(`ja:lex:w${i}`, 'ja', 10 + i), band: 1 as const }));
+    await db.items.bulkPut(words);
+    await db.cards.bulkPut(words.map((word) => card(word.id, 1)));
+    expect(await learnerFrontier(PROFILE, 'ja')).toBe(2);
   });
 });
