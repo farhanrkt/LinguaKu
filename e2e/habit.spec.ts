@@ -73,7 +73,7 @@ test('says plainly what this device can actually do', async ({ page }) => {
 
   const support = page.getByTestId('habit-support');
   await expect(support).toBeVisible();
-  await expect(support).toContainText(/aplikasinya tertutup|tidak punya pengingat/);
+  await expect(support).toContainText(/aplikasi tertutup|tidak memiliki fitur pengingat/);
 });
 
 test('the in-app cue appears once the time has passed, and never accuses', async ({ page }) => {
@@ -136,7 +136,7 @@ test('a reminder that could not be scheduled says so, and does not navigate away
   await page.getByTestId('habit-save').click();
 
   // Still here, and saying what actually happened.
-  await expect(page.getByTestId('habit-support')).toContainText(/tidak bisa dipasang/, {
+  await expect(page.getByTestId('habit-support')).toContainText(/tidak dapat dipasang/, {
     timeout: 10_000,
   });
 });

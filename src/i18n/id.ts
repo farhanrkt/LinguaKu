@@ -7,32 +7,34 @@ import type { TargetLang } from '../data/types.ts';
  * Tone rules, derived from SPEC §2.14 and docs/ETHICS.md:
  *  - describe capability, never points;
  *  - never imply loss, shame, or a broken streak;
- *  - address the learner as "kamu", never "Anda" (this is a friend, not a bank).
+ *  - address the learner as "Anda", in a professional register: standard
+ *    vocabulary, complete sentences, no slang or chat abbreviations (D110).
+ *    Courteous, not stiff — the voice of a good teacher, not of a form.
  */
 export const copy = {
   app: {
     name: 'LinguaKu',
-    tagline: 'Belajar bahasa, tanpa akun, tanpa kuota.',
+    tagline: 'Belajar bahasa tanpa akun dan tanpa menghabiskan kuota.',
   },
   firstRun: {
-    heading: 'Mau mulai dari bahasa apa?',
+    heading: 'Bahasa apa yang ingin Anda pelajari?',
     // D53: one language at a time, said out loud. Switching later costs nothing
     // and loses nothing, so the copy promises exactly that and no more.
     subheading:
-      'Satu dulu. Nanti bisa ganti kapan saja — yang satunya tetap tersimpan, tidak hilang. Tidak perlu daftar.',
+      'Pilih satu terlebih dahulu. Anda dapat menggantinya kapan saja, dan kemajuan bahasa yang lain tetap tersimpan. Tidak perlu mendaftar.',
     targets: {
-      en: { label: 'Bahasa Inggris', hint: 'Untuk kamu yang sudah belajar di sekolah' },
-      ja: { label: 'Bahasa Jepang', hint: 'Mulai dari nol, dari hiragana' },
+      en: { label: 'Bahasa Inggris', hint: 'Bagi Anda yang sudah mempelajarinya di sekolah' },
+      ja: { label: 'Bahasa Jepang', hint: 'Dimulai dari nol, dari hiragana' },
     },
-    minutesHeading: 'Berapa lama sehari?',
-    minutesHint: 'Sedikit tapi tiap hari jauh lebih ampuh daripada sesekali lama.',
+    minutesHeading: 'Berapa lama Anda ingin berlatih setiap hari?',
+    minutesHint: 'Latihan singkat setiap hari jauh lebih efektif daripada latihan panjang yang jarang.',
     minutes: {
-      4: { label: '4 menit', hint: 'Cukup untuk satu sesi di angkot' },
-      8: { label: '8 menit', hint: 'Pas untuk kebanyakan orang' },
-      15: { label: '15 menit', hint: 'Kalau kamu lagi niat' },
+      4: { label: '4 menit', hint: 'Cukup untuk satu sesi singkat' },
+      8: { label: '8 menit', hint: 'Sesuai untuk sebagian besar orang' },
+      15: { label: '15 menit', hint: 'Untuk latihan yang lebih intensif' },
     },
     start: 'Mulai',
-    needTarget: 'Pilih dulu bahasa yang mau kamu mulai.',
+    needTarget: 'Silakan pilih bahasa yang ingin Anda pelajari.',
   },
   /**
    * The Japanese word sheet: every word shown can be opened to its reading,
@@ -43,12 +45,12 @@ export const copy = {
     combinedMeaning: 'Arti gabungan',
     // A particle or an ending has a job, not a definition (D112).
     formNote: 'Keterangan',
-    noMeaning: 'Arti kata ini belum tersedia di kamus kami. Terjemahan kalimatnya dapat menjadi petunjuk.',
+    noMeaning: 'Arti kata ini belum tersedia dalam kamus kami. Terjemahan kalimatnya dapat menjadi petunjuk.',
     perKanji: 'Arti per huruf',
     theKanji: 'Hurufnya',
     englishMeaning: (meanings: string) => `Bahasa Inggris: ${meanings}`,
     baseForm: (word: string, romaji: string) => `Bentuk kamus: ${word} (${romaji})`,
-    noKanjiEntry: 'Huruf ini belum ada di daftar kanji kami.',
+    noKanjiEntry: 'Huruf ini belum ada dalam daftar kanji kami.',
     hint: 'Ketuk kata mana pun untuk melihat bacaan dan artinya.',
     close: 'Tutup',
   },
@@ -65,19 +67,20 @@ export const copy = {
       // so the number and its label are never spliced back out of a sentence.
       dueLabel: 'ulangan',
       newLabel: 'kata baru',
-      clear: 'Ulangan hari ini sudah beres. Kata baru lagi besok.',
+      clear: 'Ulangan hari ini sudah selesai. Kata baru tersedia lagi besok.',
       // Not the same sentence: a learner who switched new words off is not
       // waiting for tomorrow, and telling them otherwise would be a small lie
       // about their own setting.
-      clearPaused: 'Tidak ada ulangan yang jatuh tempo, dan kata baru sedang kamu matikan.',
-      capReached: 'Kata baru hari ini sudah cukup. Ulangan tetap jalan.',
+      clearPaused: 'Tidak ada ulangan yang jatuh tempo, dan kata baru sedang Anda nonaktifkan.',
+      capReached: 'Batas kata baru hari ini sudah tercapai. Ulangan tetap berjalan.',
     },
-    greeting: 'Halo!',
+    greeting: 'Selamat datang',
     update: {
-      ready: 'Versi baru LinguaKu sudah siap dipakai.',
+      ready: 'Versi baru LinguaKu sudah siap digunakan.',
       apply: 'Muat ulang sekarang',
     },
-    learningLabel: 'Kamu sedang belajar',
+    // Followed by the language's bare name: "… bahasa Inggris".
+    learningLabel: 'Anda sedang mempelajari bahasa',
     minutesLabel: 'Target harian',
     /**
      * SPEC §4.3's ladder, as a choice rather than a silent default.
@@ -90,11 +93,11 @@ export const copy = {
      * not a judgement about the learner.
      */
     changeScript: 'Tulisan Jepang',
-    scriptHint: 'Kamu bisa ganti kapan saja. Ini tidak mengubah kata yang kamu pelajari.',
+    scriptHint: 'Anda dapat mengubahnya kapan saja. Pilihan ini tidak mengubah kata yang Anda pelajari.',
     script: {
       romaji: {
         label: 'Romaji (watashi)',
-        hint: 'Paling cepat dibaca di awal, dan tangga yang paling cepat kamu tinggalkan.',
+        hint: 'Paling mudah dibaca di awal, dan merupakan tahap yang paling cepat Anda tinggalkan.',
       },
       kana: {
         label: 'Kana (わたし)',
@@ -102,7 +105,7 @@ export const copy = {
       },
       kanji: {
         label: 'Kanji dengan bacaan di atasnya (私)',
-        hint: 'Bacaannya hilang sendiri untuk kanji yang sudah kuat di ingatanmu.',
+        hint: 'Bacaan di atas kanji hilang dengan sendirinya setelah kanji itu kuat dalam ingatan Anda.',
       },
     },
     changeMinutes: 'Ubah target harian',
@@ -133,24 +136,24 @@ export const copy = {
        */
       reach: (percent: number, words: number) =>
         percent < 1
-          ? `${words.toLocaleString('id-ID')} kata sudah kamu kunci. Terus tambah — angkanya mulai kelihatan setelah beberapa ratus kata.`
-          : `${words.toLocaleString('id-ID')} kata sudah kamu kunci — kira-kira ${percent}% kata yang muncul sehari-hari.`,
-      reachEmpty: 'Satu sesi saja sudah cukup untuk mulai mengisi bagian ini.',
-      slippingHeading: 'Paling dekat terlupa',
-      slippingHint: 'Ini yang muncul duluan di sesi berikutnya.',
-      slippingEmpty: 'Belum ada kata yang mulai memudar. Itu kabar baik.',
+          ? `${words.toLocaleString('id-ID')} kata telah Anda kuasai. Persentasenya akan mulai terlihat setelah beberapa ratus kata.`
+          : `${words.toLocaleString('id-ID')} kata telah Anda kuasai — sekitar ${percent}% dari kata yang muncul sehari-hari.`,
+      reachEmpty: 'Satu sesi latihan sudah cukup untuk mulai mengisi bagian ini.',
+      slippingHeading: 'Paling dekat untuk terlupa',
+      slippingHint: 'Kata-kata ini muncul lebih dahulu pada sesi berikutnya.',
+      slippingEmpty: 'Belum ada kata yang mulai memudar dari ingatan Anda.',
     },
     statusHeading: 'Status aplikasi',
-    offlineReady: 'Siap dipakai offline',
+    offlineReady: 'Siap digunakan secara offline',
     offlinePreparing: 'Menyiapkan mode offline…',
     offlineUnavailable: 'Mode offline belum aktif di peramban ini',
-    storagePersisted: 'Data kamu aman disimpan di HP ini',
-    storageBestEffort: 'Data disimpan di HP ini (bisa dihapus peramban kalau memori penuh)',
+    storagePersisted: 'Data Anda tersimpan dengan aman di perangkat ini',
+    storageBestEffort: 'Data tersimpan di perangkat ini (dapat dihapus oleh peramban jika memori penuh)',
     // SPEC §2.6: a device that cannot speak is told so plainly, and the reason
     // the listening exercises are missing is not left as a mystery.
-    audioProbing: 'Mengecek suara di HP ini…',
-    audioReady: 'Suara aktif — latihan mendengar tersedia',
-    audioDead: 'HP ini belum bisa mengeluarkan suara, jadi latihan mendengar kami sembunyikan dulu',
+    audioProbing: 'Memeriksa suara di perangkat ini…',
+    audioReady: 'Suara aktif — latihan mendengarkan tersedia',
+    audioDead: 'Perangkat ini belum dapat mengeluarkan suara, sehingga latihan mendengarkan kami sembunyikan untuk sementara',
   },
   /** SPEC §10: Japanese input without an IME headache. */
   kana: {
@@ -158,7 +161,7 @@ export const copy = {
     hideKeyboard: 'Tutup papan kana',
     hiragana: 'あ hiragana',
     katakana: 'ア katakana',
-    hint: 'Ketik pakai huruf latin — otomatis jadi kana. Atau ketuk hurufnya di bawah.',
+    hint: 'Ketik dengan huruf Latin dan teks akan otomatis menjadi kana. Anda juga dapat mengetuk hurufnya di bawah.',
   },
   langNames: {
     en: 'Inggris',
@@ -180,20 +183,20 @@ export const copy = {
     // the word is fine and the timing is not.
     /** An honest miss on a typed card — no invented answer, no confidence. */
     dontKnow: 'Saya tidak tahu',
-    skipItem: 'Belum perlu kata ini',
+    skipItem: 'Kata ini belum saya perlukan',
     // A drill or a sentence puzzle is not a word, and skipping one defers
     // nothing — it only moves on.
     skipQuestion: 'Lewati soal ini',
     preparing: 'Menyiapkan materi…',
-    downloading: 'Mengunduh materi sekali saja…',
-    empty: 'Semua materi sudah kamu kerjakan hari ini. Sampai besok!',
+    downloading: 'Mengunduh materi (hanya sekali)…',
+    empty: 'Semua materi hari ini sudah Anda selesaikan. Sampai jumpa besok.',
     progress: (done: number, total: number) => `${done} dari ${total}`,
-    quit: 'Selesai dulu',
+    quit: 'Akhiri sesi',
 
     exposure: {
-      heading: 'Kenalan dulu',
-      instruction: 'Baca dan dengar. Belum perlu dihafal.',
-      confirm: 'Oke, paham',
+      heading: 'Perkenalan',
+      instruction: 'Baca dan dengarkan. Belum perlu dihafalkan.',
+      confirm: 'Saya mengerti',
     },
 
     /**
@@ -202,10 +205,10 @@ export const copy = {
      * faster way exists and names what each direction does.
      */
     swipe: {
-      confirm: 'Paham',
+      confirm: 'Mengerti',
       defer: 'Belum perlu',
       next: 'Lanjut',
-      hint: 'Geser kartunya, atau pakai tombol di bawah.',
+      hint: 'Geser kartu ini, atau gunakan tombol di bawah.',
     },
 
     /**
@@ -216,33 +219,33 @@ export const copy = {
      * question. No controls, and it says which it is.
      */
     answered: {
-      label: 'Soal tadi',
-      yours: (raw: string) => `Jawabanmu: “${raw}”`,
+      label: 'Soal sebelumnya',
+      yours: (raw: string) => `Jawaban Anda: “${raw}”`,
     },
 
     /**
      * The meaning of the word itself, as opposed to the sentence it sits in.
      *
-     * Glosses cover 30% of English words and 4% of Japanese (measured, D59), so
-     * the absent case is the common one and it gets said out loud rather than
-     * rendering nothing — the reader has done this since v1.7.0 and the session
-     * was the surface that stayed silent.
+     * Glosses cover 30% of English words (measured, D59), so the absent case
+     * is a common one and it gets said out loud rather than rendering nothing —
+     * the reader has done this since v1.7.0 and the session was the surface
+     * that stayed silent.
      */
     meaning: {
-      label: 'Arti katanya',
-      none: 'Kata ini belum ada di kamus kami. Terjemahan kalimatnya yang jadi petunjuk.',
-      sentenceLabel: 'Kalimat lengkapnya',
+      label: 'Arti kata',
+      none: 'Kata ini belum ada dalam kamus kami. Terjemahan kalimatnya dapat menjadi petunjuk.',
+      sentenceLabel: 'Kalimat lengkap',
     },
     recognition: {
-      heading: 'Yang mana artinya?',
+      heading: 'Manakah artinya?',
       /** L1 as a word choice: which word completes the sentence. */
-      wordHeading: 'Kata mana yang melengkapi kalimat ini?',
+      wordHeading: 'Kata manakah yang melengkapi kalimat ini?',
     },
     cloze: {
       /** The first letter and length of the missing word. */
       hint: (shown: string) => `Petunjuk: ${shown}`,
-      supported: 'Lengkapi kalimatnya',
-      unaided: 'Lengkapi tanpa bantuan',
+      supported: 'Lengkapi kalimat ini',
+      unaided: 'Lengkapi kalimat ini tanpa bantuan',
       placeholder: 'Ketik kata yang hilang',
       // SCIENCE: judgment-of-learning — see SPEC §2.12. Both buttons submit,
       // so the confidence signal costs no extra tap.
@@ -254,9 +257,11 @@ export const copy = {
       correct: 'Tepat.',
       // A Japanese answer carries its romaji, so it can be said aloud.
       nearMiss: (answer: string, romaji?: string) =>
-        romaji ? `Hampir — maksudmu “${answer}” (${romaji}).` : `Hampir — maksudmu “${answer}”.`,
+        romaji
+          ? `Hampir tepat. Yang dimaksud adalah “${answer}” (${romaji}).`
+          : `Hampir tepat. Yang dimaksud adalah “${answer}”.`,
       wrong: (answer: string, romaji?: string) =>
-        romaji ? `Jawabannya “${answer}” (${romaji}).` : `Jawabannya “${answer}”.`,
+        romaji ? `Jawaban yang tepat: “${answer}” (${romaji}).` : `Jawaban yang tepat: “${answer}”.`,
       /** How a right Japanese answer reads (D111). */
       reads: (answer: string, romaji: string) => `“${answer}” dibaca ${romaji}.`,
       /**
@@ -265,29 +270,31 @@ export const copy = {
        * nothing checked it.
        */
       freeUnverified: (word: string) =>
-        `Kalimatmu tersimpan. Kata “${word}” tidak terdeteksi otomatis, jadi tidak kami tandai benar.`,
-      freeVerified: (word: string) => `Tepat — kata “${word}” ada di kalimatmu.`,
+        `Kalimat Anda tersimpan. Kata “${word}” tidak terdeteksi secara otomatis, sehingga tidak kami tandai sebagai benar.`,
+      freeVerified: (word: string) => `Tepat — kata “${word}” terdapat dalam kalimat Anda.`,
       promoted: (character: boolean) =>
-        character ? 'Huruf ini naik ke tugas berikutnya.' : 'Kata ini naik ke tugas berikutnya.',
+        character ? 'Huruf ini naik ke tahap latihan berikutnya.' : 'Kata ini naik ke tahap latihan berikutnya.',
       demoted: (character: boolean) =>
-        character ? 'Huruf ini kita ulang dengan tugas yang lebih ringan.' : 'Kata ini kita ulang dengan tugas yang lebih ringan.',
+        character
+          ? 'Huruf ini akan diulang dengan latihan yang lebih ringan.'
+          : 'Kata ini akan diulang dengan latihan yang lebih ringan.',
       leech: (character: boolean) =>
-        character ? 'Huruf ini kita ajarkan ulang.' : 'Kata ini kita ajarkan ulang dengan contoh lain.',
+        character ? 'Huruf ini akan diajarkan ulang.' : 'Kata ini akan diajarkan ulang dengan contoh lain.',
       next: 'Lanjut',
     },
 
     summary: {
-      heading: 'Selesai!',
+      heading: 'Sesi selesai',
       // SPEC §2.14: capability, never points.
-      strengthened: (count: number) => `${count} kata jadi lebih kuat.`,
-      learned: (count: number) => `${count} kata baru kamu kenali.`,
+      strengthened: (count: number) => `${count} kata menjadi lebih kuat dalam ingatan Anda.`,
+      learned: (count: number) => `${count} kata baru Anda kenali.`,
       // Kana and kanji are characters, not words.
-      characters: (count: number) => `${count} huruf baru kamu kenali.`,
-      promoted: (count: number) => `${count} kata naik ke tugas yang lebih sulit.`,
+      characters: (count: number) => `${count} huruf baru Anda kenali.`,
+      promoted: (count: number) => `${count} kata naik ke latihan yang lebih menantang.`,
       built: (count: number) =>
-        count === 1 ? 'Satu kalimat kamu susun ulang.' : `${count} kalimat kamu susun ulang.`,
+        count === 1 ? 'Satu kalimat Anda susun ulang.' : `${count} kalimat Anda susun ulang.`,
       drilled: (count: number) =>
-        count === 1 ? 'Satu pola tata bahasa kamu latih.' : `${count} pola tata bahasa kamu latih.`,
+        count === 1 ? 'Satu pola tata bahasa Anda latih.' : `${count} pola tata bahasa Anda latih.`,
       nothing: 'Belum ada yang dikerjakan.',
       done: 'Kembali',
     },
@@ -304,23 +311,23 @@ export const copy = {
      */
     kana: {
       heading: 'Huruf baru',
-      instruction: 'Ini bunyinya. Baca keras-keras sekali, lalu lanjut.',
-      recall: 'Huruf ini dibaca apa? Tulis dengan huruf latin.',
+      instruction: 'Ini bunyinya. Ucapkan sekali dengan suara keras, lalu lanjutkan.',
+      recall: 'Bagaimana huruf ini dibaca? Tuliskan dengan huruf Latin.',
       // Not an example sound: any example is some character's answer, and
       // "Contoh: ka" printed the answer on the か card.
-      placeholder: 'Tulis dalam huruf Latin',
+      placeholder: 'Tulis dengan huruf Latin',
       scriptLabel: { hiragana: 'Hiragana', katakana: 'Katakana' },
       verdict: (character: string, romaji: string) => `${character} dibaca “${romaji}”.`,
       /** The same sound in the *other* script, named as that script. */
       counterpart: (other: string, romaji: string, otherScript: string) =>
         `Bunyi yang sama (${romaji}) ditulis ${other} dalam ${otherScript}.`,
-      confirm: 'Oke, paham',
+      confirm: 'Saya mengerti',
       submit: 'Jawab',
     },
 
     kanji: {
-      heading: 'Kenali hurufnya',
-      instruction: 'Perhatikan bagian-bagiannya — itu yang bikin huruf gampang diingat.',
+      heading: 'Mengenal huruf',
+      instruction: 'Perhatikan bagian-bagiannya — itulah yang membuat huruf ini mudah diingat.',
       componentsHeading: 'Tersusun dari',
       readingHeading: 'Dibaca',
       /**
@@ -341,7 +348,7 @@ export const copy = {
        * of 会.
        */
       inWord: (word: string, reading: string, romaji: string) =>
-        `Dipakai dalam ${word}, dibaca ${reading} (${romaji}).`,
+        `Digunakan dalam ${word}, dibaca ${reading} (${romaji}).`,
       /** L1: the character, and four meanings to choose from. */
       meaningQuestion: 'Apa arti huruf ini?',
       meaningNote: 'Pilihan artinya dalam bahasa Inggris.',
@@ -352,27 +359,27 @@ export const copy = {
       mnemonicHeading: 'Cara mengingat',
       // SPEC §2.11: the learner's own mnemonic beats a given one, so the copy
       // invites editing rather than presenting ours as the answer.
-      mnemonicHint: 'Ubah jadi versimu sendiri — yang kamu karang sendiri jauh lebih nempel.',
-      mnemonicPlaceholder: 'Tulis caramu mengingat huruf ini',
+      mnemonicHint: 'Ubahlah menjadi versi Anda sendiri — cara yang Anda susun sendiri jauh lebih mudah diingat.',
+      mnemonicPlaceholder: 'Tuliskan cara Anda mengingat huruf ini',
       save: 'Simpan',
       saved: 'Tersimpan.',
-      mine: 'Versimu',
-      confirm: 'Oke, paham',
+      mine: 'Versi Anda',
+      confirm: 'Saya mengerti',
       baseline: (literal: string, components: string[]) =>
-        `${literal} tersusun dari ${components.join(' + ')}. Coba karang ceritamu sendiri dari bagian-bagian itu.`,
+        `${literal} tersusun dari ${components.join(' + ')}. Cobalah menyusun cerita Anda sendiri dari bagian-bagian tersebut.`,
       baselineAtomic: (literal: string) =>
-        `${literal} adalah bentuk dasar. Coba karang caramu sendiri untuk mengingatnya.`,
+        `${literal} adalah bentuk dasar. Cobalah menyusun cara Anda sendiri untuk mengingatnya.`,
     },
 
     production: {
-      heading: 'Tulis sendiri',
-      instruction: 'Tanpa pilihan, tanpa contoh. Apa bahasa Inggrisnya?',
-      instructionJa: 'Tanpa pilihan, tanpa contoh. Apa bahasa Jepangnya?',
+      heading: 'Tuliskan sendiri',
+      instruction: 'Tanpa pilihan dan tanpa contoh. Apa bahasa Inggrisnya?',
+      instructionJa: 'Tanpa pilihan dan tanpa contoh. Apa bahasa Jepangnya?',
       placeholder: 'Ketik kata yang dimaksud',
       // This rung grades one word, and it used to show a whole sentence as its
       // prompt — so a learner could read the prompt correctly and still not know
       // what was being asked of them.
-      oneWord: 'Satu kata saja, bukan seluruh kalimatnya.',
+      oneWord: 'Satu kata saja, bukan seluruh kalimat.',
     },
 
     /**
@@ -382,34 +389,34 @@ export const copy = {
      */
     build: {
       heading: 'Susun kalimatnya',
-      instruction: 'Ketuk katanya satu per satu sampai jadi kalimat yang benar.',
-      hint: 'Ketuk lagi kata yang sudah masuk kalau mau menariknya kembali.',
-      empty: 'Kalimatmu masih kosong.',
-      submit: 'Cek urutannya',
+      instruction: 'Ketuk kata satu per satu hingga membentuk kalimat yang benar.',
+      hint: 'Ketuk kembali kata yang sudah dipilih untuk menariknya kembali.',
+      empty: 'Kalimat Anda masih kosong.',
+      submit: 'Periksa urutan',
       correct: 'Urutannya tepat.',
       wrong: (answer: string) => `Urutan yang benar: “${answer}”.`,
       // §2.9: feedback that says *why*, and a claim that is true of every
       // sentence here rather than only of the adjective cases.
-      why: 'Urutan kata bahasa Inggris sering tidak sama dengan bahasa Indonesia — itu yang dilatih di sini.',
-      whyJa: 'Bahasa Jepang menaruh kata kerja di akhir, dan partikel menentukan peran tiap kata. Itu yang dilatih di sini.',
+      why: 'Urutan kata dalam bahasa Inggris sering berbeda dari bahasa Indonesia — itulah yang dilatih di sini.',
+      whyJa: 'Bahasa Jepang menempatkan kata kerja di akhir kalimat, dan partikel menentukan peran setiap kata. Itulah yang dilatih di sini.',
     },
 
     free: {
-      heading: 'Pakai di kalimatmu sendiri',
+      heading: 'Gunakan dalam kalimat Anda sendiri',
       // SPEC §2.3 L6. The instruction matters: a sentence about your own life
       // is what makes this the generation effect rather than a copy exercise.
       instruction: (word: string) =>
-        `Buat satu kalimat pakai kata “${word}” — tentang harimu, kerjaanmu, apa saja yang nyata.`,
-      placeholder: 'Tulis kalimatmu di sini',
+        `Buatlah satu kalimat dengan kata “${word}” — tentang hari Anda, pekerjaan Anda, atau hal nyata lainnya.`,
+      placeholder: 'Tulis kalimat Anda di sini',
       // Honest about what is and is not being checked.
-      graded: 'Kami cuma mengecek kamu benar-benar memakai katanya. Isinya milikmu.',
+      graded: 'Kami hanya memeriksa apakah kata tersebut benar-benar Anda gunakan. Isi kalimatnya sepenuhnya milik Anda.',
       // "We did not find it", not "you did not write it" — the matcher knows
       // regular inflections and the common irregulars, and nothing beyond that,
       // so it must not accuse a learner it may simply have failed to recognise.
       missing: (word: string) =>
-        `Kami tidak menemukan kata “${word}” di kalimatmu. Kalau menurutmu sudah ada, kirim saja.`,
-      submitAnyway: 'Kirim saja',
-      kept: 'Kalimatmu kami simpan.',
+        `Kami tidak menemukan kata “${word}” dalam kalimat Anda. Jika menurut Anda kata itu sudah ada, silakan kirim.`,
+      submitAnyway: 'Tetap kirim',
+      kept: 'Kalimat Anda tersimpan.',
       submit: 'Kirim',
     },
 
@@ -417,35 +424,35 @@ export const copy = {
       speak: 'Ucapkan',
       listening: 'Mendengarkan…',
       heard: (text: string) => `Terdengar: “${text}”`,
-      notHeard: 'Belum terdengar. Coba lagi, atau ketik saja.',
+      notHeard: 'Belum terdengar. Silakan coba lagi, atau ketik jawaban Anda.',
       // SPEC §5.1: never block progression on speech.
-      unavailable: 'Peramban ini belum bisa mengenali suara. Ketik saja, sama saja nilainya.',
-      record: 'Rekam suaramu',
+      unavailable: 'Peramban ini belum dapat mengenali suara. Silakan ketik jawaban Anda; hasilnya sama.',
+      record: 'Rekam suara Anda',
       recording: 'Merekam… ketuk untuk berhenti',
-      playMine: 'Dengar rekamanmu',
-      playModel: 'Dengar contohnya',
-      compare: 'Bandingkan sendiri: mana yang beda?',
+      playMine: 'Putar rekaman Anda',
+      playModel: 'Putar contoh',
+      compare: 'Bandingkan sendiri: bagian mana yang berbeda?',
       noMic: 'Mikrofon tidak tersedia di sini.',
     },
 
     dictation: {
-      heading: 'Tulis yang kamu dengar',
-      instruction: 'Boleh diputar ulang sebanyak yang kamu mau.',
+      heading: 'Tuliskan yang Anda dengar',
+      instruction: 'Rekaman dapat diputar ulang sesering yang Anda perlukan.',
       placeholder: 'Ketik kalimatnya',
-      replay: 'Putar lagi',
+      replay: 'Putar ulang',
     },
 
     drill: {
       // SPEC §3: framed as a pattern worth knowing, never as a weakness to fix.
-      heading: 'Pola yang sering bikin kepeleset',
-      typePlaceholder: 'Ketik jawabanmu',
+      heading: 'Pola yang sering keliru',
+      typePlaceholder: 'Ketik jawaban Anda',
       // SPEC §8: "perbaiki kalimat ini". Framed as a fix, never as a mistake
       // the learner made — they have not written this sentence.
-      correctionInstruction: 'Ada satu yang keliru di kalimat ini. Tulis ulang yang benar.',
+      correctionInstruction: 'Ada satu bagian yang keliru dalam kalimat ini. Tuliskan kembali kalimat yang benar.',
       correctionPlaceholder: 'Tulis kalimat yang benar',
       submit: 'Jawab',
-      whyHeading: 'Kenapa begitu',
-      l1Heading: 'Di bahasa Indonesia',
+      whyHeading: 'Mengapa demikian',
+      l1Heading: 'Dalam bahasa Indonesia',
       // Named for the language being taught: a Japanese note headed "Di bahasa
       // Inggris" told the learner the wrong language was being described.
       targetHeading: { en: 'Dalam bahasa Inggris', ja: 'Dalam bahasa Jepang' },
@@ -454,7 +461,7 @@ export const copy = {
       pairHeading: 'Bandingkan',
       pairWrong: 'Sering ditulis',
       pairRight: 'Seharusnya',
-      tipHeading: 'Cara ingatnya',
+      tipHeading: 'Cara mengingat',
     },
 
     audio: {
@@ -471,37 +478,37 @@ export const copy = {
     // SPEC §5.4: sync is the one thing here that uploads, and the learner this
     // app is written for is on mobile data. Said before it is spent, the same
     // way the reader states its download cost.
-    pending: (kb: number) => `Sekitar ${kb} KB menunggu dikirim.`,
-    pendingNone: 'Tidak ada yang menunggu dikirim.',
-    open: 'Sinkronisasi antar perangkat',
+    pending: (kb: number) => `Sekitar ${kb} KB menunggu untuk dikirim.`,
+    pendingNone: 'Tidak ada data yang menunggu untuk dikirim.',
+    open: 'Sinkronisasi antarperangkat',
     heading: 'Sinkronisasi',
     intro:
-      'Aplikasi ini jalan sepenuhnya tanpa ini. Kalau kamu punya lebih dari satu HP dan mau riwayat latihanmu nyambung, kamu bisa nyalakan — tapi itu berarti datamu keluar dari HP ini.',
+      'Aplikasi ini berfungsi sepenuhnya tanpa fitur ini. Jika Anda menggunakan lebih dari satu perangkat dan ingin riwayat latihan Anda tersambung, Anda dapat mengaktifkannya — namun data Anda akan dikirim keluar dari perangkat ini.',
     /**
      * What actually leaves the phone, named.
      *
-     * The consent `intro` asks for is for *"riwayat latihanmu"*, and until
-     * v1.21.0 that was all a delta carried. It now also carries the mnemonics
-     * the learner typed themselves (SPEC §2.11 requires that they survive
-     * sync), which is free text rather than a rating — so the sentence that
-     * asks for consent has to say so. Listing it is also how the learner can
-     * tell this is not everything: no profile, no settings, no token.
+     * The consent `intro` asks for is for the learner's practice history, and
+     * until v1.21.0 that was all a delta carried. It now also carries the
+     * mnemonics the learner typed themselves (SPEC §2.11 requires that they
+     * survive sync), which is free text rather than a rating — so the sentence
+     * that asks for consent has to say so. Listing it is also how the learner
+     * can tell this is not everything: no profile, no settings, no token.
      */
     carries:
-      'Yang dikirim: jawaban latihanmu, jadwal kartumu, dan catatan hafalan yang kamu tulis sendiri. Pengaturan dan kata sandi server tidak pernah dikirim.',
+      'Data yang dikirim: jawaban latihan Anda, jadwal kartu Anda, dan catatan hafalan yang Anda tulis sendiri. Pengaturan dan kata sandi server tidak pernah dikirim.',
     // No LinguaKu server exists. Say so, rather than letting anyone assume one.
     noServer:
-      'Kami tidak punya server. Kamu perlu memasang sendiri (petunjuknya ada di workers/sync/README.md), lalu tempel alamatnya di bawah.',
-    enable: 'Nyalakan sinkronisasi',
-    codeHeading: 'Kode sinkronisasi HP ini',
+      'Kami tidak menyediakan server. Anda perlu memasang server sendiri (petunjuknya ada di workers/sync/README.md), lalu menempelkan alamatnya di bawah.',
+    enable: 'Aktifkan sinkronisasi',
+    codeHeading: 'Kode sinkronisasi perangkat ini',
     codeHint:
-      'Untuk menggabungkan riwayat dua HP, masukkan kode ini di HP yang lain, lalu sinkronkan keduanya.',
-    joinLabel: 'Gabungkan dengan riwayat HP lain',
-    joinPlaceholder: 'Tempel kode dari HP lain',
-    endpoint: 'Alamat server kamu',
+      'Untuk menggabungkan riwayat dua perangkat, masukkan kode ini di perangkat yang lain, lalu sinkronkan keduanya.',
+    joinLabel: 'Gabungkan dengan riwayat perangkat lain',
+    joinPlaceholder: 'Tempel kode dari perangkat lain',
+    endpoint: 'Alamat server Anda',
     endpointPlaceholder: 'https://…workers.dev',
     token: 'Kata sandi server',
-    tokenPlaceholder: 'Kata sandi yang kamu buat sendiri',
+    tokenPlaceholder: 'Kata sandi yang Anda buat sendiri',
     save: 'Simpan',
     saved: 'Tersimpan.',
     syncNow: 'Sinkronkan sekarang',
@@ -517,25 +524,25 @@ export const copy = {
      * always true: a failed sync changes nothing on this phone.
      */
     failedUnauthorized:
-      'Token-nya tidak cocok dengan server. Periksa lagi token di atas. Datamu di HP ini tidak berubah.',
+      'Kata sandi tidak cocok dengan server. Periksa kembali kata sandi di atas. Data Anda di perangkat ini tidak berubah.',
     failedNotFound:
-      'Alamat itu tidak punya layanan sinkron. Periksa lagi alamatnya. Datamu di HP ini tidak berubah.',
+      'Alamat tersebut tidak memiliki layanan sinkronisasi. Periksa kembali alamatnya. Data Anda di perangkat ini tidak berubah.',
     failedUnreachable:
-      'Server tidak bisa dihubungi. Periksa koneksimu, lalu coba lagi. Datamu di HP ini tidak berubah.',
+      'Server tidak dapat dihubungi. Periksa koneksi Anda, lalu coba lagi. Data Anda di perangkat ini tidak berubah.',
     /** Online, but the browser refused the request — usually missing CORS. */
     failedBlocked:
-      'Server tidak dapat dihubungi dari aplikasi ini, padahal perangkat sedang online. Periksa alamat server. Jika alamatnya sudah benar, server mungkin belum mengizinkan akses dari aplikasi ini (CORS); petunjuknya ada di workers/sync/README.md. Datamu di HP ini tidak berubah.',
+      'Server tidak dapat dihubungi dari aplikasi ini, padahal perangkat sedang daring. Periksa alamat server. Jika alamatnya sudah benar, server mungkin belum mengizinkan akses dari aplikasi ini (CORS); petunjuknya ada di workers/sync/README.md. Data Anda di perangkat ini tidak berubah.',
     failedServer:
-      'Servernya sedang bermasalah. Coba lagi nanti. Datamu di HP ini tidak berubah.',
-    failedUnknown: 'Gagal, dan kami belum tahu kenapa. Datamu di HP ini tidak berubah.',
+      'Server sedang mengalami gangguan. Silakan coba lagi nanti. Data Anda di perangkat ini tidak berubah.',
+    failedUnknown: 'Sinkronisasi gagal karena penyebab yang belum diketahui. Data Anda di perangkat ini tidak berubah.',
     /** The raw text, for a learner who needs to report what happened. */
     failedDetail: (detail: string) => `Detail: ${detail}`,
-    disabled: 'Sinkronisasi belum dinyalakan.',
+    disabled: 'Sinkronisasi belum diaktifkan.',
     never: 'Belum pernah',
     lastSynced: (when: string) => `Terakhir: ${when}`,
     // The privacy point, stated plainly rather than buried.
     privacy:
-      'Yang dikirim: riwayat latihan dan jadwal kartumu. Kata sandi server disimpan di HP ini saja dan tidak ikut ke dalam file cadangan.',
+      'Data yang dikirim: riwayat latihan dan jadwal kartu Anda. Kata sandi server hanya disimpan di perangkat ini dan tidak disertakan dalam file cadangan.',
   },
 
   /** SPEC §8: the graded reader — "the retention engine". */
@@ -544,16 +551,16 @@ export const copy = {
     heading: 'Bacaan',
     // Honest about what this is: Tatoeba is a corpus of sentences, not
     // documents, so we grade sentences rather than pretending to grade a text.
-    intro: 'Kalimat-kalimat yang pas dengan kemampuanmu sekarang. Ketuk kata mana pun.',
+    intro: 'Kalimat-kalimat yang sesuai dengan kemampuan Anda saat ini. Ketuk kata mana pun.',
     empty:
-      'Belum ada bacaan yang pas. Latihan beberapa sesi dulu supaya kami tahu kata apa saja yang sudah kamu kenal.',
+      'Belum ada bacaan yang sesuai. Lakukan beberapa sesi latihan terlebih dahulu agar kami mengetahui kata-kata yang sudah Anda kenal.',
     loading: 'Menyiapkan bacaan…',
     newWord: 'baru',
     tapHint: 'Ketuk kata untuk melihat artinya.',
     // SPEC §10: a block of reading is one tab stop and the arrows move inside
     // it, so this is the only place a keyboard learner is told how.
     wordNav:
-      'Pakai tombol panah kiri dan kanan untuk pindah antar kata, lalu Enter untuk membuka artinya.',
+      'Gunakan tombol panah kiri dan kanan untuk berpindah antarkata, lalu tekan Enter untuk membuka artinya.',
     sentenceLabel: 'Kalimat bacaan',
 
     /**
@@ -562,23 +569,23 @@ export const copy = {
      * Said in kilobytes, before the tap, with a way to say no.
      */
     data: {
-      heading: 'Bacaan perlu diunduh dulu',
+      heading: 'Bacaan perlu diunduh terlebih dahulu',
       body: (kb: number) =>
-        `Sekitar ${kb} KB, sekali saja — setelah itu bisa dibaca offline tanpa kuota lagi.`,
+        `Sekitar ${kb} KB, cukup sekali — setelah itu bacaan dapat dibuka secara offline tanpa menggunakan kuota lagi.`,
       download: 'Unduh sekarang',
-      note: 'Kamu memakai mode hemat kuota. Latihan tetap jalan seperti biasa.',
+      note: 'Anda menggunakan mode hemat kuota. Latihan tetap berjalan seperti biasa.',
     },
 
     /** SPEC §8 + §2.4: real running text, where the coverage band is reachable. */
     passage: {
       from: (title: string) => `Dari artikel “${title}” (Wikipedia Bahasa Inggris Sederhana)`,
-      check: 'Cek pemahaman',
-      checkInstruction: 'Satu kata dihilangkan dari teks tadi. Kata apa?',
+      check: 'Periksa pemahaman',
+      checkInstruction: 'Satu kata dihilangkan dari teks tadi. Kata apakah itu?',
       checkPlaceholder: 'Ketik kata yang hilang',
       // Japanese has no graded passage corpus that is free and cleared, and
       // saying so is better than letting the learner infer parity.
       onlyEnglish:
-        'Bacaan panjang baru ada untuk bahasa Inggris. Untuk bahasa Jepang, kami sajikan kalimat satu per satu dulu.',
+        'Bacaan panjang saat ini baru tersedia untuk bahasa Inggris. Untuk bahasa Jepang, kami menyajikan kalimat satu per satu.',
       heading: 'Bacaan panjang',
       textLabel: 'Teks bacaan',
     },
@@ -586,19 +593,19 @@ export const copy = {
     word: {
       reading: 'Dibaca',
       band: (band: number) => `Kata tingkat ${band}`,
-      known: 'Sudah kamu kenal',
-      unknown: 'Belum kamu pelajari',
-      inSentence: 'Di kalimat ini',
+      known: 'Sudah Anda kenal',
+      unknown: 'Belum Anda pelajari',
+      inSentence: 'Dalam kalimat ini',
       // SPEC §8: one tap, and it is in the deck.
       mine: 'Tambahkan ke latihan',
       mined: 'Sudah masuk daftar',
       unmine: 'Batalkan',
-      minedNote: 'Akan muncul di sesi latihan berikutnya.',
-      // Glosses cover 30% of English words and 4% of Japanese (measured), and
-      // the gaps are mostly function words. Where there is nothing, say so —
-      // the sentence translation is a real answer, not a consolation.
+      minedNote: 'Kata ini akan muncul pada sesi latihan berikutnya.',
+      // Glosses cover 30% of English words (measured), and the gaps are mostly
+      // function words. Where there is nothing, say so — the sentence
+      // translation is a real answer, not a consolation.
       noGloss:
-        'Kata ini belum ada di kamus kami. Terjemahan kalimat di bawah yang jadi petunjuknya.',
+        'Kata ini belum ada dalam kamus kami. Terjemahan kalimat di bawah dapat menjadi petunjuk.',
       components: 'Tersusun dari',
       close: 'Tutup',
     },
@@ -610,23 +617,24 @@ export const copy = {
    * you can scroll through is evidence, where a number is a claim.
    */
   glossary: {
-    open: 'Lihat daftar katamu',
-    heading: 'Kata yang sudah kamu temui',
+    open: 'Lihat daftar kata Anda',
+    heading: 'Kata yang sudah Anda temui',
     intro:
-      'Semua kata yang pernah kamu jawab, yang paling kuat di atas. Melihat daftar ini tidak mengubah jadwal latihanmu sama sekali.',
+      'Semua kata yang pernah Anda jawab, dengan yang paling kuat di bagian atas. Melihat daftar ini sama sekali tidak mengubah jadwal latihan Anda.',
     search: 'Cari kata',
     count: (total: number) => `${total.toLocaleString('id-ID')} kata`,
-    more: (rest: number) => `Dan ${rest.toLocaleString('id-ID')} lagi. Ketik di kotak cari untuk menemukannya.`,
+    more: (rest: number) =>
+      `Dan ${rest.toLocaleString('id-ID')} kata lainnya. Gunakan kotak pencarian untuk menemukannya.`,
     empty:
-      'Belum ada isinya. Setiap kata yang kamu jawab — benar atau salah — langsung masuk ke sini.',
+      'Daftar ini masih kosong. Setiap kata yang Anda jawab — benar maupun salah — akan langsung masuk ke sini.',
     noMatch: 'Tidak ada kata yang cocok.',
-    noGloss: 'Belum ada artinya di kamus kami; contoh kalimatnya yang jadi petunjuk.',
+    noGloss: 'Arti kata ini belum ada dalam kamus kami; contoh kalimatnya dapat menjadi petunjuk.',
     band: (band: number) => `Kata tingkat ${band}`,
     // Capability, never a score (§2.14): each of these is a state, not a grade.
     strength: {
-      mastered: 'Sudah nempel',
-      known: 'Kamu kenal',
-      weak: 'Mulai pudar',
+      mastered: 'Sudah dikuasai',
+      known: 'Dikenali',
+      weak: 'Mulai memudar',
       leech: 'Diajarkan ulang',
     },
     /**
@@ -639,13 +647,13 @@ export const copy = {
      * back is a choice rather than a rescue.
      */
     deferred: {
-      heading: 'Kata yang kamu tunda',
+      heading: 'Kata yang Anda tunda',
       intro:
-        'Kamu bilang belum perlu kata-kata ini, jadi kami tidak memunculkannya dulu. Kalau berubah pikiran, ketuk saja — tidak ada yang hilang dari jadwalmu.',
+        'Anda menandai kata-kata ini sebagai belum diperlukan, sehingga untuk sementara tidak kami munculkan. Jika Anda berubah pikiran, ketuk kata tersebut — jadwal Anda tidak akan terganggu.',
       until: (days: number) =>
-        days <= 0 ? 'Muncul lagi hari ini.' : `Muncul lagi ${days} hari lagi.`,
-      restore: 'Ajarkan lagi',
-      empty: 'Tidak ada kata yang sedang kamu tunda.',
+        days <= 0 ? 'Muncul lagi hari ini.' : `Muncul lagi dalam ${days} hari.`,
+      restore: 'Ajarkan kembali',
+      empty: 'Tidak ada kata yang sedang Anda tunda.',
     },
   },
 
@@ -655,25 +663,25 @@ export const copy = {
     data: {
       heading: 'Kuota',
       intro:
-        'Latihan harian sudah ada di HP-mu. Yang perlu diunduh cuma bacaan panjang — sekali saja per tingkat.',
-      auto: 'Ikut pengaturan HP',
-      autoHint: 'Kalau HP-mu menyalakan penghemat data, kami ikut.',
-      save: 'Selalu tanya dulu',
-      saveHint: 'Tidak ada yang diunduh sebelum kamu setuju.',
-      full: 'Unduh saja',
-      fullHint: 'Jangan tanya, langsung ambil.',
+        'Materi latihan harian sudah tersedia di perangkat Anda. Yang perlu diunduh hanyalah bacaan panjang, cukup sekali untuk setiap tingkat.',
+      auto: 'Ikuti pengaturan perangkat',
+      autoHint: 'Jika penghemat data di perangkat Anda aktif, kami akan mengikutinya.',
+      save: 'Selalu tanyakan terlebih dahulu',
+      saveHint: 'Tidak ada yang diunduh sebelum Anda menyetujuinya.',
+      full: 'Unduh langsung',
+      fullHint: 'Unduh tanpa bertanya terlebih dahulu.',
     },
     /** SPEC §7.2's pace control, and §2.14's autonomy over it. */
     pace: {
       heading: 'Kata baru per hari',
       intro:
-        'Kata baru hari ini menjadi ulangan minggu depan. Pelan-pelan justru lebih cepat — dan kamu boleh atur sendiri.',
+        'Kata baru hari ini akan menjadi ulangan pada minggu berikutnya. Kecepatan yang terukur justru lebih efektif — dan Anda dapat mengaturnya sendiri.',
       unit: (count: number) => `${count} kata baru per hari`,
-      none: 'Tidak ada kata baru dulu. Ulangan yang sudah ada tetap jalan — ini cara paling ampuh mengejar tumpukan ulangan.',
+      none: 'Tidak ada kata baru untuk sementara. Ulangan yang sudah ada tetap berjalan — ini cara paling efektif untuk menyelesaikan ulangan yang menumpuk.',
       fewer: 'Kurangi',
       more: 'Tambah',
-      reset: 'Kembali ke bawaan',
-      defaultNote: (count: number) => `Bawaan untuk sesi sepanjang ini: ${count}.`,
+      reset: 'Kembalikan ke bawaan',
+      defaultNote: (count: number) => `Nilai bawaan untuk sesi sepanjang ini: ${count}.`,
     },
     open: 'Pengaturan',
     heading: 'Pengaturan',
@@ -681,12 +689,12 @@ export const copy = {
     loading: 'Memuat…',
     // SPEC §2.14: autonomy. The wording has to make clear this is a preference,
     // not a syllabus you are locked into.
-    topicsHeading: 'Topik yang kamu butuhkan',
+    topicsHeading: 'Topik yang Anda butuhkan',
     topicsIntro:
-      'Pilih topik yang paling kamu perlukan sekarang. Kata-kata dari topik itu akan lebih dulu muncul — tapi kata dasar yang bikin kalimat nyambung tetap diajarkan.',
-    topicsNone: 'Belum ada yang dipilih. Kami ikut urutan kata yang paling sering dipakai.',
-    topicsNote: 'Bisa diubah atau dikosongkan kapan saja.',
-    noTopics: 'Belum ada daftar topik untuk bahasa ini.',
+      'Pilih topik yang paling Anda perlukan saat ini. Kata-kata dari topik tersebut akan muncul lebih dahulu, sementara kata dasar yang menyusun kalimat tetap diajarkan.',
+    topicsNone: 'Belum ada yang dipilih. Kami mengikuti urutan kata yang paling sering digunakan.',
+    topicsNote: 'Dapat diubah atau dikosongkan kapan saja.',
+    noTopics: 'Daftar topik untuk bahasa ini belum tersedia.',
     moreHeading: 'Lainnya',
   },
 
@@ -698,34 +706,34 @@ export const copy = {
    * by owning a phone with no speech engine.
    */
   diagnostics: {
-    open: 'Uji suara di HP ini',
+    open: 'Uji suara di perangkat ini',
     heading: 'Uji perangkat',
     intro:
-      'Kalau latihan mendengar tidak muncul, di sini tempat mengeceknya. Tombolnya membunyikan suara sekali dan mencatat hasilnya. Tidak ada yang dikirim ke mana pun.',
+      'Jika latihan mendengarkan tidak muncul, Anda dapat memeriksanya di sini. Tombol di bawah membunyikan suara sekali dan mencatat hasilnya. Tidak ada data yang dikirim ke mana pun.',
     run: 'Uji audio sekarang',
-    running: 'Sedang mengecek…',
+    running: 'Sedang memeriksa…',
     again: 'Uji lagi',
     langHeading: (lang: string) => `Suara bahasa ${lang}`,
-    ready: (ms: number) => `Bunyi, selesai dalam ${ms} milidetik.`,
+    ready: (ms: number) => `Berbunyi, selesai dalam ${ms} milidetik.`,
     // Being over the deadline is a real outcome and it is explained, not hidden.
     slow: (ms: number) =>
-      `Bunyi, tapi baru selesai setelah ${ms} milidetik. Untuk soal dikte itu kelamaan, jadi latihan mendengar tetap kami sembunyikan.`,
-    noVoice: 'Belum ada suara untuk bahasa ini di HP kamu.',
-    dead: 'Suaranya terdaftar, tapi tidak pernah benar-benar berbunyi.',
-    unsupported: 'Peramban ini tidak punya fitur suara sama sekali.',
+      `Berbunyi, tetapi baru selesai setelah ${ms} milidetik. Waktu ini terlalu lama untuk soal dikte, sehingga latihan mendengarkan tetap kami sembunyikan.`,
+    noVoice: 'Belum ada suara untuk bahasa ini di perangkat Anda.',
+    dead: 'Suaranya terdaftar, tetapi tidak pernah benar-benar berbunyi.',
+    unsupported: 'Peramban ini sama sekali tidak memiliki fitur suara.',
     // The one case where pressing the button changes what the app will offer.
-    adopted: 'Ternyata bisa. Latihan mendengar kami buka sekarang.',
-    firstCall: (ms: number) => `Panggilan pertama ke mesin suara makan waktu ${ms} milidetik.`,
+    adopted: 'Ternyata berfungsi. Latihan mendengarkan kini kami aktifkan.',
+    firstCall: (ms: number) => `Panggilan pertama ke mesin suara memerlukan waktu ${ms} milidetik.`,
     firstCallSlow:
-      'Itu lama sekali, dan bukan salahmu — pengecekan suara memang kami tunda supaya aplikasinya tidak ikut macet.',
-    recognitionReady: 'HP ini bisa mendengar suaramu untuk latihan berbicara.',
-    recognitionAbsent: 'HP ini belum bisa mengenali suaramu. Latihan tetap jalan, tinggal diketik.',
-    remindersScheduled: 'Pengingat bisa muncul walau aplikasi tertutup.',
-    remindersInApp: 'Pengingat hanya muncul saat kamu buka aplikasi.',
-    remindersNone: 'Peramban ini tidak punya pengingat.',
+      'Waktu tersebut sangat lama, dan bukan karena kesalahan Anda — pemeriksaan suara memang kami tunda agar aplikasi tidak ikut tertahan.',
+    recognitionReady: 'Perangkat ini dapat mengenali suara Anda untuk latihan berbicara.',
+    recognitionAbsent: 'Perangkat ini belum dapat mengenali suara Anda. Latihan tetap berjalan; jawaban cukup diketik.',
+    remindersScheduled: 'Pengingat dapat muncul walaupun aplikasi tertutup.',
+    remindersInApp: 'Pengingat hanya muncul saat Anda membuka aplikasi.',
+    remindersNone: 'Peramban ini tidak memiliki fitur pengingat.',
     copyHeading: 'Kirim ke pengembang',
     copyHint:
-      'Salin teks ini dan kirimkan ke kami. Isinya cuma tentang kemampuan HP-mu — tidak ada satu pun jawaban latihanmu di dalamnya.',
+      'Salin teks ini dan kirimkan kepada kami. Isinya hanya mengenai kemampuan perangkat Anda — tidak ada satu pun jawaban latihan Anda di dalamnya.',
     copy: 'Salin',
     copied: 'Tersalin.',
     back: 'Kembali',
@@ -739,13 +747,13 @@ export const copy = {
     open: 'Sumber dan lisensi',
     heading: 'Sumber dan lisensi',
     intro:
-      'Materi di aplikasi ini dibangun dari data terbuka. Ini daftar lengkapnya, beserta lisensi dan tanggal kami memeriksanya.',
+      'Materi dalam aplikasi ini dibangun dari data terbuka. Berikut daftar lengkapnya, beserta lisensi dan tanggal kami memeriksanya.',
     licenseLabel: 'Lisensi',
     sourceLabel: 'Sumber',
     verifiedLabel: 'Diperiksa',
     shareAlike: 'berbagi-serupa',
     shareAlikeNote:
-      'Beberapa sumber memakai lisensi berbagi-serupa, jadi materi turunannya kami sebarkan dengan lisensi yang sama.',
+      'Beberapa sumber menggunakan lisensi berbagi-serupa, sehingga materi turunannya kami sebarkan dengan lisensi yang sama.',
     back: 'Kembali',
   },
 
@@ -758,10 +766,10 @@ export const copy = {
      * working. No score and no scolding — an order, and what it means.
      */
     slipping: {
-      heading: 'Paling dekat terlupa',
+      heading: 'Paling dekat untuk terlupa',
       intro:
-        'Menurut model ingatan, ini yang paling dekat dengan lupa — dan ini yang muncul duluan di sesi berikutnya.',
-      empty: 'Belum ada kata yang mulai memudar. Ini juga kabar baik.',
+        'Menurut model ingatan, kata-kata ini paling dekat untuk terlupa — dan kata-kata inilah yang muncul lebih dahulu pada sesi berikutnya.',
+      empty: 'Belum ada kata yang mulai memudar dari ingatan Anda.',
     },
     /**
      * SPEC §2.10's frequency curriculum, made visible.
@@ -774,20 +782,20 @@ export const copy = {
      */
     path: {
       heading: 'Jalur belajar',
-      intro: 'Kata diajarkan dari yang paling sering dipakai. Ini posisimu.',
+      intro: 'Kata diajarkan mulai dari yang paling sering digunakan. Berikut posisi Anda.',
       // The same guard as the home screen's: under one percent the figure is
       // dropped rather than rounded to "sekitar 0%" (§2.14).
       reach: (percent: number, words: number) =>
         percent < 1
-          ? `${words.toLocaleString('id-ID')} kata sudah kamu kunci. Persentasenya mulai terlihat setelah beberapa ratus kata.`
-          : `Kata yang sudah kamu kunci mencakup sekitar ${percent}% kata yang muncul sehari-hari.`,
+          ? `${words.toLocaleString('id-ID')} kata telah Anda kuasai. Persentasenya akan mulai terlihat setelah beberapa ratus kata.`
+          : `Kata yang telah Anda kuasai mencakup sekitar ${percent}% dari kata yang muncul sehari-hari.`,
       reachNone:
-        'Belum ada kata yang terkunci. Satu sesi saja sudah cukup untuk mulai menaikkan angka ini.',
+        'Belum ada kata yang dikuasai. Satu sesi latihan sudah cukup untuk mulai menaikkan angka ini.',
       stage: (band: number) => `Tahap ${band}`,
       count: (secured: number, total: number) => `${secured} dari ${total} kata`,
-      worth: (percent: number) => `Kalau tahap ini selesai: ${percent}% kata sehari-hari.`,
-      here: 'Kamu di sini',
-      skipped: 'Dilewati sesuai tingkatmu',
+      worth: (percent: number) => `Jika tahap ini selesai: ${percent}% dari kata sehari-hari.`,
+      here: 'Posisi Anda saat ini',
+      skipped: 'Dilewati sesuai tingkat Anda',
       done: 'Selesai',
       /**
        * What the remaining share actually is, which is not the same in both
@@ -802,56 +810,56 @@ export const copy = {
        */
       ceiling: (percent: number, lang: TargetLang) =>
         lang === 'ja'
-          ? `Semua tahap selesai berarti ${percent}% kata yang muncul sehari-hari. Sisanya partikel dan kata bantu — itu tata bahasa, dan kami ajarkan lewat kalimat, bukan lewat hafalan kata.`
-          : `Semua tahap selesai berarti ${percent}% kata yang bisa kami ajarkan. Sisanya kata yang jarang muncul.`,
+          ? `Jika semua tahap selesai, Anda menguasai ${percent}% dari kata yang muncul sehari-hari. Sisanya adalah partikel dan kata bantu — bagian dari tata bahasa yang kami ajarkan melalui kalimat, bukan melalui hafalan kata.`
+          : `Jika semua tahap selesai, Anda menguasai ${percent}% dari kata yang dapat kami ajarkan. Sisanya adalah kata-kata yang jarang muncul.`,
     },
-    open: 'Lihat kemajuanmu',
-    heading: 'Kemajuanmu',
+    open: 'Lihat kemajuan Anda',
+    heading: 'Kemajuan Anda',
     back: 'Kembali',
     // SPEC §9: every number here comes from this phone. Say so once, plainly.
-    localOnly: 'Semua angka di sini dihitung dari jawabanmu sendiri, di HP ini saja.',
+    localOnly: 'Semua angka di sini dihitung dari jawaban Anda sendiri, hanya di perangkat ini.',
     notYet: 'Belum cukup data',
 
     vocab: {
       heading: 'Kosakata',
       // SPEC §9: "Kamu mengenali ~2.400 kata — cukup untuk memahami sekitar 86%…"
-      headline: (words: number) => `Kamu mengenali sekitar ${words.toLocaleString('id-ID')} kata.`,
+      headline: (words: number) => `Anda mengenali sekitar ${words.toLocaleString('id-ID')} kata.`,
       range: (low: number, high: number) =>
         `Perkiraan kami antara ${low.toLocaleString('id-ID')} dan ${high.toLocaleString('id-ID')} kata.`,
       floor: (count: number) =>
-        `${count.toLocaleString('id-ID')} kata sudah kamu buktikan sendiri lewat latihan.`,
+        `${count.toLocaleString('id-ID')} kata sudah Anda buktikan sendiri melalui latihan.`,
       // The capability sentence — and it says what the percentage is *of*.
       capability: (percent: number) =>
-        `Itu kira-kira ${percent}% dari kata yang muncul di kalimat yang kami ajarkan.`,
+        `Jumlah itu mencakup sekitar ${percent}% dari kata yang muncul dalam kalimat yang kami ajarkan.`,
       /** See `path.ceiling`: the remainder is a different thing per language. */
       ceiling: (percent: number, lang: TargetLang) =>
         lang === 'ja'
-          ? `Kalau semua kata yang kami punya kamu kuasai, angkanya sampai ${percent}%. Sisanya partikel dan kata bantu, yang kamu pelajari lewat kalimat dan latihan pola.`
-          : `Kalau semua kata yang kami punya kamu kuasai, angkanya sampai ${percent}%. Sisanya nama orang dan kata yang sangat jarang.`,
+          ? `Jika semua kata yang kami miliki Anda kuasai, angkanya mencapai ${percent}%. Sisanya adalah partikel dan kata bantu, yang Anda pelajari melalui kalimat dan latihan pola.`
+          : `Jika semua kata yang kami miliki Anda kuasai, angkanya mencapai ${percent}%. Sisanya adalah nama orang dan kata yang sangat jarang.`,
       empty:
-        'Latihan dulu beberapa sesi. Setelah itu kami bisa memperkirakan berapa kata yang kamu kenali.',
-      wide: 'Rentangnya masih lebar karena banyak tingkat yang belum pernah kamu temui.',
+        'Lakukan beberapa sesi latihan terlebih dahulu. Setelah itu kami dapat memperkirakan jumlah kata yang Anda kenali.',
+      wide: 'Rentangnya masih lebar karena banyak tingkat kata yang belum pernah Anda temui.',
     },
 
     curve: {
       heading: 'Sebaran per tingkat kata',
-      hint: 'Tingkat 1 adalah kata yang paling sering dipakai.',
+      hint: 'Tingkat 1 berisi kata yang paling sering digunakan.',
       band: (band: number) => `Tingkat ${band}`,
-      known: (known: number, seen: number) => `${known} dari ${seen} yang pernah kamu temui`,
-      untouched: 'Belum kamu temui',
+      known: (known: number, seen: number) => `${known} dari ${seen} yang pernah Anda temui`,
+      untouched: 'Belum Anda temui',
     },
 
     retention: {
-      heading: 'Seberapa sering kamu masih ingat',
+      heading: 'Seberapa sering Anda masih ingat',
       target: (percent: number) => `Target kami ${percent}%`,
-      actual: (percent: number) => `Kamu ${percent}%`,
+      actual: (percent: number) => `Anda ${percent}%`,
       reviews: (count: number) => `dari ${count.toLocaleString('id-ID')} ulangan terjadwal`,
-      onTarget: 'Pas. Jarak ulangannya sudah cocok buat kamu.',
+      onTarget: 'Sesuai. Jarak antarulangan sudah cocok untuk Anda.',
       // SPEC §9: "if actual retention is far off 90%, say so and offer to retune."
       below:
-        'Agak sering lupa. Jarak ulangan kami rapatkan sedikit supaya tidak terlalu berat.',
+        'Cukup sering terlupa. Jarak antarulangan kami rapatkan sedikit agar latihan tidak terlalu berat.',
       above:
-        'Kamu hampir selalu ingat — berarti ulangannya bisa lebih jarang, dan waktumu lebih hemat.',
+        'Anda hampir selalu ingat — artinya ulangan dapat dijarangkan, sehingga waktu Anda lebih hemat.',
       unknown: 'Belum cukup ulangan terjadwal untuk dinilai.',
       retune: 'Sesuaikan jarak ulangan',
       retuned: 'Sudah kami sesuaikan.',
@@ -859,19 +867,19 @@ export const copy = {
 
     forecast: {
       heading: 'Perkiraan beban 14 hari',
-      hint: 'Berapa kartu yang jatuh tempo tiap hari, kalau kamu latihan tiap hari.',
+      hint: 'Jumlah kartu yang jatuh tempo setiap hari, jika Anda berlatih setiap hari.',
       today: 'Hari ini',
       cards: (count: number) => `${count} kartu`,
-      quiet: 'Belum ada yang jatuh tempo. Santai dulu.',
+      quiet: 'Belum ada kartu yang jatuh tempo.',
     },
 
     skills: {
       heading: 'Peta kemampuan',
-      hint: 'Yang belum pernah diukur kami biarkan kosong, bukan diisi nol.',
+      hint: 'Kemampuan yang belum pernah diukur kami biarkan kosong, bukan diisi nol.',
       names: {
         vocab: 'Kosakata',
         grammar: 'Tata bahasa',
-        listening: 'Mendengar',
+        listening: 'Mendengarkan',
         reading: 'Membaca',
         production: 'Berbicara & menulis',
       },
@@ -880,14 +888,14 @@ export const copy = {
     },
 
     calibration: {
-      heading: 'Seberapa kenal kamu dengan dirimu sendiri',
-      hint: 'Waktu kamu bilang “Yakin”, seberapa sering ternyata benar?',
-      sure: 'Saat bilang Yakin',
-      unsure: 'Saat bilang Ragu',
+      heading: 'Ketepatan rasa yakin Anda',
+      hint: 'Saat Anda memilih “Yakin”, seberapa sering jawaban Anda ternyata benar?',
+      sure: 'Saat memilih Yakin',
+      unsure: 'Saat memilih Ragu',
       good:
-        'Tebakanmu soal apa yang kamu kuasai cukup tepat. Itu keterampilan tersendiri, dan berguna.',
+        'Perkiraan Anda tentang apa yang sudah Anda kuasai cukup tepat. Itu keterampilan tersendiri yang sangat berguna.',
       weak:
-        'Rasa yakin dan hasilnya masih mirip-mirip saja. Wajar di awal — makin lama biasanya makin peka.',
+        'Rasa yakin dan hasilnya masih belum banyak berbeda. Hal ini wajar di awal, dan biasanya semakin tepat seiring waktu.',
       unknown: 'Belum cukup jawaban untuk dibandingkan.',
     },
 
@@ -895,18 +903,18 @@ export const copy = {
       heading: 'Kebiasaan',
       // SPEC §2.14: a band that heals, never a streak that breaks.
       days: (days: number, window: number) => `${days} dari ${window} hari terakhir`,
-      note: 'Bukan rentetan yang bisa putus. Kalau bolong, tinggal lanjut lagi.',
+      note: 'Bukan rentetan yang dapat terputus. Jika ada hari yang terlewat, Anda cukup melanjutkan kembali.',
     },
 
     data: {
-      heading: 'Datamu',
-      note: 'Semua ini milikmu. Bisa kamu simpan sendiri kapan saja, tanpa akun.',
+      heading: 'Data Anda',
+      note: 'Semua data ini milik Anda. Anda dapat menyimpan salinannya sendiri kapan saja, tanpa akun.',
       export: 'Simpan salinan (JSON)',
       exported: 'Tersimpan.',
       importLabel: 'Pulihkan dari salinan',
       imported: (logs: number) =>
         logs === 0
-          ? 'Salinan itu sudah ada di HP ini — tidak ada yang berubah.'
+          ? 'Salinan itu sudah ada di perangkat ini — tidak ada yang berubah.'
           : `Dipulihkan: ${logs.toLocaleString('id-ID')} riwayat latihan ditambahkan.`,
       /**
        * One sentence per reason, because the app knows which it was.
@@ -917,13 +925,13 @@ export const copy = {
        * restore runs in one transaction, so "your data is unchanged" is a
        * promise the database keeps rather than a reassurance.
        */
-      importFailed: 'File itu bukan salinan LinguaKu. Datamu yang sekarang tidak berubah.',
+      importFailed: 'File tersebut bukan salinan LinguaKu. Data Anda saat ini tidak berubah.',
       importNotJson:
-        'File itu tidak bisa dibaca. Yang dibutuhkan file .json hasil ekspor dari LinguaKu.',
+        'File tersebut tidak dapat dibaca. Yang diperlukan adalah file .json hasil ekspor dari LinguaKu.',
       importTooNew: (version: number) =>
-        `Salinan ini dibuat LinguaKu versi ${version}, lebih baru dari aplikasi ini. Perbarui dulu aplikasinya — datanya aman, tidak ada yang hilang.`,
+        `Salinan ini dibuat oleh LinguaKu versi ${version}, yang lebih baru dari aplikasi ini. Perbarui aplikasi terlebih dahulu — data Anda aman dan tidak ada yang hilang.`,
       importBroke:
-        'Pemulihan gagal di tengah jalan. Datamu yang sekarang tidak berubah sama sekali.',
+        'Pemulihan terhenti di tengah proses. Data Anda saat ini sama sekali tidak berubah.',
     },
 
     heatmap: {
@@ -936,11 +944,11 @@ export const copy = {
        * right the whole time; only the heading was wrong, which is the kind of
        * thing only looking at the screen finds.
        */
-      heading: (lang: TargetLang) => `Pola bahasa ${copy.langNames[lang]}mu`,
+      heading: (lang: TargetLang) => `Pola bahasa ${copy.langNames[lang]} Anda`,
       // SPEC §2.15: no claim without evidence behind it.
       intro:
-        'Ini disusun dari jawabanmu sendiri, bukan dari tebakan. Yang belum cukup datanya kami tulis apa adanya.',
-      weakestLead: 'Yang paling perlu kamu latih sekarang',
+        'Disusun dari jawaban Anda sendiri, bukan dari perkiraan. Pola yang datanya belum cukup kami tampilkan apa adanya.',
+      weakestLead: 'Yang paling perlu Anda latih saat ini',
       // "Kelemahan terbesarmu: he/she dan past tense" (SPEC §3.3), but phrased
       // as something to work on rather than something wrong with the learner.
       weakestNames: (names: readonly string[]) => names.join(' dan '),
@@ -948,10 +956,10 @@ export const copy = {
         `${correct} benar dari ${attempts} percobaan`,
       notMeasured: 'Belum cukup data',
       notMeasuredHint: (needed: number) =>
-        `Butuh ${needed} jawaban lagi sebelum kami berani menyimpulkan.`,
-      solid: 'Sudah mantap',
+        `Diperlukan ${needed} jawaban lagi sebelum kami dapat menarik kesimpulan.`,
+      solid: 'Sudah dikuasai',
       empty:
-        'Belum ada yang bisa ditampilkan. Latihan beberapa sesi dulu, nanti pola-polamu muncul di sini sendiri.',
+        'Belum ada yang dapat ditampilkan. Lakukan beberapa sesi latihan terlebih dahulu; pola-pola Anda akan muncul di sini dengan sendirinya.',
       attemptsSoFar: (count: number) =>
         count === 1 ? '1 latihan pola tercatat' : `${count} latihan pola tercatat`,
       kinds: {
@@ -962,50 +970,50 @@ export const copy = {
     },
   },
   recap: {
-    heading: 'Seminggu terakhir',
+    heading: 'Satu minggu terakhir',
     // SPEC §9 + §2.14: capability, never a score. Each line is a thing the
     // learner can now do, and there is no total to compare against anyone.
-    empty: 'Belum ada latihan minggu ini. Nanti di sini ada ringkasannya.',
-    met: (count: number) => `${count} kata baru kamu temui.`,
-    strengthened: (count: number) => `${count} kata kamu kuatkan lagi.`,
-    mastered: (count: number) => `${count} kata sudah benar-benar nempel.`,
-    drills: (count: number) => `${count} pola tata bahasa kamu latih.`,
-    days: (days: number) => `Kamu latihan di ${days} hari.`,
+    empty: 'Belum ada latihan minggu ini. Ringkasannya akan muncul di sini.',
+    met: (count: number) => `${count} kata baru Anda temui.`,
+    strengthened: (count: number) => `${count} kata Anda perkuat kembali.`,
+    mastered: (count: number) => `${count} kata sudah benar-benar Anda kuasai.`,
+    drills: (count: number) => `${count} pola tata bahasa Anda latih.`,
+    days: (days: number) => `Anda berlatih pada ${days} hari.`,
     // A direction, never a verdict — and deliberately not phrased as a loss.
     comparedSame: 'Sama seperti minggu sebelumnya.',
-    comparedMore: (previous: number) => `Minggu sebelumnya ${previous} hari.`,
-    comparedFewer: (previous: number) => `Minggu sebelumnya ${previous} hari.`,
+    comparedMore: (previous: number) => `Minggu sebelumnya: ${previous} hari.`,
+    comparedFewer: (previous: number) => `Minggu sebelumnya: ${previous} hari.`,
   },
   placement: {
-    offer: 'Cek kemampuan (1 menit)',
-    heading: 'Kata mana yang kamu tahu?',
+    offer: 'Periksa kemampuan (1 menit)',
+    heading: 'Kata mana yang Anda ketahui?',
     // SPEC §4.2: it must feel like learning, not like an exam.
     intro:
-      'Bukan ujian. Kami cuma perlu tahu dari mana enaknya mulai, biar kamu tidak diajari kata yang sudah kamu kuasai.',
-    instruction: 'Tahu artinya? Ketuk saja. Jujur saja — tidak ada nilai di sini.',
-    start: 'Mulai cek',
-    skip: 'Lewati saja',
+      'Ini bukan ujian. Kami hanya perlu mengetahui titik awal yang tepat, agar Anda tidak diajari kata yang sudah Anda kuasai.',
+    instruction: 'Apakah Anda tahu artinya? Jawablah dengan jujur — ini bukan ujian.',
+    start: 'Mulai pemeriksaan',
+    skip: 'Lewati',
     // §4.2: skipping must cost nothing.
-    skipNote: 'Kalau dilewati, kami belajar dari jawabanmu sambil jalan.',
+    skipNote: 'Jika dilewati, kami akan menyesuaikan diri dari jawaban Anda selama latihan.',
     know: 'Tahu',
     dontKnow: 'Belum',
     progress: (done: number) => `${done} kata`,
 
     result: {
-      heading: 'Sudah, itu saja.',
+      heading: 'Selesai.',
       // SPEC §2.15 / §4.1: a band, never a bare level claim.
       band: (from: number, to: number) =>
         from === to
-          ? `Kamu paling pas mulai dari kata tingkat ${from}.`
-          : `Kamu paling pas mulai di antara tingkat ${from} dan ${to}.`,
+          ? `Titik awal yang paling sesuai untuk Anda adalah kata tingkat ${from}.`
+          : `Titik awal yang paling sesuai untuk Anda berada di antara tingkat ${from} dan ${to}.`,
       // SPEC §2.15: when the estimate is too vague to name a level, saying so
       // is more useful — and more honest — than printing a range that spans
       // the whole scale.
       unclear:
-        'Jawabanmu campur-campur, jadi kami belum bisa menebak dengan yakin. Kami mulai dari tengah dan menyesuaikan sambil kamu latihan.',
-      estimate: 'Ini perkiraan, dan akan terus kami perbaiki setiap kali kamu latihan.',
+        'Jawaban Anda cukup beragam, sehingga kami belum dapat memperkirakannya dengan yakin. Kami akan mulai dari tengah dan menyesuaikannya selama Anda berlatih.',
+      estimate: 'Ini adalah perkiraan, dan akan terus kami perbaiki setiap kali Anda berlatih.',
       overclaimed:
-        'Beberapa kata tadi sebenarnya bukan kata asli — jadi perkiraannya kami buat lebih hati-hati.',
+        'Beberapa kata tadi sebenarnya bukan kata asli, sehingga perkiraannya kami buat lebih hati-hati.',
       /**
        * SPEC §4.2's over-claiming control did not run.
        *
@@ -1017,44 +1025,44 @@ export const copy = {
        * inventing a discount for it (R10).
        */
       unchecked:
-        'Buat bahasa ini kami belum punya kata-kata jebakan, jadi angka ini murni dari jawabanmu sendiri — anggap saja titik awal, bukan hasil tes.',
+        'Untuk bahasa ini kami belum memiliki kata pengecoh, sehingga angka ini sepenuhnya berasal dari jawaban Anda sendiri. Anggaplah sebagai titik awal, bukan hasil tes.',
       begin: 'Mulai latihan',
     },
   },
 
   /**
    * SPEC §2.13. The learner writes the plan in their own words — that is the
-   * mechanism, not the reminder. Copy addresses "kamu" and never implies that
+   * mechanism, not the reminder. Copy addresses "Anda" and never implies that
    * a missed day is a failure (§2.14).
    */
   habit: {
     open: 'Atur pengingat',
-    heading: 'Kapan waktu latihanmu?',
+    heading: 'Kapan waktu latihan Anda?',
     intro:
-      'Kebiasaan paling gampang nempel kalau ditempelkan ke hal yang sudah kamu lakukan tiap hari. Tulis sendiri, pakai kata-katamu.',
+      'Kebiasaan paling mudah terbentuk jika dikaitkan dengan kegiatan yang sudah Anda lakukan setiap hari. Tuliskan dengan kata-kata Anda sendiri.',
     // The sentence frame is the implementation intention itself.
     sentenceBefore: 'Setiap hari setelah',
-    sentenceMiddle: ', saya latihan di',
+    sentenceMiddle: ', saya berlatih di',
     sentenceAfter: '.',
     cuePlaceholder: 'makan malam',
     placePlaceholder: 'kamar',
-    cueLabel: 'Sesudah apa?',
+    cueLabel: 'Setelah kegiatan apa?',
     placeLabel: 'Di mana?',
-    timeLabel: 'Ingatkan jam berapa?',
+    timeLabel: 'Ingatkan pukul berapa?',
     save: 'Simpan',
-    skip: 'Nanti saja',
-    skipNote: 'Bisa diatur kapan saja, dan tidak diatur pun aplikasinya jalan penuh.',
-    off: 'Matikan pengingat',
+    skip: 'Lain kali',
+    skipNote: 'Dapat diatur kapan saja. Tanpa pengingat pun, aplikasi tetap berfungsi sepenuhnya.',
+    off: 'Nonaktifkan pengingat',
     saved: 'Tersimpan.',
     summary: (cue: string, place: string, time: string) =>
-      `Setiap hari setelah ${cue}, kamu latihan di ${place}. Pengingat jam ${time}.`,
+      `Setiap hari setelah ${cue}, Anda berlatih di ${place}. Pengingat pukul ${time}.`,
 
     // Each of these is a real, different capability level. §2.6's rule applied
     // to notifications: say what this device can do rather than imply more.
-    supportScheduled: 'HP ini bisa mengingatkan walau aplikasinya tertutup.',
+    supportScheduled: 'Perangkat ini dapat menampilkan pengingat walaupun aplikasi tertutup.',
     supportInApp:
-      'HP ini belum bisa mengingatkan kalau aplikasinya tertutup, jadi pengingatnya kami tampilkan pas kamu buka aplikasi.',
-    supportNone: 'Peramban ini tidak punya pengingat, jadi catatan ini cuma buat kamu sendiri.',
+      'Perangkat ini belum dapat menampilkan pengingat saat aplikasi tertutup, sehingga pengingat kami tampilkan ketika Anda membuka aplikasi.',
+    supportNone: 'Peramban ini tidak memiliki fitur pengingat, sehingga catatan ini hanya untuk Anda sendiri.',
     /**
      * Invariant 24: a reminder is local, or the screen says it is not one.
      *
@@ -1063,12 +1071,12 @@ export const copy = {
      * the learner would otherwise walk away believing a reminder is set.
      */
     scheduleFailed:
-      'Pengingat tidak bisa dipasang di peramban ini, walau sudah diizinkan. Kami ingatkan lewat aplikasi saja waktu kamu buka.',
+      'Pengingat tidak dapat dipasang di peramban ini, walaupun sudah diizinkan. Kami akan mengingatkan Anda melalui aplikasi saat Anda membukanya.',
     permissionDenied:
-      'Izin notifikasi ditolak, jadi pengingatnya kami tampilkan di dalam aplikasi saja.',
+      'Izin notifikasi ditolak, sehingga pengingat hanya kami tampilkan di dalam aplikasi.',
 
     // The in-app cue. An invitation, never an accusation (§2.14).
-    cueNudge: (cue: string) => `Sudah lewat ${cue}. Mau latihan sekarang?`,
+    cueNudge: (cue: string) => `Waktu setelah ${cue} sudah tiba. Apakah Anda ingin berlatih sekarang?`,
     cueDismiss: 'Nanti',
   },
 } as const;

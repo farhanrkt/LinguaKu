@@ -9,7 +9,8 @@
 #  * Every note explains three things, in this order: what Indonesian does, what
 #    English does instead, and one minimal pair. That order matters — naming the
 #    L1 pattern first tells the learner the mistake is systematic, not stupid.
-#  * Indonesian copy addresses the learner as "kamu", never "Anda", and never
+#  * Indonesian copy addresses the learner as "Anda", in a professional
+#    register (D110), and never
 #    frames an error as a failure (docs/ETHICS.md).
 #  * Example sentences here are authored for this file. They are not lifted from
 #    Tatoeba, so this content carries no third-party licence.
@@ -32,14 +33,14 @@ categories:
   - id: TENSE_ASPECT
     kind: morphosyntax
     label: "Bentuk lampau (-ed)"
-    summary: "Waktu ditandai di kata kerja, bukan cuma di kata keterangan."
+    summary: "Waktu ditandai di kata kerja, bukan hanya di kata keterangan."
     note:
       l1: >-
         Bahasa Indonesia menandai waktu lewat kata terpisah — sudah, sedang,
         akan, kemarin, besok. Kata kerjanya sendiri tidak berubah sedikit pun:
         "kemarin saya pergi" dan "besok saya pergi" memakai bentuk yang sama.
       target: >-
-        Bahasa Inggris menandai waktu di kata kerjanya. Meskipun kamu sudah
+        Bahasa Inggris menandai waktu di kata kerjanya. Meskipun Anda sudah
         menulis "yesterday", kata kerjanya tetap harus berubah — jadi "went",
         bukan "go". Ini bukan pengulangan yang mubazir buat mereka; kalimat
         tanpa penanda itu terdengar belum selesai.
@@ -48,8 +49,8 @@ categories:
         right: "Yesterday I went to Jakarta."
         gloss: "Kemarin saya pergi ke Jakarta."
       tip: >-
-        Kalau di kalimatmu ada kata waktu lampau (yesterday, last week, ago),
-        cek kata kerjanya sekali lagi. Hampir selalu di situ yang kelewat.
+        Jika di kalimat Anda ada kata waktu lampau (yesterday, last week, ago),
+        periksa kata kerjanya sekali lagi. Bagian itulah yang paling sering terlewat.
     drills:
       - id: TENSE_ASPECT-1
         type: mcq
@@ -73,7 +74,7 @@ categories:
         type: cloze
         prompt: "I ___ (eat) fried rice for breakfast this morning."
         answer: "ate"
-        explain: "This morning sudah lewat waktu kamu bicara, jadi eat → ate."
+        explain: "This morning sudah berlalu saat Anda berbicara, sehingga eat → ate."
         difficulty: 1250
       - id: TENSE_ASPECT-4
         type: mcq
@@ -127,26 +128,26 @@ categories:
     note:
       l1: >-
         Kata kerja bahasa Indonesia tidak pernah berubah karena subjeknya.
-        "Saya pergi", "kamu pergi", "dia pergi" — sama persis. Tidak ada yang
-        perlu kamu cocokkan.
+        "Saya pergi", "Anda pergi", "dia pergi" — sama persis. Tidak ada yang
+        perlu Anda cocokkan.
       target: >-
         Dalam bahasa Inggris, hanya untuk he, she, dan it di waktu sekarang,
-        kata kerjanya kebagian -s. Cuma satu bentuk dari enam, jadi wajar kalau
-        sering kelewat — telinga kamu memang tidak dilatih untuk mendengarnya.
+        kata kerjanya mendapat -s. Hanya satu bentuk dari enam, jadi wajar jika
+        sering terlewat — telinga Anda memang tidak dilatih untuk mendengarnya.
       minimalPair:
         wrong: "She go to school by bus."
         right: "She goes to school by bus."
         gloss: "Dia pergi ke sekolah naik bus."
       tip: >-
-        Trik cepat: kalau subjeknya bisa diganti “he”, “she”, atau “it”,
-        tempelkan -s. Kalau bisa diganti “they”, jangan.
+        Kiat praktis: jika subjeknya bisa diganti “he”, “she”, atau “it”,
+        tambahkan -s. Jika bisa diganti “they”, jangan.
     drills:
       - id: AGREEMENT_3SG-1
         type: mcq
         prompt: "My brother ___ in a hospital."
         options: ["works", "work", "working", "worked"]
         answer: "works"
-        explain: "\"My brother\" = he, jadi work kebagian -s."
+        explain: "\"My brother\" = he, jadi work mendapat -s."
         difficulty: 1100
       - id: AGREEMENT_3SG-2
         type: mcq
@@ -187,7 +188,7 @@ categories:
           - "Everyone are knowing the answer."
           - "Everyone knowing the answer."
         answer: "Everyone knows the answer."
-        explain: "Everyone terasa jamak, tapi bahasa Inggris memperlakukannya sebagai tunggal."
+        explain: "Everyone terasa jamak, tetapi bahasa Inggris memperlakukannya sebagai tunggal."
         difficulty: 1320
       - id: AGREEMENT_3SG-7
         type: cloze
@@ -213,7 +214,7 @@ categories:
         "saya lapar", "mereka di rumah" — semuanya lengkap, tidak ada yang
         kurang.
       target: >-
-        Kalimat bahasa Inggris hampir selalu butuh kata kerja, dan kalau tidak
+        Kalimat bahasa Inggris hampir selalu memerlukan kata kerja, dan jika tidak
         ada kata kerja lain, tempat itu diisi am / is / are. Ini bukan kata
         tambahan yang bisa dihemat — tanpa itu kalimatnya belum jadi kalimat.
       minimalPair:
@@ -221,21 +222,21 @@ categories:
         right: "She is beautiful."
         gloss: "Dia cantik."
       tip: >-
-        Cek kalimatmu: ada kata kerjanya? Kalau isinya cuma kata sifat, kata
-        benda, atau tempat, kamu butuh am, is, atau are.
+        Periksa kalimat Anda: ada kata kerjanya? Jika isinya hanya kata sifat, kata
+        benda, atau tempat, Anda memerlukan am, is, atau are.
     drills:
       - id: COPULA_BE-1
         type: mcq
         prompt: "Mana yang benar untuk \"Saya lapar\"?"
         options: ["I am hungry.", "I hungry.", "I have hungry.", "I do hungry."]
         answer: "I am hungry."
-        explain: "Kata sifat butuh to be di depannya. \"Hungry\" bukan kata kerja."
+        explain: "Kata sifat memerlukan to be di depannya. \"Hungry\" bukan kata kerja."
         difficulty: 1060
       - id: COPULA_BE-2
         type: cloze
         prompt: "They ___ at home right now."
         answer: "are"
-        explain: "They → are. Keterangan tempat juga butuh to be."
+        explain: "They → are. Keterangan tempat juga memerlukan to be."
         difficulty: 1090
       - id: COPULA_BE-3
         type: mcq
@@ -276,14 +277,14 @@ categories:
         type: cloze
         prompt: "She ___ not ready yet."
         answer: "is"
-        explain: "Bentuk negatif tetap butuh to be: she is not."
+        explain: "Bentuk negatif tetap memerlukan to be: she is not."
         difficulty: 1150
 
       - id: COPULA_BE-8
         type: correction
         prompt: 'My father very tired after work.'
         answer: 'My father is very tired after work.'
-        explain: 'Ayah saya capek tidak butuh kata penghubung di bahasa kita; bahasa Inggris butuh. Tambahkan is.'
+        explain: 'Ayah saya capek tidak memerlukan kata penghubung dalam bahasa kita; bahasa Inggris memerlukannya. Tambahkan is.'
         difficulty: 1200
 
   - id: ARTICLES
@@ -296,17 +297,17 @@ categories:
         lengkap, dan siapa pun paham dari konteks apakah bukunya baru disebut
         atau sudah dikenal.
       target: >-
-        Bahasa Inggris memaksa kamu memilih setiap kali menyebut kata benda
-        tunggal: a/an kalau baru pertama disebut atau tidak spesifik, the kalau
+        Bahasa Inggris memaksa Anda memilih setiap kali menyebut kata benda
+        tunggal: a/an jika baru pertama disebut atau tidak spesifik, the jika
         pendengar sudah tahu yang mana. Dua kesalahan yang sama-sama sering:
-        menghapusnya, dan menaruhnya di tempat yang tidak butuh.
+        menghapusnya, dan menaruhnya di tempat yang tidak memerlukannya.
       minimalPair:
         wrong: "I bought book yesterday."
         right: "I bought a book yesterday."
         gloss: "Kemarin saya beli buku."
       tip: >-
-        Pertanyaan cepat: pendengar sudah tahu yang mana? Kalau ya, the. Kalau
-        belum, a atau an. Kalau kata bendanya jamak atau tak terhitung dan masih
+        Pertanyaan cepat: pendengar sudah tahu yang mana? Jika ya, the. Jika
+        belum, a atau an. Jika kata bendanya jamak atau tak terhitung dan masih
         umum, sering kali tanpa keduanya.
     drills:
       - id: ARTICLES-1
@@ -321,7 +322,7 @@ categories:
         prompt: "Can you close ___ door, please?"
         options: ["the", "a", "an", "-"]
         answer: "the"
-        explain: "Pintunya sudah jelas yang mana — cuma ada satu di ruangan itu — jadi the."
+        explain: "Pintunya sudah jelas yang mana — hanya ada satu di ruangan itu — jadi the."
         difficulty: 1190
       - id: ARTICLES-3
         type: mcq
@@ -332,20 +333,20 @@ categories:
           - "I like a music."
           - "I like musics."
         answer: "I like music."
-        explain: "Musik secara umum tidak pakai kata sandang sama sekali."
+        explain: "Musik secara umum tidak menggunakan kata sandang sama sekali."
         difficulty: 1300
       - id: ARTICLES-4
         type: cloze
         prompt: "She is ___ engineer at a startup."
         answer: "an"
-        explain: "Engineer diawali bunyi vokal → an. Profesi selalu pakai a/an."
+        explain: "Engineer diawali bunyi vokal → an. Profesi selalu menggunakan a/an."
         difficulty: 1220
       - id: ARTICLES-5
         type: mcq
         prompt: "___ sun rises in the east."
         options: ["The", "A", "An", "-"]
         answer: "The"
-        explain: "Cuma ada satu matahari, jadi selalu the."
+        explain: "Hanya ada satu matahari, jadi selalu the."
         difficulty: 1210
       - id: ARTICLES-6
         type: mcq
@@ -356,7 +357,7 @@ categories:
           - "He is a good student, and he plays a football."
           - "He is the good student, and he plays the football."
         answer: "He is a good student, and he plays football."
-        explain: "Nama olahraga tidak pakai the. Ini kebalikannya: kelebihan kata sandang, bukan kekurangan."
+        explain: "Nama olahraga tidak menggunakan the. Ini kebalikannya: kelebihan kata sandang, bukan kekurangan."
         difficulty: 1340
       - id: ARTICLES-7
         type: cloze
@@ -369,7 +370,7 @@ categories:
         type: correction
         prompt: 'I saw dog in front of the school.'
         answer: 'I saw a dog in front of the school.'
-        explain: 'Benda tunggal yang baru disebut pertama kali memakai a atau an. Bahasa Indonesia tidak punya penanda ini, jadi paling sering kelewat.'
+        explain: 'Benda tunggal yang baru disebut pertama kali memakai a atau an. Bahasa Indonesia tidak punya penanda ini, jadi paling sering terlewat.'
         difficulty: 1200
 
   - id: PLURAL_S
@@ -379,18 +380,18 @@ categories:
     note:
       l1: >-
         Bahasa Indonesia menjamakkan dengan pengulangan (buku-buku) atau dengan
-        kata bilangan (dua buku). Kalau sudah ada "dua", tidak ada yang perlu
+        kata bilangan (dua buku). Jika sudah ada "dua", tidak ada yang perlu
         ditambahkan lagi di kata bendanya.
       target: >-
         Bahasa Inggris menandai jamak di kata bendanya, walaupun jumlahnya sudah
         disebut. "Two book" terdengar salah buat mereka persis seperti "dua
-        buku-buku" terdengar aneh buat kamu.
+        buku-buku" terdengar aneh bagi Anda.
       minimalPair:
         wrong: "I have two book."
         right: "I have two books."
         gloss: "Saya punya dua buku."
       tip: >-
-        Setiap kali kamu menulis angka atau many/some/a few di depan kata benda,
+        Setiap kali Anda menulis angka atau many/some/a few di depan kata benda,
         lihat lagi ujung kata bendanya.
     drills:
       - id: PLURAL_S-1
@@ -419,7 +420,7 @@ categories:
           - "I have many homework."
           - "I have a homework."
         answer: "I have a lot of homework."
-        explain: "Homework tak terhitung — tidak pernah pakai -s. Ini yang bikin aturannya terasa tidak konsisten."
+        explain: "Homework tak terhitung — tidak pernah menggunakan -s. Ini yang membuat aturannya terasa tidak konsisten."
         difficulty: 1350
       - id: PLURAL_S-4
         type: cloze
@@ -465,20 +466,20 @@ categories:
     summary: "\"Dia\" tidak berjenis kelamin — he dan she ikut tertukar."
     note:
       l1: >-
-        Satu kata "dia" menutupi he, she, him, dan her sekaligus. Kamu tidak
-        pernah, seumur hidup, harus memikirkan jenis kelamin orang yang kamu
+        Satu kata "dia" menutupi he, she, him, dan her sekaligus. Anda tidak
+        pernah, seumur hidup, harus memikirkan jenis kelamin orang yang Anda
         sebut. Makanya ini kesalahan paling sering — dan paling tidak ada
-        hubungannya dengan seberapa pintar kamu berbahasa Inggris.
+        hubungannya dengan seberapa pintar Anda berbahasa Inggris.
       target: >-
-        Bahasa Inggris memaksa memilih tiap kali. Yang bikin repot, pilihannya
-        harus dibuat cepat, saat bicara — bukan saat menulis dengan tenang.
+        Bahasa Inggris memaksa memilih tiap kali. Yang menyulitkan, pilihannya
+        harus dibuat cepat, saat berbicara — bukan saat menulis dengan tenang.
       minimalPair:
         wrong: "My sister is a doctor. He works at a hospital."
         right: "My sister is a doctor. She works at a hospital."
         gloss: "Kakak perempuan saya dokter. Dia bekerja di rumah sakit."
       tip: >-
-        Saat latihan bicara, sebut dulu orangnya dalam hati — "perempuan" atau
-        "laki-laki" — sebelum kalimat kedua keluar. Lama-lama tidak perlu lagi.
+        Saat berlatih berbicara, sebutkan terlebih dahulu orangnya dalam hati — "perempuan" atau
+        "laki-laki" — sebelum kalimat kedua keluar. Lama-kelamaan, langkah ini tidak diperlukan lagi.
     drills:
       - id: PRONOUN_GENDER-1
         type: mcq
@@ -502,7 +503,7 @@ categories:
           - "My wife called me. She said he would be late."
           - "My wife called me. It said it would be late."
         answer: "My wife called me. She said she would be late."
-        explain: "Kalau satu \"dia\" tertukar, biasanya semuanya ikut tertukar di kalimat itu."
+        explain: "Jika satu \"dia\" tertukar, biasanya semuanya ikut tertukar di kalimat itu."
         difficulty: 1210
       - id: PRONOUN_GENDER-4
         type: mcq
@@ -533,14 +534,14 @@ categories:
           - "That book is his."
           - "That book is her's."
         answer: "That book is hers."
-        explain: "Berdiri sendiri tanpa kata benda → hers. Tidak pernah pakai apostrof."
+        explain: "Berdiri sendiri tanpa kata benda → hers. Tidak pernah menggunakan apostrof."
         difficulty: 1330
 
       - id: PRONOUN_GENDER-8
         type: correction
         prompt: 'My mother said he will come tomorrow.'
         answer: 'My mother said she will come tomorrow.'
-        explain: 'Dia tidak bergender di bahasa kita, tapi ibu di bahasa Inggris adalah she. Ini kekeliruan yang paling sering muncul.'
+        explain: 'Dia tidak bergender di bahasa kita, tetapi ibu di bahasa Inggris adalah she. Ini kekeliruan yang paling sering muncul.'
         difficulty: 1200
 
   - id: NP_WORD_ORDER
@@ -549,19 +550,19 @@ categories:
     summary: "\"Mobil merah\" jadi \"red car\", bukan \"car red\"."
     note:
       l1: >-
-        Bahasa Indonesia menaruh yang diterangkan lebih dulu, baru yang
+        Bahasa Indonesia menempatkan yang diterangkan lebih dahulu, kemudian yang
         menerangkan — mobil merah, rumah besar, kopi panas.
       target: >-
-        Bahasa Inggris kebalikannya persis: yang menerangkan duluan. Red car,
+        Bahasa Inggris justru sebaliknya: yang menerangkan datang lebih dahulu. Red car,
         big house, hot coffee. Kabar baiknya, ini satu aturan yang berlaku
-        hampir selalu, jadi begitu terbiasa, selesai.
+        hampir selalu, sehingga setelah terbiasa, masalahnya selesai.
       minimalPair:
         wrong: "I want to buy a car red."
         right: "I want to buy a red car."
-        gloss: "Saya mau beli mobil merah."
+        gloss: "Saya ingin membeli mobil merah."
       tip: >-
-        Kalau ada dua kata sifat, urutannya pun ada polanya: pendapat dulu, baru
-        ukuran, baru warna — “a beautiful big red car”.
+        Jika ada dua kata sifat, urutannya pun ada polanya: pendapat terlebih dahulu, kemudian
+        ukuran, lalu warna — “a beautiful big red car”.
     drills:
       - id: NP_WORD_ORDER-1
         type: mcq
@@ -586,7 +587,7 @@ categories:
         prompt: "Mana yang benar untuk \"kopi panas\"?"
         options: ["hot coffee", "coffee hot", "coffee is hot", "the coffee hot"]
         answer: "hot coffee"
-        explain: "\"Coffee is hot\" juga kalimat yang benar, tapi artinya \"kopinya panas\" — kalimat utuh, bukan sebutan benda."
+        explain: "\"Coffee is hot\" juga kalimat yang benar, tetapi artinya \"kopinya panas\" — kalimat utuh, bukan sebutan benda."
         difficulty: 1190
       - id: NP_WORD_ORDER-4
         type: mcq
@@ -597,7 +598,7 @@ categories:
           - "an old nice wooden table"
           - "a table nice old wooden"
         answer: "a nice old wooden table"
-        explain: "Pendapat → umur → bahan. Penutur asli tidak hafal aturannya, tapi langsung terdengar kalau salah."
+        explain: "Pendapat → umur → bahan. Penutur asli tidak hafal aturannya, tetapi langsung terdengar jika salah."
         difficulty: 1380
       - id: NP_WORD_ORDER-5
         type: cloze
@@ -663,14 +664,14 @@ categories:
         prompt: "The meeting is ___ Monday."
         options: ["on", "in", "at", "to"]
         answer: "on"
-        explain: "Nama hari selalu pakai on."
+        explain: "Nama hari selalu menggunakan on."
         difficulty: 1160
       - id: PREPOSITIONS-2
         type: mcq
         prompt: "I was born ___ 1998."
         options: ["in", "on", "at", "from"]
         answer: "in"
-        explain: "Tahun dan bulan pakai in — satuan waktu yang besar."
+        explain: "Tahun dan bulan menggunakan in — satuan waktu yang besar."
         difficulty: 1140
       - id: PREPOSITIONS-3
         type: cloze
@@ -694,7 +695,7 @@ categories:
           - "I go at home after work."
           - "I go in home after work."
         answer: "I go home after work."
-        explain: "Home tidak pakai to. Sedikit sekali kata yang begini, dan home yang paling sering dipakai."
+        explain: "Home tidak menggunakan to. Hanya sedikit kata yang seperti ini, dan home yang paling sering digunakan."
         difficulty: 1290
       - id: PREPOSITIONS-6
         type: mcq
@@ -726,16 +727,16 @@ categories:
         Bahasa Indonesia sangat nyaman dengan pasif. "Bukunya sudah dibaca",
         "surat itu dikirim kemarin" — netral, sopan, sehari-hari.
       target: >-
-        Bahasa Inggris memakai pasif jauh lebih jarang, dan biasanya hanya kalau
+        Bahasa Inggris memakai pasif jauh lebih jarang, dan biasanya hanya jika
         pelakunya memang tidak penting atau tidak diketahui. Dipakai terlalu
-        sering, kalimatnya terdengar seperti laporan resmi — bukan salah, tapi
+        sering, kalimatnya terdengar seperti laporan resmi — bukan salah, tetapi
         jaraknya terasa.
       minimalPair:
         wrong: "The homework was already done by me."
         right: "I already did the homework."
         gloss: "PR-nya sudah saya kerjakan."
       tip: >-
-        Kalau kamu tahu siapa pelakunya dan pelakunya penting, taruh dia di
+        Jika Anda tahu siapa pelakunya dan pelakunya penting, tempatkan pelakunya di
         depan. Simpan pasif untuk saat pelakunya benar-benar tidak relevan.
     drills:
       - id: PASSIVE_OVERUSE-1
@@ -806,7 +807,7 @@ categories:
         difficulty: 1310
       - id: PASSIVE_OVERUSE-7
         type: mcq
-        prompt: "Mana yang benar untuk \"Nasinya sudah dimakan\" kalau pelakunya tidak penting?"
+        prompt: "Mana yang benar untuk \"Nasinya sudah dimakan\" jika pelakunya tidak penting?"
         options:
           - "The rice has been eaten."
           - "The rice has eaten."
@@ -820,7 +821,7 @@ categories:
         type: correction
         prompt: 'The letter was written by me yesterday.'
         answer: 'I wrote the letter yesterday.'
-        explain: 'Kalimat pasif ini benar secara tata bahasa tapi terdengar kaku. Bahasa Inggris sehari-hari memilih bentuk aktif.'
+        explain: 'Kalimat pasif ini benar secara tata bahasa tetapi terdengar kaku. Bahasa Inggris sehari-hari memilih bentuk aktif.'
         difficulty: 1200
 
   - id: MODAL_BISA
@@ -840,7 +841,7 @@ categories:
         right: "Yesterday I couldn't come."
         gloss: "Kemarin saya tidak bisa datang."
       tip: >-
-        Minta tolong ke orang yang belum akrab? Pakai could — “Could you help
+        Meminta tolong kepada orang yang belum akrab? Gunakan could — “Could you help
         me?” terdengar jauh lebih halus daripada “Can you help me?”.
     drills:
       - id: MODAL_BISA-1
@@ -890,7 +891,7 @@ categories:
         prompt: "___ I use your phone for a moment?"
         options: ["May", "Do", "Am", "Will"]
         answer: "May"
-        explain: "May untuk minta izin secara formal; can juga bisa, tapi lebih santai."
+        explain: "May digunakan untuk meminta izin secara formal; can juga dapat digunakan, tetapi kurang formal."
         difficulty: 1280
       - id: MODAL_BISA-7
         type: mcq
@@ -910,7 +911,7 @@ categories:
         type: correction
         prompt: 'Yesterday I can not come because I was sick.'
         answer: 'Yesterday I could not come because I was sick.'
-        explain: 'Bisa satu kata di bahasa kita, tapi bentuk lampaunya could. Kalimatnya sudah lampau, jadi can ikut berubah.'
+        explain: 'Dalam bahasa Indonesia, “bisa” tidak berubah bentuk, tetapi bentuk lampau can adalah could. Kalimatnya sudah lampau, jadi can ikut berubah.'
         difficulty: 1200
 
   - id: PHON_TH
@@ -919,25 +920,25 @@ categories:
     summary: "/θ/ dan /ð/ tidak ada di bahasa Indonesia — think jadi tink."
     note:
       l1: >-
-        Bahasa Indonesia tidak punya bunyi th sama sekali. Lidahmu tidak pernah
+        Bahasa Indonesia tidak punya bunyi th sama sekali. Lidah Anda tidak pernah
         perlu keluar di antara gigi, jadi otomatis bunyi itu diganti yang paling
         dekat: t, d, atau s.
       target: >-
         Ada dua bunyi th, dan bedanya hanya bergetar atau tidak. Think, three,
         month tidak bergetar. This, that, mother bergetar. Keduanya sama-sama
-        butuh ujung lidah menyentuh gigi depan.
+        memerlukan ujung lidah menyentuh gigi depan.
       minimalPair:
         wrong: "tink / sink"
         right: "think"
         gloss: "Ujung lidah keluar sedikit di antara gigi, lalu hembuskan."
       tip: >-
-        Latih di depan cermin: kalau ujung lidahmu tidak kelihatan, bunyinya
+        Latih di depan cermin: jika ujung lidah Anda tidak terlihat, bunyinya
         belum th. Kedengaran berlebihan waktu latihan, dan itu wajar.
     drills:
       - id: PHON_TH-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "think"
         options: ["think", "sink"]
         answer: "think"
@@ -945,15 +946,15 @@ categories:
       - id: PHON_TH-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "three"
         options: ["three", "tree"]
         answer: "three"
-        explain: "Perbedaannya cuma th versus t — dan artinya jauh berbeda."
+        explain: "Perbedaannya hanya th versus t — dan artinya jauh berbeda."
       - id: PHON_TH-3
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "they"
         options: ["they", "day"]
         answer: "they"
@@ -972,25 +973,25 @@ categories:
     summary: "/v/ jadi f atau p — very terdengar fery."
     note:
       l1: >-
-        Bahasa Indonesia menulis "v" tapi mengucapkannya seperti f, bahkan
+        Bahasa Indonesia menulis "v" tetapi mengucapkannya seperti f, bahkan
         sering seperti p — visa, video, provinsi. Bunyi v yang sebenarnya tidak
-        ada di sistem bunyimu.
+        ada di sistem bunyi Anda.
       target: >-
         V dalam bahasa Inggris bergetar: gigi atas menyentuh bibir bawah dan
-        pita suara ikut bekerja. Bedanya dengan f cuma getaran itu, tapi
+        pita suara ikut bekerja. Bedanya dengan f hanya getaran itu, tetapi
         penutur asli mendengarnya sebagai dua kata yang berbeda.
       minimalPair:
         wrong: "fery / pery"
         right: "very"
         gloss: "Gigi atas di bibir bawah, lalu bersuara — bukan sekadar hembusan."
       tip: >-
-        Pegang tenggorokanmu. Waktu mengucapkan v, harusnya terasa bergetar;
+        Pegang tenggorokan Anda. Saat mengucapkan v, seharusnya terasa bergetar;
         waktu f, tidak.
     drills:
       - id: PHON_V_F-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "very"
         options: ["very", "ferry"]
         answer: "very"
@@ -998,7 +999,7 @@ categories:
       - id: PHON_V_F-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "vine"
         options: ["vine", "fine"]
         answer: "vine"
@@ -1006,7 +1007,7 @@ categories:
       - id: PHON_V_F-3
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "save"
         options: ["save", "safe"]
         answer: "save"
@@ -1029,7 +1030,7 @@ categories:
     summary: "/z/ jadi s — zoo terdengar sue."
     note:
       l1: >-
-        Bahasa Indonesia punya huruf z tapi mengucapkannya nyaris sama dengan s,
+        Bahasa Indonesia punya huruf z tetapi mengucapkannya nyaris sama dengan s,
         terutama di akhir kata. Perbedaan bergetar dan tidak bergetar itu tidak
         pernah membedakan arti.
       target: >-
@@ -1039,15 +1040,15 @@ categories:
       minimalPair:
         wrong: "sue"
         right: "zoo"
-        gloss: "Posisi mulut sama persis; yang berubah cuma getaran pita suara."
+        gloss: "Posisi mulut sama persis; yang berubah hanya getaran pita suara."
       tip: >-
-        Aturan cepat untuk akhiran -s: kalau bunyi sebelumnya bergetar (dog,
+        Aturan cepat untuk akhiran -s: jika bunyi sebelumnya bergetar (dog,
         run, live), -s dibaca z.
     drills:
       - id: PHON_Z_S-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "zoo"
         options: ["zoo", "sue"]
         answer: "zoo"
@@ -1055,7 +1056,7 @@ categories:
       - id: PHON_Z_S-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "prize"
         options: ["prize", "price"]
         answer: "prize"
@@ -1063,7 +1064,7 @@ categories:
       - id: PHON_Z_S-3
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "eyes"
         options: ["eyes", "ice"]
         answer: "eyes"
@@ -1082,12 +1083,12 @@ categories:
     summary: "/ʃ/ dan /ʒ/ — she, measure, television."
     note:
       l1: >-
-        Bunyi sy memang ada di bahasa Indonesia (syarat, masyarakat), tapi jarang
+        Bunyi sy memang ada di bahasa Indonesia (syarat, masyarakat), tetapi jarang
         dan sering diucapkan seperti s biasa. Bunyi zh — seperti di measure —
         tidak ada sama sekali.
       target: >-
         Sh muncul sangat sering di bahasa Inggris (she, should, station,
-        delicious). Zh lebih jarang tapi ada di kata sehari-hari seperti
+        delicious). Zh lebih jarang tetapi ada di kata sehari-hari seperti
         television, usually, dan pleasure.
       minimalPair:
         wrong: "see"
@@ -1100,7 +1101,7 @@ categories:
       - id: PHON_SH_ZH-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "she"
         options: ["she", "sea"]
         answer: "she"
@@ -1108,7 +1109,7 @@ categories:
       - id: PHON_SH_ZH-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "ship"
         options: ["ship", "sip"]
         answer: "ship"
@@ -1135,23 +1136,23 @@ categories:
     note:
       l1: >-
         Bahasa Indonesia punya satu bunyi i saja. Panjang pendeknya tidak pernah
-        mengubah arti, jadi telingamu memang tidak dilatih membedakannya.
+        mengubah arti, jadi telinga Anda memang tidak dilatih membedakannya.
       target: >-
-        Bahasa Inggris punya dua, dan bedanya bukan cuma panjang: /ɪ/ diucapkan
+        Bahasa Inggris punya dua, dan bedanya bukan hanya panjang: /ɪ/ diucapkan
         dengan mulut lebih rileks dan lidah lebih rendah, /iː/ lebih tegang dan
-        lebih tinggi. Ini pasangan yang paling sering bikin salah paham.
+        lebih tinggi. Ini pasangan yang paling sering membuat salah paham.
       minimalPair:
         wrong: "sheep (padahal maksudnya kapal)"
         right: "ship"
         gloss: "ship = kapal, sheep = domba."
       tip: >-
-        /ɪ/ itu pendek dan santai — seperti “i” di “ini” yang buru-buru.
+        /ɪ/ itu pendek dan rileks — seperti “i” di “ini” yang buru-buru.
         /iː/ ditahan lebih lama dan bibir agak melebar seperti tersenyum.
     drills:
       - id: VOWEL_IH_EE-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "ship"
         options: ["ship", "sheep"]
         answer: "ship"
@@ -1159,7 +1160,7 @@ categories:
       - id: VOWEL_IH_EE-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "leave"
         options: ["leave", "live"]
         answer: "leave"
@@ -1167,7 +1168,7 @@ categories:
       - id: VOWEL_IH_EE-3
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "fit"
         options: ["fit", "feet"]
         answer: "fit"
@@ -1183,26 +1184,26 @@ categories:
   - id: VOWEL_AE_E
     kind: phonology
     label: "Bad atau bed"
-    summary: "/æ/ versus /e/ — dua bunyi, satu huruf di kepalamu."
+    summary: "/æ/ versus /e/ — dua bunyi, satu huruf di kepala Anda."
     note:
       l1: >-
-        Bahasa Indonesia punya e (seperti di "beda") tapi tidak punya /æ/ —
+        Bahasa Indonesia punya e (seperti di "beda") tetapi tidak punya /æ/ —
         bunyi di antara a dan e yang dipakai di bad, cat, man.
       target: >-
         /æ/ dibuat dengan mulut lebih terbuka dan lidah lebih rendah daripada e.
-        Kalau keduanya kamu ucapkan sama, bad dan bed jadi tidak terbedakan.
+        Jika keduanya Anda ucapkan sama, bad dan bed jadi tidak terbedakan.
       minimalPair:
         wrong: "bed (padahal maksudnya buruk)"
         right: "bad"
         gloss: "bad = buruk, bed = tempat tidur."
       tip: >-
-        Untuk /æ/, buka mulutmu lebih lebar dari yang terasa perlu, seperti mau
-        bilang “a” tapi berhenti di tengah jalan.
+        Untuk /æ/, buka mulut Anda lebih lebar dari yang terasa perlu, seperti hendak
+        mengatakan “a” tetapi berhenti di tengah jalan.
     drills:
       - id: VOWEL_AE_E-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "bad"
         options: ["bad", "bed"]
         answer: "bad"
@@ -1210,7 +1211,7 @@ categories:
       - id: VOWEL_AE_E-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "man"
         options: ["man", "men"]
         answer: "man"
@@ -1218,7 +1219,7 @@ categories:
       - id: VOWEL_AE_E-3
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "sat"
         options: ["sat", "set"]
         answer: "sat"
@@ -1253,7 +1254,7 @@ categories:
       - id: VOWEL_UH_OO-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "full"
         options: ["full", "fool"]
         answer: "full"
@@ -1261,7 +1262,7 @@ categories:
       - id: VOWEL_UH_OO-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "pull"
         options: ["pull", "pool"]
         answer: "pull"
@@ -1286,7 +1287,7 @@ categories:
       target: >-
         Bahasa Inggris membedakannya, dan pasangan seperti bag/back, bad/bat,
         hard/heart memang berbeda arti. Yang menarik: yang paling terdengar
-        bukan konsonannya, tapi vokal sebelumnya, yang jadi lebih panjang di
+        bukan konsonannya, tetapi vokal sebelumnya, yang jadi lebih panjang di
         depan konsonan bergetar.
       minimalPair:
         wrong: "back"
@@ -1299,7 +1300,7 @@ categories:
       - id: FINAL_DEVOICING-1
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "bag"
         options: ["bag", "back"]
         answer: "bag"
@@ -1307,7 +1308,7 @@ categories:
       - id: FINAL_DEVOICING-2
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "bad"
         options: ["bad", "bat"]
         answer: "bad"
@@ -1334,7 +1335,7 @@ categories:
         konsonan berurutan praktis tidak ada. Jadi refleksnya adalah menjatuhkan
         salah satunya atau menyisipkan vokal.
       target: >-
-        Bahasa Inggris menumpuk konsonan dengan santai, terutama di akhiran -ed
+        Bahasa Inggris menumpuk konsonan dengan leluasa, terutama di akhiran -ed
         dan -s. Asked berakhir dengan tiga konsonan berturut-turut, dan
         menjatuhkan satu bisa mengubahnya jadi kata lain.
       minimalPair:
@@ -1342,7 +1343,7 @@ categories:
         right: "asked"
         gloss: "Bunyinya \"askt\" — tiga konsonan, tanpa vokal sisipan."
       tip: >-
-        Akhiran -ed cuma menambah satu bunyi, bukan satu suku kata: walked =
+        Akhiran -ed hanya menambah satu bunyi, bukan satu suku kata: walked =
         “walkt”, bukan “wal-ked”. Kecuali setelah t atau d — wanted, needed.
     drills:
       - id: CLUSTER_REDUCTION-1
@@ -1350,7 +1351,7 @@ categories:
         prompt: "Berapa suku kata di \"walked\"?"
         options: ["satu", "dua", "tiga", "tergantung logat"]
         answer: "satu"
-        explain: "-ed di sini cuma menambah bunyi t: \"walkt\"."
+        explain: "-ed di sini hanya menambah bunyi t: \"walkt\"."
         difficulty: 1250
       - id: CLUSTER_REDUCTION-2
         type: mcq
@@ -1362,7 +1363,7 @@ categories:
       - id: CLUSTER_REDUCTION-3
         type: minimal-pair
         audio: true
-        prompt: "Kata mana yang kamu dengar?"
+        prompt: "Kata mana yang Anda dengar?"
         say: "asked"
         options: ["asked", "ask"]
         answer: "asked"
@@ -1372,7 +1373,7 @@ categories:
         prompt: "Bagaimana \"texts\" dibaca?"
         options: ["teksts", "tekses", "teks", "te-kes-tes"]
         answer: "teksts"
-        explain: "Empat konsonan berturut-turut. Boleh pelan, tapi jangan ada yang hilang."
+        explain: "Empat konsonan berturut-turut. Boleh pelan, tetapi jangan ada yang hilang."
         difficulty: 1360
 
   - id: WORD_STRESS
@@ -1431,22 +1432,22 @@ categories:
   - id: FALSE_FRIENDS
     kind: lexis
     label: "Teman palsu"
-    summary: "Kata yang mirip bahasa Indonesia tapi artinya berbeda."
+    summary: "Kata yang mirip bahasa Indonesia tetapi artinya berbeda."
     note:
       l1: >-
         Banyak kata Indonesia yang diserap dari bahasa Belanda dan Inggris, jadi
-        wajar kalau kamu menebak artinya sama. Kadang memang sama — tapi
+        wajar jika Anda menebak artinya sama. Kadang memang sama — tetapi
         beberapa yang paling sering dipakai justru bergeser artinya.
       target: >-
         Yang berbahaya bukan yang artinya jauh berbeda; itu cepat ketahuan. Yang
-        berbahaya adalah yang artinya *hampir* sama, karena kalimatmu tetap
-        masuk akal dan tidak ada yang mengoreksimu.
+        berbahaya adalah yang artinya *hampir* sama, karena kalimat Anda tetap
+        masuk akal dan tidak ada yang mengoreksi Anda.
       minimalPair:
         wrong: "The actual price is Rp50.000."
         right: "The current price is Rp50.000."
         gloss: "\"Actual\" berarti sebenarnya, bukan terkini. \"Aktual\" = current."
       tip: >-
-        Kalau sebuah kata Inggris terasa terlalu mirip padanan Indonesianya,
+        Jika sebuah kata Inggris terasa terlalu mirip padanan Indonesianya,
         curigai sedikit. Sepuluh detik mengecek lebih murah daripada salah paham.
     drills:
       - id: FALSE_FRIENDS-1
@@ -1454,21 +1455,21 @@ categories:
         prompt: "\"Berita aktual\" dalam bahasa Inggris paling tepat adalah?"
         options: ["current news", "actual news", "actually news", "factual news"]
         answer: "current news"
-        explain: "Actual = sebenarnya. Untuk \"aktual\" pakai current atau latest."
+        explain: "Actual = sebenarnya. Untuk \"aktual\", gunakan current atau latest."
         difficulty: 1270
       - id: FALSE_FRIENDS-2
         type: mcq
         prompt: "\"Eventually\" artinya?"
         options: ["akhirnya", "kemungkinan", "sewaktu-waktu", "kebetulan"]
         answer: "akhirnya"
-        explain: "Bukan \"eventual\" yang berarti kemungkinan. Untuk itu pakai possibly."
+        explain: "Bukan \"eventual\" yang berarti kemungkinan. Untuk itu, gunakan possibly."
         difficulty: 1290
       - id: FALSE_FRIENDS-3
         type: mcq
         prompt: "\"He is a sensible person\" artinya dia orang yang?"
         options: ["masuk akal", "sensitif", "peka perasaan", "mudah tersinggung"]
         answer: "masuk akal"
-        explain: "Sensible = berakal sehat. Untuk \"sensibel\" atau peka, pakai sensitive."
+        explain: "Sensible = berakal sehat. Untuk \"sensibel\" atau peka, gunakan sensitive."
         difficulty: 1300
       - id: FALSE_FRIENDS-4
         type: mcq
@@ -1482,7 +1483,7 @@ categories:
         prompt: "\"She is very sympathetic\" artinya dia?"
         options: ["ikut merasakan penderitaan orang", "ramah dan menyenangkan", "cantik", "mudah bergaul"]
         answer: "ikut merasakan penderitaan orang"
-        explain: "Sympathetic bukan \"simpatik\". Untuk simpatik pakai likeable atau charming."
+        explain: "Sympathetic bukan \"simpatik\". Untuk simpatik, gunakan likeable atau charming."
         difficulty: 1320
       - id: FALSE_FRIENDS-6
         type: mcq

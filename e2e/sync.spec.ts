@@ -38,8 +38,8 @@ test('sync is off by default and says the app does not need it', async ({ page }
   await expect(page.getByTestId('sync-endpoint')).toHaveValue('');
   // The learner is told, before enabling anything, that there is no server
   // behind this and that their data would leave the phone.
-  await expect(page.getByText(/jalan sepenuhnya tanpa ini/)).toBeVisible();
-  await expect(page.getByText(/Kami tidak punya server/)).toBeVisible();
+  await expect(page.getByText(/berfungsi sepenuhnya tanpa fitur ini/)).toBeVisible();
+  await expect(page.getByText(/Kami tidak menyediakan server/)).toBeVisible();
 
   // And the button that would send anything is not usable while it is off.
   await expect(page.getByTestId('sync-now')).toBeDisabled();
@@ -61,9 +61,9 @@ test('the screen names what sync uploads, before it can be turned on', async ({ 
   const carries = page.getByTestId('sync-carries');
   await expect(carries).toBeVisible();
   // Answers and schedule — what it always carried.
-  await expect(carries).toContainText(/jawaban latihanmu/);
+  await expect(carries).toContainText(/jawaban latihan Anda/);
   // The learner's own written mnemonics — what v1.21.0 added.
-  await expect(carries).toContainText(/catatan hafalan yang kamu tulis sendiri/);
+  await expect(carries).toContainText(/catatan hafalan yang Anda tulis sendiri/);
   // And what never leaves: the endpoint and token are device-local secrets,
   // deliberately held outside Dexie so they cannot reach an export either.
   await expect(carries).toContainText(/kata sandi server tidak pernah dikirim/);

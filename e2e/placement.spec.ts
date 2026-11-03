@@ -27,7 +27,7 @@ test('can be skipped, and skipping costs nothing', async ({ page }) => {
   await firstRun(page);
   await page.getByTestId('placement-skip').click();
 
-  await expect(page.getByRole('heading', { name: 'Halo!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Selamat datang' })).toBeVisible();
   await page.getByTestId('practise').click();
   await expect(page.getByTestId('session-progress')).toBeVisible({ timeout: 20_000 });
 });
@@ -80,6 +80,6 @@ test('a taken placement stops being offered', async ({ page }) => {
   }
   await page.getByRole('button', { name: 'Mulai latihan' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Halo!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Selamat datang' })).toBeVisible();
   await expect(page.getByTestId('placement-offer')).toHaveCount(0);
 });

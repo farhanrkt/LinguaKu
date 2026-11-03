@@ -17,7 +17,7 @@ test('the reader is honest when it has nothing to show yet', async ({ page }) =>
   await firstRun(page);
   await switchLanguage(page, /Bahasa Jepang/);
   await page.getByTestId('reader-open').click();
-  await expect(page.getByText(/Belum ada bacaan yang pas/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Belum ada bacaan yang sesuai/)).toBeVisible({ timeout: 20_000 });
 });
 
 test('an intermediate English learner can read on day one', async ({ page }) => {
@@ -47,7 +47,7 @@ test('tap-to-gloss opens without a network round trip', async ({ page, context }
 
   // SPEC §2.5: meaning rests on the sentence, and the panel says plainly that
   // there is no per-word dictionary rather than leaving the gloss looking thin.
-  await expect(page.getByTestId('word-panel')).toContainText('Di kalimat ini');
+  await expect(page.getByTestId('word-panel')).toContainText('Dalam kalimat ini');
 });
 
 test('mining a word puts it in the next session, and creates no card by itself', async ({
@@ -79,7 +79,7 @@ test('mining a word puts it in the next session, and creates no card by itself',
   expect(found).toBe(true);
   await mine.click();
 
-  await expect(page.getByText(/Akan muncul di sesi latihan berikutnya/)).toBeVisible();
+  await expect(page.getByText(/akan muncul pada sesi latihan berikutnya/)).toBeVisible();
 
   // SPEC §2.2 and invariant 0: a card is the product of an *answer*. Tapping
   // "add this" is an intention, and minting a card from it would put an item in
@@ -116,7 +116,7 @@ test('the reader says what it costs before spending the learner’s data', async
   await seedKnownVocabulary(page, 600);
 
   await page.getByTestId('settings-open').click();
-  await page.getByTestId('data-saver').getByRole('button', { name: /Selalu tanya dulu/ }).click();
+  await page.getByTestId('data-saver').getByRole('button', { name: /Selalu tanyakan terlebih dahulu/ }).click();
   await page.getByRole('button', { name: 'Selesai' }).click();
 
   await page.getByTestId('reader-open').click();

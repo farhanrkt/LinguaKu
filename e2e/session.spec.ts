@@ -130,7 +130,7 @@ test('topics are offered, and choosing none costs nothing', async ({ page }) => 
   await expect(page.getByText(/Belum ada yang dipilih/)).toBeVisible();
 
   await list.locator('button[aria-pressed]').first().click();
-  await expect(page.getByText(/Bisa diubah atau dikosongkan kapan saja/)).toBeVisible();
+  await expect(page.getByText(/Dapat diubah atau dikosongkan kapan saja/)).toBeVisible();
 
   // Wait for the write to land before reloading. The toggle updates the screen
   // optimistically and persists in the background, so a reload fired
@@ -373,7 +373,7 @@ test('the learner can set their own pace, including none at all', async ({ page 
   // And the home screen says what that setting means rather than promising new
   // words tomorrow that the learner has just switched off.
   await page.getByRole('button', { name: 'Selesai' }).click();
-  await expect(page.getByTestId('today-clear')).toContainText('kata baru sedang kamu matikan');
+  await expect(page.getByTestId('today-clear')).toContainText('kata baru sedang Anda nonaktifkan');
 });
 
 /**

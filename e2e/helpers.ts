@@ -29,7 +29,7 @@ export const answerOne = async (page: Page): Promise<void> => {
   const progress = page.getByTestId('session-progress');
   const before = await progress.textContent();
 
-  const confirm = page.getByRole('button', { name: 'Oke, paham' });
+  const confirm = page.getByRole('button', { name: 'Saya mengerti' });
   const input = page.getByRole('textbox');
   const drillSubmit = page.getByRole('button', { name: 'Jawab' });
 
@@ -94,7 +94,7 @@ export const waitForOfflineReady = async (page: Page): Promise<void> => {
   // diagnostics block — the home screen shows the learner's progress now, not
   // the app's. Checked there and then left, so callers still start from home.
   await page.getByTestId('settings-open').click();
-  await expect(page.getByTestId('offline-status')).toHaveText('Siap dipakai offline');
+  await expect(page.getByTestId('offline-status')).toHaveText('Siap digunakan secara offline');
   await page.getByRole('button', { name: 'Selesai' }).click();
   await expect(page.getByTestId('practise')).toBeVisible({ timeout: 20_000 });
 };
@@ -273,7 +273,7 @@ export const seedDueCardsAtLevel = async (
  *
  * A session runs until its queue is empty *or* until the learner stops, and
  * those exits are different controls: the summary's "Kembali" and the
- * mid-session "Selesai dulu". Tests used to reach for the second one and got
+ * mid-session "Akhiri sesi". Tests used to reach for the second one and got
  * away with it only because a fresh session was longer than they were —
  * SPEC §7.2's daily cap makes a first session exactly one day's allowance, so
  * they now finish it.
@@ -284,7 +284,7 @@ export const leaveSession = async (page: Page): Promise<void> => {
     await page.getByRole('button', { name: 'Kembali' }).click();
     return;
   }
-  await page.getByRole('button', { name: 'Selesai dulu' }).click();
+  await page.getByRole('button', { name: 'Akhiri sesi' }).click();
 };
 
 /**

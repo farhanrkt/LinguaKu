@@ -112,9 +112,9 @@
       "band": 2,
       "path": "chunks.b2.json",
       "count": 6,
-      "bytes": 5836,
-      "gzipBytes": 1832,
-      "sha256": "66c5aad65a678ba91d518dda401df653641f29792b77fe29c21da43d0bf0f040"
+      "bytes": 5791,
+      "gzipBytes": 1805,
+      "sha256": "bfceec4f14cf8630b7e3e92faf1cb4e44a0c19450c4be07f00a077235b234227"
     },
     {
       "kind": "chunks",
@@ -238,9 +238,9 @@
       "band": 1,
       "path": "meanings.b1.json",
       "count": 421,
-      "bytes": 19509,
-      "gzipBytes": 6728,
-      "sha256": "b00aff991a42b07bfee7f29aa44e85a6a33f68d3796077104f162e0c044b7f67"
+      "bytes": 19545,
+      "gzipBytes": 6733,
+      "sha256": "c47fb18cd65d0c7623b3c81b2fcd6e04a33fed6d4daef3513502792d93d89d22"
     },
     {
       "kind": "sentences",

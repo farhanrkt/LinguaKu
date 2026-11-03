@@ -42,5 +42,5 @@ test('a silent device still says so after the check', async ({ page }) => {
   await page.getByTestId('diagnostics-back').click();
 
   // SPEC §2.6: withheld and named, never faked.
-  await expect(page.getByTestId('audio-status')).toContainText('belum bisa mengeluarkan suara');
+  await expect(page.getByTestId('audio-status')).toContainText('belum dapat mengeluarkan suara');
 });

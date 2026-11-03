@@ -35,13 +35,13 @@ test('every §9 section renders, and says so plainly when it has nothing yet', a
   }
 
   // Nothing has been answered, so nothing may be claimed.
-  await expect(page.getByTestId('vocab')).toContainText('Latihan dulu beberapa sesi');
+  await expect(page.getByTestId('vocab')).toContainText('Lakukan beberapa sesi latihan');
   await expect(page.getByTestId('retention')).toContainText('Belum cukup ulangan');
   await expect(page.getByTestId('calibration')).toContainText('Belum cukup jawaban');
 
   // §3.3's heatmap is named for the language being studied. It was hardcoded
   // to "Inggris", which was right here and wrong for every Japanese learner.
-  await expect(page.getByRole('heading', { name: /Pola bahasa Inggrismu/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Pola bahasa Inggris Anda/ })).toBeVisible();
 
   // SPEC §9 / §2.15: no level label, and none of the banned framings anywhere
   // on the most judgement-laden screen in the app.
@@ -77,7 +77,7 @@ test('answering questions puts real numbers on the screen', async ({ page }) => 
   await expect(page.getByTestId('forecast')).toBeVisible();
   // And the consistency band shows today, without anything resembling a streak.
   await expect(page.getByTestId('consistency')).toContainText('dari 7 hari terakhir');
-  await expect(page.getByTestId('consistency')).toContainText('Bukan rentetan yang bisa putus');
+  await expect(page.getByTestId('consistency')).toContainText('Bukan rentetan yang dapat terputus');
 });
 
 test('exports a JSON backup with no account, and restores it', async ({ page }) => {
@@ -145,7 +145,7 @@ test('the recap reports capability, never a score', async ({ page }) => {
   await page.getByTestId('progress-open').click();
   const recap = page.getByTestId('recap');
   await expect(recap).toContainText(/kata/);
-  await expect(recap).toContainText(/Kamu latihan di \d+ hari/);
+  await expect(recap).toContainText(/Anda berlatih pada \d+ hari/);
 
   // §2.14 and docs/ETHICS.md: no points, no XP, no streak, no target missed.
   await expect(recap).not.toContainText(/XP|poin|skor|nilai|beruntun|gagal/i);
@@ -218,7 +218,7 @@ test('the learning path shows the whole scale, not just what is downloaded', asy
   }
 
   // The learner is placed on it, and the figure is a real share of tokens.
-  await expect(path).toContainText('Kamu di sini');
+  await expect(path).toContainText('Posisi Anda saat ini');
   await expect(page.getByTestId('path-reach')).toContainText('%');
   await expect(path).toContainText('481');
   // And it states the ceiling rather than implying the app teaches everything.
@@ -230,7 +230,7 @@ test('the path says nothing has been secured rather than showing 0%', async ({ p
   await openProgress(page);
 
   // Invariant 18: an unmeasured figure is never drawn as a zero.
-  await expect(page.getByTestId('path-reach')).toContainText('Belum ada kata yang terkunci');
+  await expect(page.getByTestId('path-reach')).toContainText('Belum ada kata yang dikuasai');
 });
 
 /**
