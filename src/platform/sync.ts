@@ -43,7 +43,19 @@ export interface SyncSettings {
   endpoint: string;
   /** Shared secret, so a URL alone does not grant access to a history. */
   token: string;
+  /** Local clock: finished sessions since this have not been pushed. */
   lastSyncedAt: Timestamp | null;
+  /**
+   * The history this phone joins on the server, or null for its own.
+   *
+   * Every phone creates its own random profile id, and the server keys rows by
+   * it — so two phones syncing to one Worker each read back only their own
+   * sessions and never exchanged anything. A second phone enters the first
+   * one's code (`syncCodeFor`) to join its history.
+   */
+  syncId: string | null;
+  /** Server clock: the last row this phone has pulled (see the Worker). */
+  pullCursor: { at: number; id: string } | null;
 }
 
 /**
@@ -63,7 +75,13 @@ export const defaultSyncSettings = (): SyncSettings => ({
   endpoint: '',
   token: '',
   lastSyncedAt: null,
+  syncId: null,
+  pullCursor: null,
 });
+
+/** The code another phone enters to join this history. */
+export const syncCodeFor = (settings: SyncSettings, profileId: string): string =>
+  settings.syncId ?? profileId;
 
 export const readSyncSettings = (): SyncSettings => {
   try {
@@ -104,8 +122,14 @@ export type SyncFailure =
   | 'unauthorized'
   /** The endpoint answered, but not with a sync endpoint. */
   | 'not-found'
-  /** No answer at all: offline, wrong host, blocked. */
+  /** No answer at all, and the device is offline. */
   | 'unreachable'
+  /**
+   * No answer, though the device is online: the browser refused it — most
+   * often a server without CORS for this app's address. Telling this learner
+   * to "check your connection" sent them to fix the one thing that worked.
+   */
+  | 'blocked'
   /** It answered with a failure of its own. */
   | 'server'
   | 'unknown';
@@ -222,51 +246,92 @@ export const syncNow = async (profileId: string): Promise<SyncOutcome> => {
   if (!settings.enabled || settings.endpoint.length === 0) return { status: 'disabled' };
 
   const since = settings.lastSyncedAt ?? 0;
-  // The next cursor is taken *before* anything is read. Taking it afterwards
-  // (`Date.now()` at the end) silently skipped anything written while the
-  // request was in flight, because the cursor would then sit past rows this
-  // push never carried.
+  // The next push cursor is taken *before* anything is read. Taking it
+  // afterwards (`Date.now()` at the end) silently skipped anything written
+  // while the request was in flight.
   const cursor = Date.now();
+  const shared = syncCodeFor(settings, profileId);
+  const url = `${settings.endpoint.replace(/\/$/, '')}/sync`;
 
   try {
-    const deltas = await pendingDeltas(profileId, since);
+    // Pushed under the shared code, so the other phones of this history see it.
+    const deltas = (await pendingDeltas(profileId, since)).map((delta) => ({
+      ...delta,
+      profileId: shared,
+    }));
 
-    const response = await fetch(`${settings.endpoint.replace(/\/$/, '')}/sync`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${settings.token}`,
-      },
-      body: JSON.stringify({ profileId, since, deltas }),
-    });
-    if (!response.ok) {
-      return {
-        status: 'failed',
-        reason: failureFor(response.status),
-        detail: `HTTP ${response.status}`,
-      };
-    }
-
-    const payload = (await response.json()) as { deltas?: unknown[] };
-    const incoming = (payload.deltas ?? []).filter(isDelta);
-
+    let pull = settings.pullCursor ?? { at: 0, id: '' };
+    let pulled = 0;
     let merged = 0;
-    for (const delta of incoming) {
-      merged += await applyDelta(delta);
+    // Page until the server says there is no more (it sends 200 at a time).
+    for (let page = 0, push = deltas; page < MAX_PAGES; page++, push = []) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${settings.token}`,
+        },
+        body: JSON.stringify({ profileId: shared, since: pull.at, sinceId: pull.id, deltas: push }),
+      });
+      if (!response.ok) {
+        return {
+          status: 'failed',
+          reason: failureFor(response.status),
+          detail: `HTTP ${response.status}`,
+        };
+      }
+
+      const payload = (await response.json()) as {
+        deltas?: unknown[];
+        cursor?: { at: number; id: string };
+        more?: boolean;
+      };
+      const incoming = (payload.deltas ?? []).filter(isDelta);
+      for (const delta of incoming) merged += await applyDelta(rekeyDelta(delta, profileId));
+      pulled += incoming.length;
+      if (payload.cursor) pull = payload.cursor;
+      if (payload.more !== true) break;
     }
 
-    writeSyncSettings({ ...settings, lastSyncedAt: cursor });
-    return { status: 'ok', pushed: deltas.length, pulled: incoming.length, merged };
+    writeSyncSettings({ ...settings, lastSyncedAt: cursor, pullCursor: pull });
+    return { status: 'ok', pushed: deltas.length, pulled, merged };
   } catch (error) {
-    // `fetch` rejects rather than resolving when it cannot reach the host at
-    // all — offline, wrong hostname, blocked by the network. That is a
-    // different thing from a server that answered badly, and a different fix.
+    // `fetch` rejects rather than resolving when it gets no answer at all. An
+    // offline device and a browser refusing the request look identical from
+    // here, so the device's own idea of whether it is online decides which
+    // sentence the learner reads.
+    const online = typeof navigator === 'undefined' || navigator.onLine !== false;
     return {
       status: 'failed',
-      reason: 'unreachable',
+      reason: online ? 'blocked' : 'unreachable',
       detail: error instanceof Error ? error.message : 'unknown',
     };
   }
+};
+
+/** Enough for 20,000 sessions in one run; a runaway server cannot loop us forever. */
+const MAX_PAGES = 100;
+
+/**
+ * A delta from another phone, re-keyed to this phone's profile.
+ *
+ * Rows carry the profile they were written under, and card ids embed it
+ * (`profileId::itemId`). Applied as they arrive, a joined phone's sessions
+ * would land under a profile this phone never reads.
+ */
+export const rekeyDelta = (delta: Delta, profileId: string): Delta => {
+  if (delta.session.profileId === profileId) return delta;
+  const card = (id: string): string => `${profileId}::${id.slice(id.indexOf('::') + 2)}`;
+  return {
+    ...delta,
+    profileId,
+    session: { ...delta.session, profileId },
+    reviewLogs: delta.reviewLogs.map((log) => ({ ...log, profileId, cardId: card(log.cardId) })),
+    drillAttempts: delta.drillAttempts.map((attempt) => ({ ...attempt, profileId })),
+    cards: delta.cards.map((row) => ({ ...row, profileId, id: card(row.id) })),
+    mnemonics: (delta.mnemonics ?? []).map((row) => ({ ...row, profileId })),
+    categoryScores: (delta.categoryScores ?? []).map((row) => ({ ...row, profileId })),
+  };
 };
 
 /**

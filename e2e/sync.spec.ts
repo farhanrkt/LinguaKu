@@ -86,6 +86,8 @@ test('a failed sync leaves the learner’s data alone', async ({ page }) => {
   // problem, and a different fix, from a token that does not match — and says
   // the local data is untouched, which it is.
   const outcome = page.getByTestId('sync-outcome');
-  await expect(outcome).toContainText(/tidak bisa dihubungi/, { timeout: 20_000 });
+  // Online, so not "check your connection": a wrong address or a server that
+  // refuses this app, and the sentence names both.
+  await expect(outcome).toContainText(/tidak dapat dihubungi/, { timeout: 20_000 });
   await expect(outcome).toContainText(/tidak berubah/);
 });

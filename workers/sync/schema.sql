@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS deltas (
   payload      TEXT NOT NULL
 );
 
--- The only query the server runs: "everything for this profile since X".
+-- Served the first version's pull query, which compared device clocks. Kept so
+-- an existing deployment can re-run this file without a DROP; nothing reads it.
 CREATE INDEX IF NOT EXISTS deltas_by_profile
   ON deltas (profile_id, produced_at);
+
+-- The pull query pages by when this server received each row, with the session
+-- id breaking ties inside one push (see index.ts).
+CREATE INDEX IF NOT EXISTS deltas_by_receipt
+  ON deltas (profile_id, received_at, session_id);

@@ -150,7 +150,59 @@ export const SettingsScreen = ({
     <Screen footer={<Button onClick={onBack}>{copy.settings.done}</Button>}>
       <h1 className="text-2xl font-bold">{copy.settings.heading}</h1>
 
-      <h2 className="mt-8 text-lg font-bold">{copy.settings.topicsHeading}</h2>
+      {/* The two settings that change what the app *is* for this learner come
+          first. They sat below twelve topic cards — about four phone screens
+          down — after v1.34.0 moved them here from home. */}
+      <h2 className="mt-6 text-lg font-bold">{copy.home.changeTargets}</h2>
+      <div className="mt-3 flex flex-col gap-3">
+        {TARGETS.map((lang) => (
+          <OptionCard
+            key={lang}
+            label={copy.firstRun.targets[lang].label}
+            selected={lang === activeTarget}
+            onToggle={() => switchTarget(lang)}
+          />
+        ))}
+      </div>
+
+      {/* SPEC §4.3: romaji → kana → kanji. Japanese only, because there is no
+          ladder to climb in English — and offered at all because `scriptMode`
+          defaulted to `kana` and had no control, which left every Japanese
+          learner on the middle rung permanently (D96). */}
+      {activeTarget === 'ja' ? (
+        <>
+          <h2 className="mt-10 text-lg font-bold">{copy.home.changeScript}</h2>
+          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
+            {copy.home.scriptHint}
+          </p>
+          <div className="mt-3 flex flex-col gap-3" data-testid="script-mode">
+            {SCRIPT_MODES.map((mode) => (
+              <OptionCard
+                key={mode}
+                label={copy.home.script[mode].label}
+                hint={copy.home.script[mode].hint}
+                selected={profile.scriptMode === mode}
+                onToggle={() => onChange({ scriptMode: mode })}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <h2 className="mt-10 text-lg font-bold">{copy.home.changeMinutes}</h2>
+      <div className="mt-3 flex flex-col gap-3">
+        {MINUTES.map((value) => (
+          <OptionCard
+            key={value}
+            label={copy.firstRun.minutes[value].label}
+            selected={profile.dailyMinutes === value}
+            onToggle={() => onChange({ dailyMinutes: value })}
+          />
+        ))}
+      </div>
+
+
+      <h2 className="mt-10 text-lg font-bold">{copy.settings.topicsHeading}</h2>
       <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">{copy.settings.topicsIntro}</p>
 
       {topics === null ? (
@@ -243,54 +295,6 @@ export const SettingsScreen = ({
             hint={copy.settings.data[`${choice}Hint`]}
             selected={(profile.dataSaver ?? 'auto') === choice}
             onToggle={() => onChange({ dataSaver: choice })}
-          />
-        ))}
-      </div>
-
-      <h2 className="mt-10 text-lg font-bold">{copy.home.changeTargets}</h2>
-      <div className="mt-3 flex flex-col gap-3">
-        {TARGETS.map((lang) => (
-          <OptionCard
-            key={lang}
-            label={copy.firstRun.targets[lang].label}
-            selected={lang === activeTarget}
-            onToggle={() => switchTarget(lang)}
-          />
-        ))}
-      </div>
-
-      {/* SPEC §4.3: romaji → kana → kanji. Japanese only, because there is no
-          ladder to climb in English — and offered at all because `scriptMode`
-          defaulted to `kana` and had no control, which left every Japanese
-          learner on the middle rung permanently (D96). */}
-      {activeTarget === 'ja' ? (
-        <>
-          <h2 className="mt-10 text-lg font-bold">{copy.home.changeScript}</h2>
-          <p className="mt-1 text-sm text-stone-600 dark:text-slate-400">
-            {copy.home.scriptHint}
-          </p>
-          <div className="mt-3 flex flex-col gap-3" data-testid="script-mode">
-            {SCRIPT_MODES.map((mode) => (
-              <OptionCard
-                key={mode}
-                label={copy.home.script[mode].label}
-                hint={copy.home.script[mode].hint}
-                selected={profile.scriptMode === mode}
-                onToggle={() => onChange({ scriptMode: mode })}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      <h2 className="mt-10 text-lg font-bold">{copy.home.changeMinutes}</h2>
-      <div className="mt-3 flex flex-col gap-3">
-        {MINUTES.map((value) => (
-          <OptionCard
-            key={value}
-            label={copy.firstRun.minutes[value].label}
-            selected={profile.dailyMinutes === value}
-            onToggle={() => onChange({ dailyMinutes: value })}
           />
         ))}
       </div>

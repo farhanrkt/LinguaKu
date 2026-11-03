@@ -7,7 +7,14 @@ export type OfflineStatus = 'preparing' | 'ready' | 'unavailable';
  * real state rather than assuming it — on a browser without service workers
  * (or a non-secure origin) we say so instead of lying.
  */
-export const registerServiceWorker = (onStatus: (status: OfflineStatus) => void): void => {
+export const registerServiceWorker = (
+  onStatus: (status: OfflineStatus) => void,
+  /**
+   * A new version is installed and waiting. `apply` swaps it in and reloads —
+   * called only when the learner chooses, never in the middle of a card.
+   */
+  onUpdate?: (apply: () => void) => void,
+): void => {
   if (!('serviceWorker' in navigator)) {
     onStatus('unavailable');
     return;
@@ -20,9 +27,9 @@ export const registerServiceWorker = (onStatus: (status: OfflineStatus) => void)
       if (registration?.active) onStatus('ready');
     },
     onRegisterError: () => onStatus('unavailable'),
+    // 'prompt' mode: the waiting worker is offered, not forced. Under
+    // 'autoUpdate' a deploy reloaded every open page as soon as it activated,
+    // and a learner mid-answer was put back on the home screen.
+    onNeedRefresh: () => onUpdate?.(() => void updateSW(true)),
   });
-
-  // autoUpdate: take the new worker as soon as it is waiting. Nothing in the
-  // app depends on a stable bundle across a session.
-  void updateSW;
 };

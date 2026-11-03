@@ -55,6 +55,10 @@ export const copy = {
       capReached: 'Kata baru hari ini sudah cukup. Ulangan tetap jalan.',
     },
     greeting: 'Halo!',
+    update: {
+      ready: 'Versi baru LinguaKu sudah siap dipakai.',
+      apply: 'Muat ulang sekarang',
+    },
     learningLabel: 'Kamu sedang belajar',
     minutesLabel: 'Target harian',
     /**
@@ -144,6 +148,14 @@ export const copy = {
   },
   session: {
     start: (minutes: number) => `Latihan ${minutes} menit`,
+    /**
+     * The home button. "Latihan 4 menit" promised four minutes on a day whose
+     * new-word allowance held six cards — under one. The estimate is today's
+     * actual load, never more than the learner's own daily target.
+     */
+    startToday: (minutes: number) =>
+      minutes <= 1 ? 'Mulai latihan (sekitar 1 menit)' : `Mulai latihan (sekitar ${minutes} menit)`,
+    startPlain: 'Mulai latihan',
     resume: 'Lanjutkan latihan',
     // SPEC §2.14: declining is a first-class action, not a hidden escape. The
     // wording is the spec's own — "belum perlu", not "lewati" — because it says
@@ -458,6 +470,11 @@ export const copy = {
     noServer:
       'Kami tidak punya server. Kamu perlu memasang sendiri (petunjuknya ada di workers/sync/README.md), lalu tempel alamatnya di bawah.',
     enable: 'Nyalakan sinkronisasi',
+    codeHeading: 'Kode sinkronisasi HP ini',
+    codeHint:
+      'Untuk menggabungkan riwayat dua HP, masukkan kode ini di HP yang lain, lalu sinkronkan keduanya.',
+    joinLabel: 'Gabungkan dengan riwayat HP lain',
+    joinPlaceholder: 'Tempel kode dari HP lain',
     endpoint: 'Alamat server kamu',
     endpointPlaceholder: 'https://…workers.dev',
     token: 'Kata sandi server',
@@ -482,6 +499,9 @@ export const copy = {
       'Alamat itu tidak punya layanan sinkron. Periksa lagi alamatnya. Datamu di HP ini tidak berubah.',
     failedUnreachable:
       'Server tidak bisa dihubungi. Periksa koneksimu, lalu coba lagi. Datamu di HP ini tidak berubah.',
+    /** Online, but the browser refused the request — usually missing CORS. */
+    failedBlocked:
+      'Server tidak dapat dihubungi dari aplikasi ini, padahal perangkat sedang online. Periksa alamat server. Jika alamatnya sudah benar, server mungkin belum mengizinkan akses dari aplikasi ini (CORS); petunjuknya ada di workers/sync/README.md. Datamu di HP ini tidak berubah.',
     failedServer:
       'Servernya sedang bermasalah. Coba lagi nanti. Datamu di HP ini tidak berubah.',
     failedUnknown: 'Gagal, dan kami belum tahu kenapa. Datamu di HP ini tidak berubah.',

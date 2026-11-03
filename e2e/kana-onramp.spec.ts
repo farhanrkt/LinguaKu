@@ -173,3 +173,55 @@ test('a beginner is never asked to fix a sentence they cannot read', async ({ pa
 
   expect(unreadable, 'no drill should need Japanese a beginner has not been taught').toEqual([]);
 });
+
+/**
+ * The recall card's primary button. `Button` defaults to `type="button"`, and
+ * this one did not override it, so tapping "Jawab" did nothing — only the
+ * keyboard's Enter submitted, on every recall review of every kana.
+ */
+test('a kana recall card answers from its button, not only from Enter', async ({ page }) => {
+  test.setTimeout(120_000);
+  await firstRun(page);
+  await switchLanguage(page, /Bahasa Jepang/);
+  await waitForJapanese(page);
+  await page.evaluate(
+    (now) =>
+      new Promise<void>((resolve) => {
+        const open = indexedDB.open('linguaku');
+        open.onsuccess = () => {
+          const database = open.result;
+          const read = database.transaction(['profiles']);
+          const profiles = read.objectStore('profiles').getAll();
+          read.oncomplete = () => {
+            const profile = profiles.result[0] as { id: string; dailyNewWords?: number };
+            const write = database.transaction(['cards', 'sessions', 'profiles'], 'readwrite');
+            write.objectStore('cards').put({
+              id: `${profile.id}::ja:kana:か`, profileId: profile.id, itemId: 'ja:kana:か', ladderLevel: 1,
+              dueAt: now - 1000, suspended: 0,
+              fsrs: { dueAt: now - 1000, stability: 30, difficulty: 5, elapsedDays: 1, scheduledDays: 1, learningSteps: 0, reps: 5, lapses: 0, state: 2, lastReviewAt: now - 86_400_000 },
+            });
+            write.objectStore('sessions').clear();
+            write.objectStore('profiles').put({ ...profile, dailyNewWords: 0 });
+            write.oncomplete = () => resolve();
+          };
+        };
+      }),
+    Date.now(),
+  );
+  await page.reload();
+  await page.getByTestId('practise').click();
+  // Walk past anything ahead of it (a script drill may come first).
+  for (let step = 0; step < 6; step++) {
+    if (await page.getByTestId('kana-input').isVisible().catch(() => false)) break;
+    const option = page.locator('button[aria-pressed]').first();
+    if (await option.isVisible().catch(() => false)) {
+      await option.click();
+      await page.getByTestId('next').click();
+    }
+    await page.waitForTimeout(500);
+  }
+  await page.getByTestId('kana-input').fill('ka');
+  await page.getByTestId('kana-submit').click();
+  await expect(page.getByTestId('feedback')).toBeVisible();
+  // And the card names the counterpart's script, not its own.
+});

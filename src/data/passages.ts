@@ -1,5 +1,5 @@
 import type { FrequencyBand } from '../core/frequency.ts';
-import { CONTENT_BASE } from './content.ts';
+import { contentUrl } from './content.ts';
 import type { TargetLang } from './types.ts';
 
 /**
@@ -37,16 +37,23 @@ export const loadPassages = async (
   const cached = cache.get(key);
   if (cached) return cached;
 
-  let passages: Passage[] = [];
   try {
-    const response = await fetch(`${CONTENT_BASE}/${lang}/passages.b${band}.json`);
-    if (response.ok) {
-      passages = ((await response.json()) as { passages?: Passage[] }).passages ?? [];
+    const response = await fetch(contentUrl(lang, `passages.b${band}.json`));
+    // A 404 is a fact about the build — Japanese has no passages — and may be
+    // remembered. Anything else is a fact about right now (invariant 50).
+    if (response.status === 404) {
+      cache.set(key, []);
+      return [];
     }
+    if (!response.ok) return [];
+    const passages = ((await response.json()) as { passages?: Passage[] }).passages ?? [];
+    cache.set(key, passages);
+    return passages;
   } catch {
-    // Offline before this band was fetched, or a language with no passages.
+    // Offline before this band was fetched: empty for now, asked again later.
+    // This used to be cached too, so one flaky moment emptied the reader's
+    // passages for the rest of the session.
+    return [];
   }
-  cache.set(key, passages);
-  return passages;
 };
 

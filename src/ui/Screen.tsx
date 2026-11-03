@@ -18,7 +18,11 @@ export const Screen = ({ children, footer }: ScreenProps) => (
   <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-x-clip px-5">
     <main className="flex-1 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6">{children}</main>
     {footer ? (
-      <div className="sticky bottom-0 bg-gradient-to-t from-stone-50 from-60% to-transparent pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:from-slate-950">
+      // A solid footer with a hairline above it. The gradient this replaced was
+      // transparent along its top 40%, and any text the footer carried there —
+      // the first screen's "Pilih dulu bahasa…" hint — was drawn straight over
+      // the option card scrolling beneath it.
+      <div className="sticky bottom-0 -mx-5 border-t border-stone-200 bg-stone-50 px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950">
         {footer}
       </div>
     ) : null}

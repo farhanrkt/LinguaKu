@@ -193,7 +193,7 @@ export const peekLexemes = async (
   band: FrequencyBand,
 ): Promise<Array<{ id: string; headword: string; freqRank: number }>> => {
   const shard = await fetchShard<{ lexemes?: WireLexeme[] }>(
-    `${CONTENT_BASE}/${lang}/lexemes.b${band}.json`,
+    contentUrl(lang, `lexemes.b${band}.json`),
   );
   return (shard?.lexemes ?? []).map((wire) => ({
     id: wire.id,
@@ -202,8 +202,32 @@ export const peekLexemes = async (
   }));
 };
 
-export const fetchManifest = (lang: TargetLang): Promise<ContentManifest> =>
-  fetchJson<ContentManifest>(`${CONTENT_BASE}/${lang}/manifest.json`);
+/** Manifests read so far this page, for `contentUrl`. */
+const knownManifests = new Map<TargetLang, ContentManifest>();
+
+export const fetchManifest = async (lang: TargetLang): Promise<ContentManifest> => {
+  const manifest = await fetchJson<ContentManifest>(`${CONTENT_BASE}/${lang}/manifest.json`);
+  knownManifests.set(lang, manifest);
+  return manifest;
+};
+
+const versioned = (lang: TargetLang, path: string, sha256: string | undefined): string =>
+  sha256 === undefined
+    ? `${CONTENT_BASE}/${lang}/${path}`
+    : `${CONTENT_BASE}/${lang}/${path}?v=${sha256.slice(0, 16)}`;
+
+/**
+ * A shard's URL, carrying its content hash (risk R11).
+ *
+ * Shards are runtime-cached `CacheFirst`, and a URL without a version can never
+ * learn that its content changed — a learner kept last month's shard for as
+ * long as the cache entry lived. With the hash in the query, new content is a
+ * new URL. The app reads the manifest at boot before any shard (`ensureBands`),
+ * so in practice every shard URL is versioned; a file the manifest does not
+ * list keeps its plain address.
+ */
+export const contentUrl = (lang: TargetLang, path: string): string =>
+  versioned(lang, path, knownManifests.get(lang)?.shards.find((shard) => shard.path === path)?.sha256);
 
 // ------------------------------------------------------ lexemes → IndexedDB
 
@@ -318,7 +342,7 @@ export const ensureBands = async (
       continue;
     }
 
-    const body = await fetchShardBody(`${CONTENT_BASE}/${lang}/${shard.path}`);
+    const body = await fetchShardBody(versioned(lang, shard.path, shard.sha256));
     const payload = JSON.parse(body.text) as {
       lexemes?: WireLexeme[];
       kanji?: WireKanji[];
@@ -413,7 +437,7 @@ export const loadAnchors = async (
   if (cached) return cached;
 
   const payload = await fetchJson<{ sentences: AnchorSentence[] }>(
-    `${CONTENT_BASE}/${lang}/anchors.b${band}.json`,
+    contentUrl(lang, `anchors.b${band}.json`),
   );
   const map = new Map(payload.sentences.map((sentence) => [sentence.id, sentence]));
   anchorCache.set(key, map);
@@ -449,7 +473,7 @@ export const loadSentences = async (
 
   try {
     const payload = await fetchShard<{ sentences: AnchorSentence[] }>(
-      `${CONTENT_BASE}/${lang}/sentences.b${band}.json`,
+      contentUrl(lang, `sentences.b${band}.json`),
     );
     // `null` is a 404: this build has no sentence shard for that band, which is
     // permanent and worth remembering.
@@ -496,7 +520,7 @@ export const downloadCost = async (
     const shard = manifest.shards.find((entry) => entry.kind === kind && entry.band === band);
     if (!shard) continue;
     cost.gzipBytes += shard.gzipBytes;
-    cost.urls.push(`${CONTENT_BASE}/${lang}/${shard.path}`);
+    cost.urls.push(versioned(lang, shard.path, shard.sha256));
   }
   return cost;
 };
@@ -511,6 +535,7 @@ export const anchorPool = async (
 export const clearAnchorCache = (): void => {
   anchorCache.clear();
   pseudowordCache.clear();
+  knownManifests.clear();
 };
 
 // ------------------------------------------------------------- pseudowords

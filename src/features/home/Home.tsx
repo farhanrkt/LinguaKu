@@ -34,7 +34,17 @@ interface HomeProps {
    */
   cueDue: string | null;
   onDismissCue: () => void;
+  /** A new version is waiting; null when there is none. */
+  onUpdate: (() => void) | null;
 }
+
+/**
+ * Roughly how long today's session will take: reviews at ~14 s, new words at
+ * the exposure card's ~8 s, plus a drill — capped at the learner's own target,
+ * because the session is.
+ */
+const estimateMinutes = (today: TodaySnapshot, target: number): number =>
+  Math.max(1, Math.min(target, Math.ceil((today.due * 14 + today.daily.remaining * 8 + 12) / 60)));
 
 export const Home = ({
   profile,
@@ -50,6 +60,7 @@ export const Home = ({
   onPractise,
   cueDue,
   onDismissCue,
+  onUpdate,
 }: HomeProps) => {
   // Sessions, content, drills and the ability estimate all follow `targets[0]`,
   // so this control switches *which language you are learning now* rather than
@@ -95,7 +106,9 @@ export const Home = ({
         <Button onClick={onPractise} disabled={busy} data-testid="practise">
           {resumable
             ? copy.session.resume
-            : copy.session.start(profile.dailyMinutes)}
+            : today === null
+              ? copy.session.startPlain
+              : copy.session.startToday(estimateMinutes(today, profile.dailyMinutes))}
         </Button>
       }
     >
@@ -157,6 +170,24 @@ export const Home = ({
             className="mt-2 min-h-12 text-sm text-teal-800 underline underline-offset-4 dark:text-teal-300"
           >
             {copy.habit.cueDismiss}
+          </button>
+        </div>
+      ) : null}
+
+      {onUpdate ? (
+        // Offered here and only here: the home screen is the one place a reload
+        // interrupts nothing.
+        <div
+          className="mt-4 rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+          data-testid="update-ready"
+        >
+          <p className="text-sm text-stone-700 dark:text-slate-300">{copy.home.update.ready}</p>
+          <button
+            type="button"
+            onClick={onUpdate}
+            className="mt-2 min-h-12 text-sm font-semibold text-teal-800 underline underline-offset-4 dark:text-teal-300"
+          >
+            {copy.home.update.apply}
           </button>
         </div>
       ) : null}

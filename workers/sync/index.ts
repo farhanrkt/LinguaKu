@@ -38,13 +38,24 @@ export interface Env {
   DB: D1Database;
   /** Set with `wrangler secret put SYNC_TOKEN`. */
   SYNC_TOKEN: string;
+  /**
+   * The app's origin, e.g. `https://linguaku.example.workers.dev`. Optional:
+   * without it any origin may call, which the bearer token still gates.
+   */
+  ALLOWED_ORIGIN?: string;
 }
 
 interface SyncRequest {
   profileId: string;
+  /** The server cursor: `received_at` of the last row this device holds. */
   since: number;
+  /** Tie-break within one `received_at` — a push lands all its rows at once. */
+  sinceId?: string;
   deltas: Array<{ sessionId: string; profileId: string; producedAt: number }>;
 }
+
+/** Rows per response; `more` says when to ask again. */
+const PAGE = 200;
 
 /** Constant-time compare, so the token cannot be guessed a byte at a time. */
 const tokenMatches = (given: string, expected: string): boolean => {
@@ -56,32 +67,49 @@ const tokenMatches = (given: string, expected: string): boolean => {
   return difference === 0;
 };
 
-const json = (body: unknown, status = 200): Response =>
+/**
+ * CORS, because the app and this Worker live on different origins — the README
+ * deploys it to its own `*.workers.dev` address. Without these headers the
+ * browser refused every request at the preflight, which this Worker answered
+ * with a 404, and the app told the learner to check their connection.
+ */
+const corsHeaders = (env: Env): Record<string, string> => ({
+  'access-control-allow-origin': env.ALLOWED_ORIGIN ?? '*',
+  'access-control-allow-headers': 'content-type, authorization',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-max-age': '86400',
+  vary: 'Origin',
+});
+
+const json = (env: Env, body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...corsHeaders(env) },
   });
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === '/sync' && request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(env) });
+    }
     if (url.pathname !== '/sync' || request.method !== 'POST') {
-      return json({ error: 'not found' }, 404);
+      return json(env, { error: 'not found' }, 404);
     }
 
     const given = (request.headers.get('authorization') ?? '').replace(/^Bearer /, '');
     if (!env.SYNC_TOKEN || !tokenMatches(given, env.SYNC_TOKEN)) {
-      return json({ error: 'unauthorized' }, 401);
+      return json(env, { error: 'unauthorized' }, 401);
     }
 
     let body: SyncRequest;
     try {
       body = (await request.json()) as SyncRequest;
     } catch {
-      return json({ error: 'bad request' }, 400);
+      return json(env, { error: 'bad request' }, 400);
     }
     if (typeof body.profileId !== 'string' || !Array.isArray(body.deltas)) {
-      return json({ error: 'bad request' }, 400);
+      return json(env, { error: 'bad request' }, 400);
     }
 
     const now = Date.now();
@@ -107,25 +135,38 @@ export default {
       );
     }
 
-    // Hand back what this device has not seen. The `since` cursor is the
-    // client's own last successful sync.
+    // Hand back what this device has not seen, a page at a time, ordered by
+    // when *this server* received each row. The cursor used to be the client's
+    // own clock compared against another device's `produced_at`, and the reply
+    // was cut at 200 rows while the client moved its cursor to "now" — so a new
+    // phone joining a long history kept the oldest 200 sessions and skipped the
+    // rest for good, and a phone with a slow clock could hide its sessions.
+    const since = Number(body.since ?? 0);
+    const sinceId = typeof body.sinceId === 'string' ? body.sinceId : '';
     const { results } = await env.DB.prepare(
-      `SELECT payload FROM deltas
-       WHERE profile_id = ? AND produced_at > ?
-       ORDER BY produced_at ASC
-       LIMIT 200`,
+      `SELECT session_id, received_at, payload FROM deltas
+       WHERE profile_id = ?1 AND (received_at > ?2 OR (received_at = ?2 AND session_id > ?3))
+       ORDER BY received_at ASC, session_id ASC
+       LIMIT ${PAGE}`,
     )
-      .bind(body.profileId, body.since ?? 0)
-      .all<{ payload: string }>();
+      .bind(body.profileId, since, sinceId)
+      .all<{ session_id: string; received_at: number; payload: string }>();
 
-    const deltas = (results ?? []).flatMap((row) => {
+    const rows = results ?? [];
+    const deltas = rows.flatMap((row) => {
       try {
         return [JSON.parse(row.payload) as unknown];
       } catch {
         return [];
       }
     });
+    const last = rows.at(-1);
 
-    return json({ deltas, receivedAt: now });
+    return json(env, {
+      deltas,
+      cursor: last ? { at: last.received_at, id: last.session_id } : { at: since, id: sinceId },
+      more: rows.length === PAGE,
+      receivedAt: now,
+    });
   },
 };

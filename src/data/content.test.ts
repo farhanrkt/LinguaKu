@@ -74,8 +74,11 @@ beforeEach(async () => {
   clearAnchorCache();
   fetchCalls = [];
   vi.stubGlobal('fetch', (input: string) => {
-    fetchCalls.push(input);
-    const payload = payloads[input];
+    // Shard URLs carry their content hash as `?v=` (risk R11); the stub serves
+    // by path, which is what the server does too.
+    const path = input.split('?')[0]!;
+    fetchCalls.push(path);
+    const payload = payloads[path];
     // A real `Response`: `ensureBands` reads the body as text so it can hash
     // what actually arrived, and a `json()`-only stub would hide that.
     return Promise.resolve(
@@ -285,10 +288,13 @@ describe('downloadCost', () => {
       { kind: 'anchors', band: 1 },
     ]);
     expect(cost.gzipBytes).toBe(251_800);
-    expect(cost.urls).toEqual([
+    // The same versioned addresses the loaders fetch, or the "already cached"
+    // check would look up URLs nothing ever requested (risk R11).
+    expect(cost.urls.map((url) => url.split('?')[0])).toEqual([
       '/content/en/sentences.b1.json',
       '/content/en/anchors.b1.json',
     ]);
+    expect(cost.urls.every((url) => url.includes('?v='))).toBe(true);
   });
 
   it('contributes nothing for a shard the manifest does not list', async () => {

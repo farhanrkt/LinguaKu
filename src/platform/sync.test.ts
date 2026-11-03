@@ -74,6 +74,7 @@ describe('disabled by default, and silent when it is (SPEC §5.1)', () => {
 describe('a failed sync costs the learner nothing', () => {
   const enable = () =>
     writeSyncSettings({
+      ...defaultSyncSettings(),
       enabled: true,
       endpoint: 'https://example.invalid',
       token: 'secret',
@@ -258,6 +259,7 @@ describe('applyDelta', () => {
  */
 describe('sync failures are classified, not printed raw', () => {
   const enabled = {
+    ...defaultSyncSettings(),
     enabled: true,
     endpoint: 'https://example.test',
     token: 'wrong',
@@ -285,14 +287,23 @@ describe('sync failures are classified, not printed raw', () => {
   });
 
   it('distinguishes no answer at all, which is a different fix', async () => {
-    // `fetch` rejects when it cannot reach the host: offline, wrong hostname,
-    // blocked. Telling that learner to check their token would be wrong.
+    // `fetch` rejects when it cannot reach the host. Offline, that is the
+    // connection; telling that learner to check their token would be wrong.
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    vi.stubGlobal('navigator', { onLine: false });
     expect(await syncNow('p1')).toMatchObject({
       status: 'failed',
       reason: 'unreachable',
       detail: 'Failed to fetch',
     });
+  });
+
+  it('calls a refusal while online what it usually is: the server, not the network', async () => {
+    // A Worker without CORS answers the preflight with nothing the browser
+    // accepts, and fetch rejects exactly as it does offline.
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    vi.stubGlobal('navigator', { onLine: true });
+    expect(await syncNow('p1')).toMatchObject({ status: 'failed', reason: 'blocked' });
   });
 
   it('keeps the raw text, for a learner reporting a problem', async () => {
@@ -330,6 +341,7 @@ describe('a delta carries everything the learner made (SPEC §2.11, §6)', () =>
 
   const enable = () =>
     writeSyncSettings({
+      ...defaultSyncSettings(),
       enabled: true,
       endpoint: 'https://example.test',
       token: 'secret',
@@ -432,5 +444,51 @@ describe('a delta carries everything the learner made (SPEC §2.11, §6)', () =>
     // server keys on session id and discards a replay, so a session gets one
     // push and it has to be the complete one.
     expect(sent()[0]?.['reviewLogs']).toHaveLength(2);
+  });
+});
+
+// ------------------------------------------------------ two phones, one history
+
+describe('a second phone joins the first one’s history', () => {
+  it('re-keys incoming rows to this phone’s profile', async () => {
+    const { rekeyDelta } = await import('./sync.ts');
+    const delta = {
+      version: 2,
+      profileId: 'phone-a',
+      sessionId: 's1',
+      producedAt: 1,
+      session: { id: 's1', profileId: 'phone-a', lang: 'en' as const, startedAt: 1, endedAt: 2, plannedMinutes: 4 as const, itemIds: [], completed: 1 as const, resumeCursor: 0 },
+      reviewLogs: [{ id: 'l1', profileId: 'phone-a', cardId: 'phone-a::en:lex:cat' } as never],
+      drillAttempts: [],
+      cards: [{ id: 'phone-a::en:lex:cat', profileId: 'phone-a', itemId: 'en:lex:cat' } as never],
+      mnemonics: [],
+      categoryScores: [],
+    };
+    const mine = rekeyDelta(delta, 'phone-b');
+    expect(mine.session.profileId).toBe('phone-b');
+    expect((mine.reviewLogs[0] as { cardId: string }).cardId).toBe('phone-b::en:lex:cat');
+    expect((mine.cards[0] as { id: string }).id).toBe('phone-b::en:lex:cat');
+  });
+
+  it('pages until the server says there is no more, and keeps its cursor', async () => {
+    const { syncNow, readSyncSettings } = await import('./sync.ts');
+    writeSyncSettings({ ...defaultSyncSettings(), enabled: true, endpoint: 'https://example.test', token: 't', syncId: 'phone-a' });
+    const bodies: Array<{ profileId: string; since: number; sinceId: string }> = [];
+    let call = 0;
+    vi.stubGlobal('fetch', (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body) as { profileId: string; since: number; sinceId: string });
+      call++;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ deltas: [], cursor: { at: 100 * call, id: `s${call}` }, more: call < 3 }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    });
+    const outcome = await syncNow('phone-b');
+    expect(outcome.status).toBe('ok');
+    expect(bodies.map((body) => body.profileId)).toEqual(['phone-a', 'phone-a', 'phone-a']);
+    expect(bodies.map((body) => body.since)).toEqual([0, 100, 200]);
+    expect(readSyncSettings().pullCursor).toEqual({ at: 300, id: 's3' });
   });
 });

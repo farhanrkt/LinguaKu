@@ -5,6 +5,7 @@ import { Screen } from '../../ui/Screen.tsx';
 import {
   pendingBytes,
   readSyncSettings,
+  syncCodeFor,
   syncNow,
   type SyncFailure,
   type SyncOutcome,
@@ -42,6 +43,8 @@ const syncFailureNotice = (reason: SyncFailure): string => {
       return copy.sync.failedNotFound;
     case 'unreachable':
       return copy.sync.failedUnreachable;
+    case 'blocked':
+      return copy.sync.failedBlocked;
     case 'server':
       return copy.sync.failedServer;
     case 'unknown':
@@ -145,6 +148,34 @@ export const SyncScreen = ({ profile, onBack }: SyncScreenProps) => {
           className="mt-1 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900"
         />
       </label>
+
+      {/* Two phones, one history. Each phone has its own random profile id, so
+          without a shared code each one synced only with itself. */}
+      <div className="mt-6 rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800">
+        <p className="text-sm font-semibold text-stone-600 dark:text-slate-400">
+          {copy.sync.codeHeading}
+        </p>
+        <p className="mt-1 font-mono text-sm break-all" data-testid="sync-code">
+          {syncCodeFor(settings, profile.id)}
+        </p>
+        <p className="mt-2 text-sm text-stone-600 dark:text-slate-400">{copy.sync.codeHint}</p>
+        <label className="mt-3 block">
+          <span className="text-sm font-semibold text-stone-600 dark:text-slate-400">
+            {copy.sync.joinLabel}
+          </span>
+          <input
+            value={settings.syncId ?? ''}
+            onChange={(event) => {
+              const code = event.target.value.trim();
+              update({ syncId: code.length > 0 && code !== profile.id ? code : null, pullCursor: null });
+            }}
+            placeholder={copy.sync.joinPlaceholder}
+            autoComplete="off"
+            data-testid="sync-join"
+            className="mt-1 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 font-mono text-sm focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
+      </div>
 
       <div className="mt-4 flex flex-col gap-3">
         <Button

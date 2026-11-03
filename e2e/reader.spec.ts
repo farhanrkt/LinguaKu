@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { firstRun, seedKnownVocabulary } from './helpers.ts';
+import { switchLanguage, firstRun, seedKnownVocabulary } from './helpers.ts';
 
 /**
  * SPEC §8: *"tap-to-gloss graded reader with one-tap card creation (frictionless
@@ -11,12 +11,22 @@ import { firstRun, seedKnownVocabulary } from './helpers.ts';
  */
 
 test('the reader is honest when it has nothing to show yet', async ({ page }) => {
+  // A true beginner — Japanese starts at band 1, with nothing assumed — knows
+  // no words, has nothing readable, and the reader says so rather than serving
+  // a wall of text they would only be decoding (§2.4).
+  await firstRun(page);
+  await switchLanguage(page, /Bahasa Jepang/);
+  await page.getByTestId('reader-open').click();
+  await expect(page.getByText(/Belum ada bacaan yang pas/)).toBeVisible({ timeout: 20_000 });
+});
+
+test('an intermediate English learner can read on day one', async ({ page }) => {
+  // D3 starts English mid-frequency because the commonest words are assumed,
+  // and material is chosen on that assumption (`knownForSelection`). Before,
+  // only words with a card counted, so the reader stayed empty for months.
   await firstRun(page);
   await page.getByTestId('reader-open').click();
-
-  // A learner who knows no words has nothing readable, and the reader says so
-  // rather than serving a wall of text they would only be decoding (§2.4).
-  await expect(page.getByText(/Belum ada bacaan yang pas/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('reader-feed')).toBeVisible({ timeout: 20_000 });
 });
 
 test('tap-to-gloss opens without a network round trip', async ({ page, context }) => {

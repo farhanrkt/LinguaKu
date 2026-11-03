@@ -46,7 +46,15 @@ export const answerOne = async (page: Page): Promise<void> => {
     return;
   }
 
-  if (await input.isVisible().catch(() => false)) {
+  // A sentence-building card: tap every tile in order, then check.
+  if (await page.getByTestId('build-prompt').isVisible().catch(() => false)) {
+    for (let step = 0; step < 24; step++) {
+      const tile = page.getByTestId('build-tile').first();
+      if (!(await tile.isVisible().catch(() => false))) break;
+      await tile.click();
+    }
+    await page.getByTestId('build-submit').click();
+  } else if (await input.isVisible().catch(() => false)) {
     await input.fill('jawaban');
     // A drill submits with "Jawab"; a cloze or dictation submits with the
     // confidence tap (SPEC §2.12), which is also the submit button.

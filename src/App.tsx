@@ -36,6 +36,7 @@ import {
 } from './platform/persistence.ts';
 import { isTtsLive, probeOnBoot, type VoiceReport } from './platform/speech.ts';
 import { registerServiceWorker, type OfflineStatus } from './platform/serviceWorker.ts';
+import { fillContentCache } from './platform/contentCache.ts';
 import type { DailyMinutes, Profile, Session, TargetLang } from './data/types.ts';
 
 type Screen =
@@ -53,8 +54,54 @@ type Screen =
   | { name: 'habit'; profile: Profile }
   | { name: 'session'; profile: Profile; session: Session };
 
+/**
+ * Where Back goes from each screen.
+ *
+ * The app never touched the History API, so the Android back gesture — the way
+ * this audience leaves every screen — closed the app from Settings, Progress,
+ * the reader, or the middle of a session. Each screen entered from inside the
+ * app now pushes a history entry, and Back returns to its parent.
+ */
+const PARENT: Partial<Record<Screen['name'], 'home' | 'settings' | 'progress'>> = {
+  session: 'home',
+  placement: 'home',
+  reader: 'home',
+  progress: 'home',
+  settings: 'home',
+  glossary: 'progress',
+  habit: 'settings',
+  sync: 'settings',
+  diagnostics: 'settings',
+  attribution: 'settings',
+};
+
+const parentOf = (current: Screen): Screen =>
+  'profile' in current && PARENT[current.name] !== undefined
+    ? { name: PARENT[current.name]!, profile: current.profile }
+    : current;
+
+/** A history entry this app pushed, as opposed to one it inherited. */
+const isOurs = (state: unknown): boolean =>
+  typeof state === 'object' && state !== null && 'linguaku' in state;
+
 export const App = () => {
-  const [screen, setScreen] = useState<Screen>({ name: 'loading' });
+  const [screen, setScreenState] = useState<Screen>({ name: 'loading' });
+
+  /** Enter a screen: one history entry, so Back can leave it again. */
+  const open = useCallback((next: Screen) => {
+    window.history.pushState({ linguaku: next.name }, '');
+    setScreenState(next);
+  }, []);
+
+  /**
+   * Leave a screen from an in-app control. Where this app pushed the entry,
+   * the browser pops it and `popstate` does the move, so the two ways out
+   * cannot leave history and screen disagreeing.
+   */
+  const close = useCallback(() => {
+    if (isOurs(window.history.state)) window.history.back();
+    else setScreenState((current) => parentOf(current));
+  }, []);
   const [offline, setOffline] = useState<OfflineStatus>('preparing');
   const [durability, setDurability] = useState<StorageDurability>('best-effort');
   const [voice, setVoice] = useState<VoiceReport | null>(null);
@@ -65,6 +112,8 @@ export const App = () => {
   /** SPEC §2.13: the in-app cue, for every device that cannot schedule one. */
   const [cueDue, setCueDue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** A new version is waiting; applying it reloads, so the learner chooses when. */
+  const [applyUpdate, setApplyUpdate] = useState<(() => void) | null>(null);
 
   /**
    * SPEC §2.6 / risk R1: probe the speech engine once per app start, and let
@@ -117,7 +166,9 @@ export const App = () => {
     // Every band up to the learner's frontier, not just the starter three: a
     // learner placed past band 3 was otherwise taught band 3 forever.
     await learnerBands(profile.id, lang)
-      .then((bands) => ensureBands(lang, bands))
+      .then((bands) =>
+        Promise.all([ensureBands(lang, bands), fillContentCache(lang, bands)]),
+      )
       .catch(() => undefined);
     // The boot probe's verdict stands for the whole session (risk R1), so the
     // composer knows here whether minimal-pair drills can be scheduled at all.
@@ -125,11 +176,11 @@ export const App = () => {
       (await findResumable(profile.id, lang)) ??
       (await startSession(profile, Date.now(), { audioAvailable: isTtsLive(lang) }));
     setResumable(null);
-    setScreen({ name: 'session', profile, session });
-  }, []);
+    open({ name: 'session', profile, session });
+  }, [open]);
 
   useEffect(() => {
-    registerServiceWorker(setOffline);
+    registerServiceWorker(setOffline, (apply) => setApplyUpdate(() => apply));
     void (async () => {
       const [profile, storage] = await Promise.all([getCurrentProfile(), getStorageDurability()]);
       setDurability(storage);
@@ -140,7 +191,7 @@ export const App = () => {
       // fetch inside the ≤3s budget (§5.4), so it is warmed here like the pack.
       void loadTopics(profile?.targets[0] ?? 'en');
       if (!profile) {
-        setScreen({ name: 'first-run' });
+        setScreenState({ name: 'first-run' });
         return;
       }
       // SPEC §10: the "Latihan 4 menit" launcher shortcut jumps straight into a
@@ -151,7 +202,7 @@ export const App = () => {
       }
       setResumable(await findResumable(profile.id, profile.targets[0] ?? 'en'));
       setPlacementOffered(await hasBeenPlaced(profile.id, profile.targets[0] ?? 'en'));
-      setScreen({ name: 'home', profile });
+      setScreenState({ name: 'home', profile });
       void refreshHabitCue(profile);
     })();
   }, [beginSession, refreshHabitCue]);
@@ -167,7 +218,9 @@ export const App = () => {
     const lang = screen.profile.targets[0];
     if (!lang) return;
     void learnerBands(screen.profile.id, lang)
-      .then((bands) => ensureBands(lang, bands))
+      .then((bands) =>
+        Promise.all([ensureBands(lang, bands), fillContentCache(lang, bands)]),
+      )
       .catch(() => {
         // Offline on first run: the session screen reports having no material
         // rather than the app failing to load.
@@ -179,11 +232,13 @@ export const App = () => {
     // SPEC §10: placement is offered, not enforced — and only after the learner
     // has already chosen something, so it is never an onboarding wall.
     await ensureBands(profile.targets[0] ?? 'en', STARTER_BANDS).catch(() => undefined);
-    setScreen({ name: 'placement', profile });
+    // Offline-after-first-load, for the language chosen (invariant 54).
+    void fillContentCache(profile.targets[0] ?? 'en', STARTER_BANDS);
+    open({ name: 'placement', profile });
     // Ask only once the learner has committed to something — a permission
     // prompt on a cold first paint is the fastest way to lose them.
     setDurability(await requestPersistentStorage());
-  }, []);
+  }, [open]);
 
   /**
    * Profile writes, in the order they were asked for.
@@ -211,7 +266,7 @@ export const App = () => {
         >
       >,
     ) => {
-      setScreen((current) =>
+      setScreenState((current) =>
         current.name === 'home' || current.name === 'settings'
           ? { ...current, profile: { ...current.profile, ...changes } }
           : current,
@@ -232,7 +287,9 @@ export const App = () => {
       void loadContrastive(lang);
       void loadTopics(lang);
       void learnerBands(profile.id, lang)
-        .then((bands) => ensureBands(lang, bands))
+        .then((bands) =>
+        Promise.all([ensureBands(lang, bands), fillContentCache(lang, bands)]),
+      )
         .catch(() => undefined);
       const [resume, placed] = await Promise.all([
         findResumable(profile.id, lang),
@@ -265,8 +322,25 @@ export const App = () => {
     setResumable(await findResumable(profile.id, lang));
     // They just practised, so the cue has been answered (§2.14).
     setCueDue(null);
-    setScreen({ name: 'home', profile });
+    setScreenState({ name: 'home', profile });
   }, []);
+
+  // Back, from the system. Read through a ref so nothing runs inside a state
+  // updater. A session leaves the way "Selesai dulu" does: every answer is
+  // already persisted, so nothing is lost and home offers to resume.
+  const screenRef = useRef(screen);
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
+  useEffect(() => {
+    const onPop = () => {
+      const current = screenRef.current;
+      if (current.name === 'session') void handleFinish();
+      else setScreenState(parentOf(current));
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [handleFinish]);
 
   switch (screen.name) {
     case 'loading':
@@ -286,9 +360,11 @@ export const App = () => {
             // A placement past band 3 opens the bands it found; start fetching
             // them now, so the first session can already teach from there.
             void learnerBands(profile.id, lang)
-              .then((bands) => ensureBands(lang, bands))
+              .then((bands) =>
+        Promise.all([ensureBands(lang, bands), fillContentCache(lang, bands)]),
+      )
               .catch(() => undefined);
-            setScreen({ name: 'home', profile });
+            close();
           }}
         />
       );
@@ -298,14 +374,14 @@ export const App = () => {
           profile={screen.profile}
           session={screen.session}
           onFirstQuestion={() => probeAudio(screen.profile.targets[0] ?? 'en')}
-          onFinish={() => void handleFinish()}
+          onFinish={close}
         />
       );
     case 'reader':
       return (
         <ReaderScreen
           profile={screen.profile}
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'habit':
@@ -314,7 +390,7 @@ export const App = () => {
           profile={screen.profile}
           onDone={() => {
             setCueDue(null);
-            setScreen({ name: 'settings', profile: screen.profile });
+            close();
           }}
         />
       );
@@ -326,7 +402,7 @@ export const App = () => {
             // other language's verdict is still adopted inside the probe.
             if (lang === (screen.profile.targets[0] ?? 'en')) setVoice(report);
           }}
-          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'settings':
@@ -337,39 +413,39 @@ export const App = () => {
           durability={durability}
           voice={voice}
           onChange={(changes) => void handleChange(changes)}
-          onHabit={() => setScreen({ name: 'habit', profile: screen.profile })}
-          onSync={() => setScreen({ name: 'sync', profile: screen.profile })}
-          onDiagnostics={() => setScreen({ name: 'diagnostics', profile: screen.profile })}
-          onAttribution={() => setScreen({ name: 'attribution', profile: screen.profile })}
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onHabit={() => open({ name: 'habit', profile: screen.profile })}
+          onSync={() => open({ name: 'sync', profile: screen.profile })}
+          onDiagnostics={() => open({ name: 'diagnostics', profile: screen.profile })}
+          onAttribution={() => open({ name: 'attribution', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'sync':
       return (
         <SyncScreen
           profile={screen.profile}
-          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'attribution':
       return (
         <AttributionScreen
-          onBack={() => setScreen({ name: 'settings', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'glossary':
       return (
         <GlossaryScreen
           profile={screen.profile}
-          onBack={() => setScreen({ name: 'progress', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'progress':
       return (
         <ProgressScreen
           profile={screen.profile}
-          onGlossary={() => setScreen({ name: 'glossary', profile: screen.profile })}
-          onBack={() => setScreen({ name: 'home', profile: screen.profile })}
+          onGlossary={() => open({ name: 'glossary', profile: screen.profile })}
+          onBack={close}
         />
       );
     case 'home':
@@ -381,12 +457,13 @@ export const App = () => {
           placementOffered={placementOffered}
           today={today}
           onReady={() => probeAudio(screen.profile.targets[0] ?? 'en')}
-          onPlacement={() => setScreen({ name: 'placement', profile: screen.profile })}
-          onProgress={() => setScreen({ name: 'progress', profile: screen.profile })}
-          onRead={() => setScreen({ name: 'reader', profile: screen.profile })}
-          onSettings={() => setScreen({ name: 'settings', profile: screen.profile })}
+          onPlacement={() => open({ name: 'placement', profile: screen.profile })}
+          onProgress={() => open({ name: 'progress', profile: screen.profile })}
+          onRead={() => open({ name: 'reader', profile: screen.profile })}
+          onSettings={() => open({ name: 'settings', profile: screen.profile })}
           cueDue={cueDue}
           onDismissCue={() => setCueDue(null)}
+          onUpdate={applyUpdate}
           onPractise={() => void handlePractise()}
         />
       );

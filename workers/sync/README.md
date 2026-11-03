@@ -21,6 +21,24 @@ npx wrangler deploy
 
 Then, in the app's sync settings, paste the Worker URL and the same token.
 
+The Worker answers CORS itself, because the app and the Worker live on
+different origins. By default any origin may call it (the token still gates
+every request); to allow only your copy of the app, set its address:
+
+```bash
+npx wrangler secret put ALLOWED_ORIGIN   # e.g. https://linguaku.example.workers.dev
+```
+
+Upgrading an existing deployment: run the schema file again — it only adds
+the index the paged pull query uses.
+
+## Two phones, one history
+
+Every phone creates its own anonymous profile. To join them, open the sync
+settings on the first phone, copy its **sync code**, and paste it into "Gabungkan
+dengan riwayat HP lain" on the second. Both phones then push under that code and
+pull each other's sessions, re-keyed to their own profile.
+
 ## Free-tier limits, verified 2026-08-11
 
 | | |

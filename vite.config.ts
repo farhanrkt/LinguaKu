@@ -49,7 +49,11 @@ export default defineConfig({
     tailwindcss(),
     contentShards(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate': an automatic update reloads every open
+      // page the moment the new worker activates, which bounced a learner out
+      // of the card they were answering. The new version now waits, and the
+      // home screen offers it (src/platform/serviceWorker.ts).
+      registerType: 'prompt',
       // We register manually in src/platform/serviceWorker.ts so the UI can
       // surface offline-readiness (SPEC §5.4: fully functional offline).
       injectRegister: null,
@@ -89,33 +93,22 @@ export default defineConfig({
       workbox: {
         globPatterns: [
           '**/*.{js,css,html,svg,png,woff2}',
-          // The starter bands (STARTER_BANDS in src/data/content.ts) are
-          // precached, not runtime-cached: SPEC §5.4 promises the app is fully
-          // functional offline *after first load*, and runtime caching can only
-          // deliver that if the learner happened to be online for a session
-          // first. ~0.58 MB gzipped, against an 8 MB budget (§5.3).
+          // Only what is small and needed before a language is chosen. The
+          // starter bands used to be precached for *both* languages — ~1.4 MB
+          // gzipped on first load, 756 KB of it Japanese for a learner who
+          // picked English. They are now fetched for the chosen language right
+          // after it is chosen, and written straight into the runtime cache
+          // (src/platform/contentCache.ts), so offline-after-first-load still
+          // holds before a single session has run (SPEC §5.4, invariant 54).
           'content/*/manifest.json',
-          // The contrastive pack (SPEC §3) is ~15 KB gzipped and the session
-          // composer reaches for it on every plan, so it is precached with the
-          // starter bands rather than fetched on first drill.
           'content/*/contrastive.json',
-          'content/*/{lexemes,anchors}.b1.json',
-          'content/*/{lexemes,anchors}.b2.json',
-          'content/*/{lexemes,anchors}.b3.json',
-          // Glosses for the same bands: ~33 KB raw across both languages, and
-          // the first exposure card of the first offline session wants one.
-          'content/*/glosses.b1.json',
-          'content/*/glosses.b2.json',
-          'content/*/glosses.b3.json',
-          // Chunks (SPEC §2.5): 96 authored phrases, a few KB, and they are
-          // items the very first session can introduce.
           'content/*/topics.json',
-          'content/*/chunks.b1.json',
-          'content/*/chunks.b2.json',
-          'content/*/chunks.b3.json',
         ],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
+        // The first install still takes the page at once — only an *update*
+        // waits for the learner.
+        clientsClaim: true,
         // Content shards are lazily fetched, so they are cached at runtime
         // rather than precached — a beginner should not pay for band 5 on
         // first load (SPEC §5.3). Once fetched they must survive offline.
@@ -127,8 +120,10 @@ export default defineConfig({
             options: { cacheName: 'linguaku-content-manifest' },
           },
           {
-            // Shards are immutable for a given manifest hash.
-            urlPattern: /\/content\/.+\.json$/,
+            // Shards are immutable for a given manifest hash, and since R11's
+            // fix the hash is in the URL (`?v=`), so CacheFirst cannot serve
+            // last month's content under this month's address.
+            urlPattern: /\/content\/.+\.json(\?.*)?$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'linguaku-content',

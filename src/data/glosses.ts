@@ -1,5 +1,5 @@
 import type { FrequencyBand } from '../core/frequency.ts';
-import { CONTENT_BASE, fetchShard } from './content.ts';
+import { contentUrl, fetchShard } from './content.ts';
 import type { TargetLang } from './types.ts';
 
 /**
@@ -36,7 +36,7 @@ export const loadGlosses = async (
 
   try {
     const payload = await fetchShard<{ glosses?: Record<string, string[]> }>(
-      `${CONTENT_BASE}/${lang}/glosses.b${band}.json`,
+      contentUrl(lang, `glosses.b${band}.json`),
     );
     // `null` is a 404: no gloss shard exists for this language and band, which
     // is true of every Japanese band above 2 and is permanent for this build.
