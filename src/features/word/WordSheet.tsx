@@ -30,8 +30,10 @@ export const WordSheet = ({
   }, [token, reading]);
 
   return (
+    // Its own type, not the sentence's: the sheet is rendered inside a card's
+    // sentence (text-2xl, bold), and a fixed position does not stop inheritance.
     <div
-      className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-3xl border-t-2 border-stone-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950"
+      className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-3xl border-t-2 border-stone-200 bg-white p-5 text-base leading-normal font-normal text-stone-900 shadow-lg dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
       role="dialog"
       aria-label={token}
       data-testid="word-sheet"
