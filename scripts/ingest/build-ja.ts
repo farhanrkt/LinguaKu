@@ -31,6 +31,7 @@
  *
  * Usage: npm run ingest:fetch && npm run ingest:ja
  */
+import { pickReading, RARE_SPELLING, READINGS, type ReadingCandidate } from './jaReadings.ts';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -273,21 +274,45 @@ console.log(
 console.log('reading JMdict…');
 const jmdictText = await readFile(localPath(GZ_EXPORTS.jmdict), 'utf8');
 
-/** headword (or reading, for kana-only words) → its first kana reading. */
-const readingFor = new Map<string, string>();
+/**
+ * headword → every entry that spells it, for `pickReading`.
+ *
+ * "First entry wins" was the rule here, on the belief that JMdict orders its
+ * entries commonest first. It orders them by entry id: 彼 is listed as a rare
+ * spelling under あれ long before its own entry かれ, so 彼 shipped as あれ (see
+ * scripts/ingest/jaReadings.ts for the 197 it affected).
+ */
+const candidatesFor = new Map<string, ReadingCandidate[]>();
 let jmdictEntries = 0;
 for (const match of jmdictText.matchAll(/<entry>([\s\S]*?)<\/entry>/g)) {
   const entry = match[1]!;
-  jmdictEntries++;
+  const order = jmdictEntries++;
   const reading = /<reb>(.*?)<\/reb>/.exec(entry)?.[1];
   if (!reading) continue;
-  const headwords = [...entry.matchAll(/<keb>(.*?)<\/keb>/g)].map((m) => m[1]!);
-  for (const headword of headwords) {
-    // First entry wins: JMdict orders them with the commonest reading first.
-    if (!readingFor.has(headword)) readingFor.set(headword, reading);
+  const spellings = [...entry.matchAll(/<k_ele>([\s\S]*?)<\/k_ele>/g)].map((m) => m[1]!);
+  for (const spelling of spellings) {
+    const headword = /<keb>(.*?)<\/keb>/.exec(spelling)?.[1];
+    if (!headword) continue;
+    const list = candidatesFor.get(headword) ?? [];
+    list.push({
+      reading,
+      common: /<ke_pri>/.test(spelling),
+      rare: RARE_SPELLING.test(spelling),
+      order,
+    });
+    candidatesFor.set(headword, list);
   }
   // A kana-only word is its own reading.
-  if (headwords.length === 0 && !readingFor.has(reading)) readingFor.set(reading, reading);
+  if (spellings.length === 0 && !candidatesFor.has(reading)) {
+    candidatesFor.set(reading, [{ reading, common: true, rare: false, order }]);
+  }
+}
+/** headword (or reading, for kana-only words) → its reading. */
+const readingFor = new Map<string, string>();
+for (const [headword, candidates] of candidatesFor) {
+  // The reviewed table settles the words checked against their own sentences.
+  const reading = READINGS[headword] ?? pickReading(candidates);
+  if (reading) readingFor.set(headword, reading);
 }
 console.log(`  ${jmdictEntries.toLocaleString()} entries, ${readingFor.size.toLocaleString()} headwords with readings`);
 

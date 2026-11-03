@@ -51,6 +51,7 @@
  * into one file would quietly upgrade the whole English corpus to share-alike.
  */
 
+import { GLOSS_REVIEW } from './glossReview.ts';
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -181,7 +182,9 @@ const main = async (): Promise<void> => {
       const inBand = lexemes
         .filter((lexeme) => lexeme.band === band)
         .flatMap((lexeme) => {
-          const senses = glosses.get(lang === 'en' ? lexeme.headword.toLowerCase() : lexeme.headword);
+          const senses =
+            GLOSS_REVIEW[lexeme.id] ??
+            glosses.get(lang === 'en' ? lexeme.headword.toLowerCase() : lexeme.headword);
           return senses ? [{ id: lexeme.id, senses }] : [];
         })
         // Sorted by id, never by discovery order: invariant 10.

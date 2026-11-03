@@ -25,6 +25,8 @@
     "ingest:en": "node scripts/ingest/build-en.ts",
     "ingest:contrastive": "node scripts/ingest/build-contrastive.ts",
     "ingest:ja": "node --max-old-space-size=6144 scripts/ingest/build-ja.ts",
+    "ingest:ja:readings": "node scripts/ingest/fix-ja-readings.ts",
+    "ingest:glosses:review": "node scripts/ingest/fix-glosses.ts",
     "check:audio": "node scripts/check-audio.mjs",
     "ingest:audio": "node scripts/ingest/build-audio.ts",
     "ingest:fetch:wiki": "node scripts/ingest/fetch-wikimedia.ts",

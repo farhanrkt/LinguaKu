@@ -193,45 +193,45 @@
       "band": 1,
       "path": "lexemes.b1.json",
       "count": 500,
-      "bytes": 112349,
-      "gzipBytes": 20131,
-      "sha256": "ae2698cce6c994f756540e881e69f295612a58d9773d11fd97651e9ee8b65b83"
+      "bytes": 112340,
+      "gzipBytes": 20117,
+      "sha256": "2f8cf5d51d6345030956801550134f630f20b839baa7cd5108ef5a9c915430c7"
     },
     {
       "kind": "lexemes",
       "band": 2,
       "path": "lexemes.b2.json",
       "count": 500,
-      "bytes": 114378,
-      "gzipBytes": 20110,
-      "sha256": "8d1bcb2d4fbdbfec7a0a2bc0c3e7f0cdb8286bf00f27087e220b76dafcc4a5b5"
+      "bytes": 114366,
+      "gzipBytes": 20104,
+      "sha256": "8f45472c955eeccf9d6e6dcd506e336b10aa95d42ccc5882242cd8569593ad1b"
     },
     {
       "kind": "lexemes",
       "band": 3,
       "path": "lexemes.b3.json",
       "count": 1000,
-      "bytes": 223054,
-      "gzipBytes": 37872,
-      "sha256": "0715bc2d59bb502eb19ed7114869ce107fac03ea7870adad9831cb01d1b4e4c9"
+      "bytes": 223027,
+      "gzipBytes": 37856,
+      "sha256": "f7ff1ddccf567b079be842d382a898853af8a116ee656ebdf2cb213bb1ee47cb"
     },
     {
       "kind": "lexemes",
       "band": 4,
       "path": "lexemes.b4.json",
       "count": 2000,
-      "bytes": 340455,
-      "gzipBytes": 52576,
-      "sha256": "c135aa57f0bc745182578dc0510a1db5e24549948bffb3aa085e2c97168a8a0f"
+      "bytes": 340440,
+      "gzipBytes": 52543,
+      "sha256": "e7cf8b0c4cb7cc263850e246d0c547dd18bdfd023bc5f023f252319dc8c962f9"
     },
     {
       "kind": "lexemes",
       "band": 5,
       "path": "lexemes.b5.json",
       "count": 2904,
-      "bytes": 431467,
-      "gzipBytes": 60544,
-      "sha256": "19420f6f856fb7543632b926d2b3b693f7020e80d134cd70f690967b508a5b1d"
+      "bytes": 431437,
+      "gzipBytes": 60517,
+      "sha256": "bac97911f37c3813e4f90c5ffb76c34641db9ed5312f82d8cc95871642846e00"
     },
     {
       "kind": "sentences",

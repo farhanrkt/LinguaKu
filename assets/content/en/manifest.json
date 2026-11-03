@@ -133,9 +133,9 @@
       "band": 1,
       "path": "glosses.b1.json",
       "count": 195,
-      "bytes": 7192,
-      "gzipBytes": 2602,
-      "sha256": "eaf1ae42b25e25ebb53ecb9a0ce187d6d0adc3e0b06670d33efd9d264246be32"
+      "bytes": 7135,
+      "gzipBytes": 2569,
+      "sha256": "bb3601d5f208ce5d7e73ce94a3ef763577f54e75665eda00b758df3862ae39aa"
     },
     {
       "kind": "glosses",
@@ -160,9 +160,9 @@
       "band": 4,
       "path": "glosses.b4.json",
       "count": 501,
-      "bytes": 17661,
-      "gzipBytes": 6029,
-      "sha256": "6f9bcc9ec383f574f783fd1adaa1dbf9f38584fdee943bd55b2ddd9e49472155"
+      "bytes": 17650,
+      "gzipBytes": 6026,
+      "sha256": "b2c2a4f09acce6479af4dbbe82decc5cc9274c04ac7af29e243dca7d2f421b80"
     },
     {
       "kind": "glosses",
