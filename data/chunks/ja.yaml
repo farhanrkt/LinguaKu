@@ -9,9 +9,14 @@
 # Validated against the shipped corpus exactly as the English list is: a chunk
 # the pipeline cannot anchor to a real sentence fails the build.
 #
-# The Indonesian is a draft by a non-native writer and wants a native pass, and
-# the Japanese wants a native reviewer more than the English does — the same
-# caveat M6 recorded for the Japanese contrastive drills.
+# Romaji (D111) is worked out by the compiler with the pipeline's tokenizer.
+# Where it divides a phrase into words differently from a textbook, `romaji:`
+# overrides it.
+#
+# The Indonesian is written in a professional register (D110) by a non-native
+# writer and wants a native pass, and the Japanese wants a native reviewer more
+# than the English does — the same caveat M6 recorded for the Japanese
+# contrastive drills.
 
 version: 1
 lang: ja
@@ -22,7 +27,7 @@ chunks:
   - text: 'おはようございます'
     id: 'selamat pagi (sopan)'
   - text: 'こんにちは'
-    id: 'selamat siang, halo'
+    id: 'selamat siang; halo'
   - text: 'こんばんは'
     id: 'selamat malam (saat bertemu)'
   - text: 'おやすみなさい'
@@ -32,16 +37,17 @@ chunks:
   - text: 'ありがとうございます'
     id: 'terima kasih (sopan)'
   - text: 'どういたしまして'
+    romaji: 'dou itashimashite'
     id: 'sama-sama'
   - text: 'すみません'
     id: 'permisi; maaf'
-    note: 'Satu kata untuk tiga hal — memanggil orang, minta maaf, dan berterima kasih halus. Konteksnya yang menentukan.'
+    note: 'Satu ungkapan untuk tiga keperluan: memanggil seseorang, meminta maaf, dan berterima kasih secara halus. Konteks yang menentukan maknanya.'
   - text: 'ごめんなさい'
     id: 'maaf'
-    note: 'Lebih personal daripada すみません, dan tidak dipakai untuk memanggil pelayan.'
+    note: 'Lebih personal daripada すみません, dan tidak digunakan untuk memanggil pelayan.'
   - text: 'いただきます'
     id: '(ucapan sebelum makan)'
-    note: 'Tidak ada padanannya. Bukan doa — ini ucapan terima kasih atas makanannya, dan selalu diucapkan.'
+    note: 'Tidak memiliki padanan langsung. Ungkapan ini bukan doa, melainkan ucapan terima kasih atas makanan, dan selalu diucapkan sebelum makan.'
   - text: 'ごちそうさまでした'
     also: ['ごちそうさま']
     id: '(ucapan setelah makan)'
@@ -51,29 +57,31 @@ chunks:
     id: 'salam kenal'
   - text: 'よろしくお願いします'
     id: 'mohon kerja samanya'
-    note: 'Diucapkan saat berkenalan, saat memulai kerja sama, dan di akhir permintaan. Tidak ada terjemahan tunggalnya.'
+    note: 'Diucapkan saat berkenalan, saat memulai kerja sama, dan di akhir sebuah permintaan. Tidak ada terjemahan tunggalnya.'
   - text: 'お世話になります'
     also: ['お世話になっております', 'お世話になりました', 'お世話になって']
     id: 'terima kasih atas bantuannya'
-    note: '§2.5 menyebut frasa ini sebagai contoh. Artinya kira-kira "saya berutang budi pada Anda" dan dipakai sebagai sapaan biasa di dunia kerja.'
+    note: 'Maknanya kurang lebih “saya berutang budi kepada Anda”. Frasa ini lazim digunakan sebagai salam dalam lingkungan kerja.'
   - text: 'お元気ですか'
     id: 'apa kabar'
   - text: 'お名前は'
-    id: 'siapa namanya'
+    id: 'siapa nama Anda'
 
   # ------------------------------------------------------------ everyday
   - text: 'ちょっと待ってください'
-    id: 'tunggu sebentar'
+    id: 'mohon tunggu sebentar'
   - text: 'もう一度'
+    romaji: 'mou ichido'
     id: 'sekali lagi'
   - text: '大丈夫です'
     id: 'tidak apa-apa; saya baik-baik saja'
   - text: 'わかりました'
-    id: 'saya mengerti, baik'
+    id: 'saya mengerti; baik'
   - text: 'わかりません'
     id: 'saya tidak mengerti'
   - text: 'しかたがない'
-    id: 'mau bagaimana lagi'
+    id: 'apa boleh buat'
   - text: 'そうですね'
-    id: 'iya ya, benar juga'
-    note: 'Sering hanya pengisi jeda sambil berpikir, bukan persetujuan penuh.'
+    romaji: 'sou desu ne'
+    id: 'benar juga; begitu, ya'
+    note: 'Sering hanya berfungsi sebagai pengisi jeda sambil berpikir, bukan persetujuan penuh.'

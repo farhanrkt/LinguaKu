@@ -267,3 +267,27 @@ describe('romaji punctuation', () => {
     expect(segments.map((s) => s.text)).toEqual(['suru', '.']);
   });
 });
+
+describe('the romaji rung divides words as romaji does (D111)', () => {
+  const base = {
+    stabilityOf: () => null,
+    scriptMode: 'romaji' as const,
+  };
+
+  it('writes inflection onto its word and doubles across a final っ', () => {
+    const segments = furiganaFor({
+      ...base,
+      tokens: ['高かっ', 'た', 'です'],
+      readings: ['タカカッ', 'タ', 'デス'],
+    });
+    expect(segments.map((segment) => segment.text)).toEqual(['takakat', 'ta', 'desu']);
+    expect(segments.map((segment) => segment.attach === true)).toEqual([false, true, false]);
+  });
+
+  it('spells a phrase with its own word spacing', () => {
+    expect(headwordIn('romaji', 'お元気ですか', 'オゲンキデスカ', 'ogenki desu ka')).toBe('ogenki desu ka');
+    // Kana and kanji rungs are unaffected by a phrase's romaji.
+    expect(headwordIn('kana', 'お元気ですか', 'オゲンキデスカ', 'ogenki desu ka')).toBe('おげんきですか');
+    expect(headwordIn('kanji', 'お元気ですか', 'オゲンキデスカ', 'ogenki desu ka')).toBe('お元気ですか');
+  });
+});

@@ -1,6 +1,7 @@
 import { loadAnchors } from '../../data/content.ts';
 import { makePuzzle, parseBuildId, type BuildPuzzle } from '../../core/sentenceBuild.ts';
 import { tokensOf } from '../../core/reader.ts';
+import { romajiOfTokens } from '../../core/kana.ts';
 import type { FrequencyBand } from '../../core/frequency.ts';
 import type { TargetLang } from '../../data/types.ts';
 
@@ -10,6 +11,14 @@ export interface BuildTask {
   prompt: string;
   /** The target-language sentence, for the reveal. */
   answerText: string;
+  /** Japanese only: the answer in romaji, for the reveal (D111). */
+  answerRomaji?: string;
+  /**
+   * Japanese only: each tile's reading, in katakana, so a tile can carry its
+   * romaji. Keyed by the tile's text — the sentence and the decoys both come
+   * from shipped tokens, which all have one.
+   */
+  readings?: Readonly<Record<string, string>>;
   puzzle: BuildPuzzle;
 }
 
@@ -38,19 +47,30 @@ export const buildBuildTask = async (
   // taught out of. Tokens, not text: a Japanese sentence is one unbroken run of
   // letters, so tokenizing it here would yield one giant decoy.
   const pool: string[] = [];
+  const readings: Record<string, string> = {};
+  const learn = (tokens: readonly string[] | undefined, read: readonly string[] | undefined): void => {
+    tokens?.forEach((token, index) => {
+      const reading = read?.[index];
+      if (reading !== undefined && readings[token] === undefined) readings[token] = reading;
+    });
+  };
+  learn(sentence.tokens, sentence.readings);
   for (const other of anchors.values()) {
     if (other.id === sentenceId) continue;
     for (const token of tokensOf(other)) pool.push(token);
+    learn(other.tokens, other.readings);
     if (pool.length > 400) break;
   }
 
   const puzzle = makePuzzle({ tokens: tokensOf(sentence), distractorPool: pool, seed });
   if (!puzzle) return null;
 
+  const japanese = lang === 'ja' && sentence.tokens !== undefined && sentence.readings !== undefined;
   return {
     sentenceId,
     prompt: sentence.tr.text,
     answerText: sentence.text,
+    ...(japanese ? { answerRomaji: romajiOfTokens(sentence.tokens!, sentence.readings!), readings } : {}),
     puzzle,
   };
 };

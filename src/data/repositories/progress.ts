@@ -346,6 +346,10 @@ export const buildProgressReport = async (
 export interface SlippingWord {
   itemId: string;
   headword: string;
+  /** Katakana, where the word has a reading — for its romaji (D111). */
+  reading?: string;
+  /** A phrase's compiled romaji (a chunk). */
+  romaji?: string;
   /** 0..1 — how likely the learner still has it. Ordered by this, never shown. */
   retrievability: number;
 }
@@ -371,7 +375,15 @@ export const slippingSoon = async (
   return ranked.flatMap((entry, index) => {
     const item = items[index];
     return item
-      ? [{ itemId: item.id, headword: item.headword, retrievability: entry.r }]
+      ? [
+          {
+            itemId: item.id,
+            headword: item.headword,
+            ...(item.reading ? { reading: item.reading } : {}),
+            ...(item.romaji ? { romaji: item.romaji } : {}),
+            retrievability: entry.r,
+          },
+        ]
       : [];
   });
 };

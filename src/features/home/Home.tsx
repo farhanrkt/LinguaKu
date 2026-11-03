@@ -9,6 +9,7 @@ import {
   type SlippingWord,
 } from '../../data/repositories/progress.ts';
 import type { LearningPath } from '../../core/path.ts';
+import { WordChip } from '../word/WordChip.tsx';
 import type { Profile, Session } from '../../data/types.ts';
 
 
@@ -266,11 +267,13 @@ export const Home = ({
           </p>
           <ul className="mt-2 flex flex-wrap gap-2" data-testid="slipping">
             {slipping.map((word) => (
-              <li
-                key={word.itemId}
-                className="rounded-lg bg-stone-100 px-3 py-1 font-semibold text-stone-800 dark:bg-slate-900 dark:text-slate-200"
-              >
-                {word.headword}
+              <li key={word.itemId}>
+                <WordChip
+                  headword={word.headword}
+                  reading={word.reading}
+                  romaji={word.romaji}
+                  className="block rounded-lg bg-stone-100 px-3 py-1 font-semibold text-stone-800 dark:bg-slate-900 dark:text-slate-200"
+                />
               </li>
             ))}
           </ul>

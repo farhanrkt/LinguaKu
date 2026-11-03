@@ -34,6 +34,24 @@ export const copy = {
     start: 'Mulai',
     needTarget: 'Pilih dulu bahasa yang mau kamu mulai.',
   },
+  /**
+   * The Japanese word sheet: every word shown can be opened to its reading,
+   * romaji and meaning, and a word of two or more kanji to each character.
+   */
+  word: {
+    meaning: 'Arti',
+    combinedMeaning: 'Arti gabungan',
+    // A particle or an ending has a job, not a definition (D112).
+    formNote: 'Keterangan',
+    noMeaning: 'Arti kata ini belum tersedia di kamus kami. Terjemahan kalimatnya dapat menjadi petunjuk.',
+    perKanji: 'Arti per huruf',
+    theKanji: 'Hurufnya',
+    englishMeaning: (meanings: string) => `Bahasa Inggris: ${meanings}`,
+    baseForm: (word: string, romaji: string) => `Bentuk kamus: ${word} (${romaji})`,
+    noKanjiEntry: 'Huruf ini belum ada di daftar kanji kami.',
+    hint: 'Ketuk kata mana pun untuk melihat bacaan dan artinya.',
+    close: 'Tutup',
+  },
   home: {
     /**
      * What today actually holds, said before the learner commits to it.
@@ -234,8 +252,13 @@ export const copy = {
 
     feedback: {
       correct: 'Tepat.',
-      nearMiss: (answer: string) => `Hampir — maksudmu “${answer}”.`,
-      wrong: (answer: string) => `Jawabannya “${answer}”.`,
+      // A Japanese answer carries its romaji, so it can be said aloud.
+      nearMiss: (answer: string, romaji?: string) =>
+        romaji ? `Hampir — maksudmu “${answer}” (${romaji}).` : `Hampir — maksudmu “${answer}”.`,
+      wrong: (answer: string, romaji?: string) =>
+        romaji ? `Jawabannya “${answer}” (${romaji}).` : `Jawabannya “${answer}”.`,
+      /** How a right Japanese answer reads (D111). */
+      reads: (answer: string, romaji: string) => `“${answer}” dibaca ${romaji}.`,
       /**
        * L6 when the word could not be found in the sentence and the learner
        * sent it anyway. Their sentence stands, but it is not called correct:
@@ -317,8 +340,8 @@ export const copy = {
        * collapsing it to あう would be false: あう is the reading of 会う, not
        * of 会.
        */
-      inWord: (word: string, reading: string) =>
-        `Dipakai dalam ${word}, dibaca ${reading}.`,
+      inWord: (word: string, reading: string, romaji: string) =>
+        `Dipakai dalam ${word}, dibaca ${reading} (${romaji}).`,
       /** L1: the character, and four meanings to choose from. */
       meaningQuestion: 'Apa arti huruf ini?',
       meaningNote: 'Pilihan artinya dalam bahasa Inggris.',

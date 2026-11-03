@@ -41,6 +41,7 @@ import { parse } from 'yaml';
 import { bandForRank, UNKNOWN_RANK, type FrequencyBand } from '../../src/core/frequency.ts';
 import { tokenizeLatin } from '../../src/core/tokenize.ts';
 import { surfaceForms } from './chunkForms.ts';
+import { annotate, loadTokenizer, romajiLine } from './japaneseRomaji.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BANDS: readonly FrequencyBand[] = [1, 2, 3, 4, 5, 6];
@@ -71,6 +72,8 @@ interface SourceChunk {
    * shipping a conjugator; naming the two or three forms that matter does not.
    */
   also?: string[];
+  /** Japanese: romaji written by hand, where the tokenizer reads it wrongly. */
+  romaji?: string;
 }
 
 interface Sentence {
@@ -157,6 +160,15 @@ const rankOf = (chunk: string, ranks: ReadonlyMap<string, number>, lang: 'en' | 
 interface WireChunk {
   id: string;
   headword: string;
+  /**
+   * Japanese only (D111): the phrase's reading in katakana and its romaji,
+   * worked out here with the pipeline's tokenizer. A phrase is several words,
+   * so its romaji is spaced as words are — "o genki desu ka" — which a reading
+   * spelled whole cannot give, and a phrase with kanji in it has no reading at
+   * all without this.
+   */
+  reading?: string;
+  romaji?: string;
   gloss: string;
   note?: string;
   freqRank: number;
@@ -194,6 +206,7 @@ const build = async (lang: 'en' | 'ja'): Promise<number> => {
 
   const source = parse(await readFile(path, 'utf8')) as { chunks: SourceChunk[] };
   const [sentences, ranks] = await Promise.all([readSentences(lang), readRanks(lang)]);
+  const tokenizer = lang === 'ja' ? await loadTokenizer() : null;
 
   const byBand = new Map<FrequencyBand, WireChunk[]>();
   const seen = new Set<string>();
@@ -240,8 +253,20 @@ const build = async (lang: 'en' | 'ja'): Promise<number> => {
     bucket.push({
       id: `${lang}:chunk:${text.replace(/\s+/g, '_')}`,
       headword: text,
+      ...(tokenizer
+        ? {
+            reading: tokenizer
+              .tokenize(text)
+              .map((token) => (token.reading && token.reading !== '*' ? token.reading : token.surface_form))
+              .join(''),
+            romaji: entry.romaji?.trim() ?? romajiLine(tokenizer, text),
+          }
+        : {}),
       gloss: entry.id.trim(),
-      ...(entry.note?.trim() ? { note: entry.note.trim() } : {}),
+      // A note that mentions Japanese spells it inline: すみません (sumimasen).
+      ...(entry.note?.trim()
+        ? { note: tokenizer ? annotate(tokenizer, entry.note.trim()) : entry.note.trim() }
+        : {}),
       // A rank the composer can order by. For a formula with no rank of its
       // own, the middle of the band it sits in — precise enough to sort, and
       // not pretending to a precision it does not have.

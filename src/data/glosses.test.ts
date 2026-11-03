@@ -75,7 +75,10 @@ describe('a transient failure is not remembered (invariant 38)', () => {
   it('tries again after a network failure instead of caching the silence', async () => {
     clearGlossCache();
     let calls = 0;
-    vi.stubGlobal('fetch', () => {
+    // Gloss-shard requests only: a missing gloss also asks the authored
+    // meanings shard, which answers 404 here.
+    vi.stubGlobal('fetch', (url: string) => {
+      if (!url.includes('glosses.')) return Promise.resolve(new Response('', { status: 404 }));
       calls++;
       return calls === 1
         ? Promise.reject(new TypeError('Failed to fetch'))
@@ -95,7 +98,8 @@ describe('a transient failure is not remembered (invariant 38)', () => {
   it('tries again after a server fault, which is also not an answer', async () => {
     clearGlossCache();
     let calls = 0;
-    vi.stubGlobal('fetch', () => {
+    vi.stubGlobal('fetch', (url: string) => {
+      if (!url.includes('glosses.')) return Promise.resolve(new Response('', { status: 404 }));
       calls++;
       return Promise.resolve(
         calls === 1
@@ -123,6 +127,22 @@ describe('a transient failure is not remembered (invariant 38)', () => {
 
     expect(await glossFor('ja', 5, 'ja:lex:x')).toEqual([]);
     expect(await glossFor('ja', 5, 'ja:lex:x')).toEqual([]);
-    expect(calls).toBe(1);
+    // One 404 for the gloss shard and one for the meanings shard, each
+    // remembered — the second lookup asks the network for nothing.
+    expect(calls).toBe(2);
+  });
+});
+
+describe('an authored meaning stands in where Wiktionary has none', () => {
+  it('reads the meanings shard when the gloss shard lacks the word', async () => {
+    clearGlossCache();
+    vi.stubGlobal('fetch', (url: string) =>
+      Promise.resolve(
+        url.includes('meanings.')
+          ? new Response(JSON.stringify({ meanings: { 'ja:lex:猫': ['kucing'] } }), { status: 200 })
+          : new Response(JSON.stringify({ glosses: {} }), { status: 200 }),
+      ),
+    );
+    expect(await glossFor('ja', 1, 'ja:lex:猫')).toEqual(['kucing']);
   });
 });

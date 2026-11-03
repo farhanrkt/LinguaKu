@@ -158,3 +158,101 @@ describe('romaji as it is said', () => {
     expect(romajiOfTokens(['彼', 'は', '誰', '？'], ['カレ', 'ハ', 'ダレ', '？'])).toBe('kare wa dare?');
   });
 });
+
+/**
+ * D111: romaji is how a learner who cannot yet read kana reads every Japanese
+ * string, so where it puts its spaces is part of the reading. Each case below
+ * is one a real shipped sentence produced before the rule was right.
+ */
+describe('romaji word division (D111)', () => {
+  const line = async (pairs: ReadonlyArray<readonly [string, string]>): Promise<string> => {
+    const { romajiOfTokens } = await import('./kana.ts');
+    return romajiOfTokens(
+      pairs.map(([token]) => token),
+      pairs.map(([, reading]) => reading),
+    );
+  };
+
+  it('writes an inflection onto its word', async () => {
+    expect(await line([['読み', 'ヨミ'], ['まし', 'マシ'], ['た', 'タ'], ['。', '。']])).toBe('yomimashita.');
+    expect(await line([['行き', 'イキ'], ['ませ', 'マセ'], ['ん', 'ン'], ['でし', 'デシ'], ['た', 'タ']])).toBe(
+      'ikimasen deshita',
+    );
+    // A one-kanji stem takes it too: 来ます is "kimasu".
+    expect(await line([['来', 'キ'], ['ます', 'マス']])).toBe('kimasu');
+  });
+
+  it('doubles the consonant after a small っ, across the token boundary', async () => {
+    // Spelling each token alone gave "takakata" — a different word.
+    expect(await line([['高かっ', 'タカカッ'], ['た', 'タ'], ['です', 'デス']])).toBe('takakatta desu');
+    expect(await line([['行っ', 'イッ'], ['て', 'テ']])).toBe('itte');
+    // And puts back a kana word the tokenizer split at the っ.
+    expect(await line([['がっ', 'ガッ'], ['こう', 'コウ']])).toBe('gakkou');
+  });
+
+  it('never writes an inflection onto a particle', async () => {
+    // IPAdic splits an unknown hiragana name: わたし は た なか です. Joining
+    // the た to は read "watashi wata naka".
+    expect(await line([['わたし', 'ワタシ'], ['は', 'ハ'], ['た', 'タ'], ['なか', 'ナカ'], ['です', 'デス']])).toBe(
+      'watashi wa ta naka desu',
+    );
+  });
+
+  it('joins the negative to a verb, and not to a noun', async () => {
+    expect(await line([['知ら', 'シラ'], ['ない', 'ナイ']])).toBe('shiranai');
+    expect(await line([['よく', 'ヨク'], ['ない', 'ナイ']])).toBe('yokunai');
+    expect(await line([['し', 'シ'], ['て', 'テ'], ['い', 'イ'], ['ない', 'ナイ']])).toBe('shite inai');
+    expect(await line([['問題', 'モンダイ'], ['ない', 'ナイ']])).toBe('mondai nai');
+    expect(await line([['時間', 'ジカン'], ['が', 'ガ'], ['ない', 'ナイ']])).toBe('jikan ga nai');
+    expect(await line([['こと', 'コト'], ['ない', 'ナイ']])).toBe('koto nai');
+  });
+
+  it('tells the voiced て of 読んで from the particle で', async () => {
+    expect(await line([['読ん', 'ヨン'], ['で', 'デ']])).toBe('yonde');
+    expect(await line([['本', 'ホン'], ['で', 'デ']])).toBe('hon de');
+    expect(await line([['ごはん', 'ゴハン'], ['で', 'デ']])).toBe('gohan de');
+  });
+
+  it('keeps the copula and the explanatory ん apart', async () => {
+    expect(await line([['学生', 'ガクセイ'], ['でし', 'デシ'], ['た', 'タ']])).toBe('gakusei deshita');
+    expect(await line([['行く', 'イク'], ['ん', 'ン'], ['です', 'デス']])).toBe('iku n desu');
+    expect(await line([['雨', 'アメ'], ['でしょ', 'デショ'], ['う', 'ウ']])).toBe('ame deshou');
+  });
+
+  it('writes the polite prefix onto its word', async () => {
+    expect(await line([['お', 'オ'], ['元気', 'ゲンキ'], ['です', 'デス'], ['か', 'カ']])).toBe('ogenki desu ka');
+  });
+
+  it('marks which tokens attach, for the per-token rung', async () => {
+    const { romajiWords } = await import('./kana.ts');
+    expect(romajiWords(['高かっ', 'た'], ['タカカッ', 'タ'])).toEqual([
+      { text: 'takakat', attach: false },
+      { text: 'ta', attach: true },
+    ]);
+  });
+
+  it('writes っ before ch as t, as Hepburn does', () => {
+    expect(toRomaji('まっちゃ')).toBe('matcha');
+    expect(toRomaji('きって')).toBe('kitte');
+  });
+});
+
+describe('romajiOfWord (D111)', () => {
+  it('spells a word from its reading', async () => {
+    const { romajiOfWord } = await import('./kana.ts');
+    expect(romajiOfWord('学校', 'ガッコウ')).toBe('gakkou');
+    expect(romajiOfWord('する')).toBe('suru');
+  });
+
+  it('keeps a phrase its compiled spacing', async () => {
+    const { romajiOfWord } = await import('./kana.ts');
+    expect(romajiOfWord('お元気ですか', 'オゲンキデスカ', 'ogenki desu ka')).toBe('ogenki desu ka');
+  });
+
+  it('has nothing to say about kanji with no reading, or about Latin', async () => {
+    const { romajiOfWord } = await import('./kana.ts');
+    // toRomaji passes kanji through: "o元気desuka" is not a reading.
+    expect(romajiOfWord('お元気ですか')).toBeNull();
+    expect(romajiOfWord('house')).toBeNull();
+  });
+});

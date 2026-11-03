@@ -21,6 +21,11 @@ import type { AbilityEstimate, PlacementResponse } from '../../core/placement.ts
 export interface PlacementProbe {
   id: string;
   word: string;
+  /**
+   * Katakana, for a Japanese word's romaji (D111). The meaning is not shown:
+   * "do you know this word?" is the question, and its meaning is the answer.
+   */
+  reading?: string;
   /** Real words carry a rank; pseudowords do not exist in the corpus. */
   kind: 'real' | 'pseudo';
   difficulty: number;
@@ -32,6 +37,7 @@ export const PSEUDO_EVERY = 4;
 export interface RealWord {
   id: string;
   headword: string;
+  reading?: string;
   freqRank: number;
 }
 
@@ -45,6 +51,7 @@ export const buildProbePool = (
     real: words.map((word) => ({
       id: word.id,
       word: word.headword,
+      ...(word.reading ? { reading: word.reading } : {}),
       kind: 'real' as const,
       difficulty: difficultyForRank(word.freqRank),
     })),

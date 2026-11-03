@@ -64,6 +64,9 @@ interface WireLexeme {
 interface WireChunk {
   id: string;
   headword: string;
+  /** Japanese only: katakana, and the phrase spaced into words (D111). */
+  reading?: string;
+  romaji?: string;
   gloss: string;
   note?: string;
   freqRank: number;
@@ -96,6 +99,7 @@ export type ShardKind =
   | 'kanji'
   | 'chunks'
   | 'glosses'
+  | 'meanings'
   | 'passages';
 
 interface ShardRecord {
@@ -261,6 +265,8 @@ const toChunkItem = (wire: WireChunk, lang: TargetLang): Item => ({
   lang,
   kind: 'chunk',
   headword: wire.headword,
+  ...(wire.reading !== undefined ? { reading: wire.reading } : {}),
+  ...(wire.romaji !== undefined ? { romaji: wire.romaji } : {}),
   gloss: wire.gloss,
   ...(wire.note !== undefined ? { chunkNote: wire.note } : {}),
   anchorSentenceIds: wire.anchors,

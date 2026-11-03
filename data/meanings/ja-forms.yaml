@@ -1,0 +1,105 @@
+# What the grammar tokens in a Japanese sentence do (D111, D112).
+#
+# Tapping a word in a sentence opens its reading, romaji and meaning. The
+# lexeme inventory holds words, and the tokenizer also emits what is not a word
+# on its own — particles (は, を), auxiliaries (です, ます) and the inflected
+# pieces of verbs (まし, なかっ, でき). Measured over the anchor sentences of
+# bands 1–3, those made up **about 60% of every tap that found nothing**:
+# は alone was 4,378 of them. So a learner tapping the commonest token in the
+# language was told there was no entry.
+#
+# This table explains them: what the token does, or which word it is a form
+# of. Keyed by the token exactly as the corpus spells it, and checked by
+# scripts/ingest/build-meanings.ts against the shipped sentences — a token that
+# no sentence contains fails the build (invariant 32). Compiled into
+# meanings.b1.json under `forms`, beside the word meanings, so it costs no
+# extra request (dataset `linguaku-authored`, MIT).
+#
+# Style: professional Indonesian (D110), the function first, then how it reads
+# where the kana does not say it (は is "wa"). Wants a native speaker's review,
+# like every other authored file.
+
+# ------------------------------------------------------------ particles
+は: "penanda topik, “mengenai …”; dibaca wa"
+を: "penanda objek langsung; dibaca o"
+に: "di (tempat keberadaan); ke (tujuan); pada (waktu); kepada"
+が: "penanda subjek, terutama informasi baru; di antara dua klausa: tetapi"
+で: "di (tempat kegiatan); dengan (alat atau cara); bentuk sambung dari です atau だ"
+と: "dan (di antara kata benda); bersama; penanda kutipan; jika atau ketika"
+も: "juga; bahkan"
+へ: "ke (arah tujuan); dibaca e"
+か: "penanda pertanyaan; atau"
+から: "dari; karena; setelah, dalam …てから"
+まで: "sampai; hingga"
+より: "daripada; dari"
+や: "dan (daftar yang tidak lengkap)"
+って: "penanda kutipan: katanya, bahwa; penanda topik dalam percakapan"
+ば: "jika …"
+なら: "jika (mengenai …)"
+けど: "tetapi"
+ので: "karena"
+のに: "padahal; walaupun"
+だけ: "hanya"
+しか: "hanya (selalu diikuti bentuk negatif)"
+ほど: "kira-kira; sejauh; sampai"
+でも: "tetapi; bahkan; … atau semacamnya"
+について: "tentang; mengenai"
+という: "yang disebut; bernama; bahwa"
+
+# ------------------------------------------------- sentence-final words
+よ: "penegas di akhir kalimat: memberi tahu sesuatu yang baru bagi lawan bicara"
+ね: "penegas di akhir kalimat: meminta persetujuan, “…, ya?” atau “…, bukan?”"
+わ: "penegas di akhir kalimat"
+な: "penghubung kata sifat-na dengan kata benda; di akhir kalimat: larangan (jangan …) atau seruan"
+なあ: "seruan perasaan di akhir kalimat"
+
+# ------------------------------------------------------------- prefixes
+お: "awalan sopan"
+ご: "awalan sopan"
+
+# ---------------------------------------------------- copula and endings
+です: "kopula sopan (adalah)"
+でし: "bentuk dari です; でした berarti “adalah” dalam bentuk lampau yang sopan"
+でしょ: "bentuk dari でしょう (deshou): mungkin; “…, bukan?”"
+だ: "kopula biasa (adalah); setelah bunyi -n, penanda lampau, seperti dalam 読んだ"
+だっ: "bentuk lampau dari だ; だった berarti “adalah” dalam bentuk lampau"
+だろ: "bentuk dari だろう (darou): mungkin; “…, bukan?”"
+じゃ: "bentuk singkat dari では; じゃない berarti “bukan”"
+ます: "akhiran sopan kata kerja"
+まし: "bentuk dari ます; ました adalah bentuk lampau yang sopan"
+ませ: "bentuk dari ます; ません adalah bentuk negatif yang sopan"
+ましょ: "bentuk dari ます; ましょう berarti “mari …”"
+た: "penanda bentuk lampau (sudah …)"
+たら: "jika …; setelah …"
+て: "bentuk sambung -te: lalu …, sambil …; juga dipakai untuk permintaan"
+う: "akhiran ajakan atau perkiraan: mari …, mungkin …"
+ず: "tanpa …; tidak … (bentuk tulisan)"
+たい: "ingin …"
+べき: "seharusnya …"
+れ: "bentuk pasif atau kemampuan: di-…, dapat …"
+られ: "bentuk pasif atau kemampuan: di-…, dapat …"
+せ: "bentuk kausatif (menyuruh atau membiarkan …)"
+なかっ: "bentuk lampau dari ない; なかった berarti “tidak …” dalam bentuk lampau"
+なく: "bentuk dari ない; なくて berarti “tanpa …” atau “karena tidak …”"
+なけれ: "bentuk dari ない; なければ berarti “jika tidak …”, dan なければならない berarti “harus …”"
+ください: "tolong …; mohon … (permintaan yang sopan)"
+なさい: "perintah yang halus (…-lah)"
+
+# ------------------------------------------------- forms of common verbs
+し: "bentuk dari する (suru, melakukan); di akhir klausa: dan juga"
+い: "bentuk dari いる (iru): ada, atau sedang … setelah bentuk -te"
+あり: "bentuk dari ある (aru, ada)"
+あっ: "bentuk dari ある (aru, ada); sebagai seruan: ah!"
+でき: "bentuk dari できる (dekiru): dapat, bisa"
+なっ: "bentuk dari なる (naru, menjadi)"
+なり: "bentuk dari なる (naru, menjadi)"
+くれ: "bentuk dari くれる (kureru): memberi kepada saya, melakukan sesuatu untuk saya"
+やっ: "bentuk dari やる (yaru): melakukan, memberi"
+いけ: "bentuk dari いける; いけない berarti “tidak boleh”"
+しまっ: "bentuk dari しまう (shimau): terlanjur, benar-benar selesai"
+ちゃっ: "bentuk singkat dari てしまう (te shimau): terlanjur …"
+すぎ: "bentuk dari すぎる (sugiru): terlalu …"
+いただけ: "bentuk dari いただく (itadaku): menerima, dalam bahasa sopan; …ていただけますか{te itadakemasu ka} berarti “bolehkah saya meminta Anda …”"
+来: "bentuk dari 来る (kuru, datang)"
+お待ち: "bentuk sopan dari 待つ (matsu, menunggu); お待ちください berarti “mohon tunggu”"
+また: "lagi; juga"

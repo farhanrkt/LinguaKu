@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import type { BuildTile } from '../../core/sentenceBuild.ts';
+import { romajiOfToken } from '../../core/kana.ts';
 import type { BuildTask } from './build.ts';
 
 /**
@@ -32,6 +33,19 @@ export const BuildView = ({ task, lang, onAnswer, busy }: BuildViewProps) => {
     return tile ? [tile] : [];
   });
   const remaining = task.puzzle.tiles.filter((tile) => !placed.includes(tile.id));
+  // A Japanese tile says how it reads (D111). Ordering words you cannot read
+  // aloud is shape-matching, not building a sentence.
+  const label = (tile: BuildTile) =>
+    task.readings === undefined ? (
+      tile.text
+    ) : (
+      <>
+        <span className="block">{tile.text}</span>
+        <span className="block text-xs font-normal text-stone-600 dark:text-slate-400">
+          {romajiOfToken(tile.text, task.readings[tile.text] ?? tile.text)}
+        </span>
+      </>
+    );
 
   const tileClass =
     'min-h-12 rounded-xl border-2 border-stone-300 bg-white px-3 py-2 font-semibold ' +
@@ -72,7 +86,7 @@ export const BuildView = ({ task, lang, onAnswer, busy }: BuildViewProps) => {
               className={tileClass}
               data-testid="build-placed"
             >
-              {tile.text}
+              {label(tile)}
             </button>
           ))
         )}
@@ -88,7 +102,7 @@ export const BuildView = ({ task, lang, onAnswer, busy }: BuildViewProps) => {
             className={tileClass}
             data-testid="build-tile"
           >
-            {tile.text}
+            {label(tile)}
           </button>
         ))}
       </div>

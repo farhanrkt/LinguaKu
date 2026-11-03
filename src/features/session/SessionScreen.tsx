@@ -5,6 +5,7 @@ import { Screen } from '../../ui/Screen.tsx';
 import { SwipeCard } from '../../ui/SwipeCard.tsx';
 import { gradeAnswer, gradeForOutcome, type GradeResult } from '../../core/grader.ts';
 import { gradeDrill, type DrillOutcome } from '../../core/drillGrade.ts';
+import { romajiOfTokens, romajiOfWord } from '../../core/kana.ts';
 import { detectInterference } from '../../core/interference.ts';
 import { EMPTY_CLIP_INDEX, hasAudio, loadClipIndex, playSentence, stopAudio, type ClipIndex } from '../../platform/audio.ts';
 import { speak } from '../../platform/speech.ts';
@@ -44,6 +45,7 @@ import {
   type AnswerPayload,
   KanaTask,
   KanjiDetails,
+  RomajiLine,
   SentenceText,
 } from './TaskViews.tsx';
 import { saveMnemonic } from '../../data/repositories/mnemonics.ts';
@@ -675,6 +677,7 @@ export const SessionScreen = ({
               <p className="mt-2 text-xl leading-snug font-semibold">
                 {buildReveal.task.answerText}
               </p>
+              {buildReveal.task.answerRomaji ? <RomajiLine romaji={buildReveal.task.answerRomaji} /> : null}
               <p className="mt-1 text-stone-600 dark:text-slate-400">{buildReveal.task.prompt}</p>
             </div>
           </SwipeCard>
@@ -769,17 +772,19 @@ const AnsweredCard = ({
         {copy.session.answered.label}
       </p>
 
-      <p className="mt-2 text-xl leading-snug font-semibold">
-        {task.cloze ? (
+      <div className="mt-2 text-xl leading-snug font-semibold">
+        {task.cloze && task.cloze.tokenIndex === undefined ? (
           <>
             {task.cloze.before}
             {filled}
             {task.cloze.after}
           </>
         ) : (
+          // Japanese: the whole sentence in the learner's script, every word
+          // tappable and a romaji line beneath (the answer is in it).
           <SentenceText task={task} scriptMode={scriptMode} />
         )}
-      </p>
+      </div>
 
       {task.translation.length > 0 ? (
         <p className="mt-1 text-stone-600 dark:text-slate-400">{task.translation}</p>
@@ -806,6 +811,7 @@ const AnsweredDrill = ({ reveal }: { reveal: DrillReveal }) => (
       {copy.session.answered.label}
     </p>
     <p className="mt-2 text-xl leading-snug font-semibold">{reveal.task.drill.prompt}</p>
+    {reveal.task.drill.promptRomaji ? <RomajiLine romaji={reveal.task.drill.promptRomaji} /> : null}
     {reveal.raw.trim().toLowerCase() !== reveal.task.drill.answer.trim().toLowerCase() &&
     reveal.raw.trim().length > 0 ? (
       <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="answered-yours">
@@ -841,6 +847,15 @@ const Feedback = ({
         ? 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100'
         : 'bg-stone-100 text-stone-900 dark:bg-slate-900 dark:text-slate-100';
 
+  // The answer's romaji, where it is Japanese: from the reading the card
+  // accepts, or from the answer itself when that is already kana.
+  const kana = [answer, ...(reveal.task.alsoAccepted ?? [])].find(
+    (form) => form.length > 0 && /^[\u3040-\u30ffー]+$/u.test(form),
+  );
+  const answerRomaji =
+    lang === 'ja' && kana !== undefined && /[\u3040-\u30ff\u4e00-\u9fff]/u.test(answer)
+      ? romajiOfTokens([kana], [kana])
+      : undefined;
   const message = reveal.unverified
     ? copy.session.feedback.freeUnverified(reveal.headword)
     : reveal.task.kind === 'free'
@@ -848,8 +863,8 @@ const Feedback = ({
       : result.outcome === 'correct'
       ? copy.session.feedback.correct
       : result.outcome === 'near-miss'
-        ? copy.session.feedback.nearMiss(answer)
-        : copy.session.feedback.wrong(answer);
+        ? copy.session.feedback.nearMiss(answer, answerRomaji)
+        : copy.session.feedback.wrong(answer, answerRomaji);
 
   return (
     <div>
@@ -891,6 +906,13 @@ const Feedback = ({
         </p>
         <p className="mt-1">
           <span className="font-semibold">{reveal.headword}</span>
+          {lang === 'ja' &&
+          reveal.task.kind !== 'kanji' &&
+          romajiOfWord(reveal.headword, reveal.task.reading ?? null, reveal.task.romaji ?? null) !== null ? (
+            <span className="ml-2 text-stone-600 dark:text-slate-400" data-testid="feedback-romaji">
+              ({romajiOfWord(reveal.headword, reveal.task.reading ?? null, reveal.task.romaji ?? null)})
+            </span>
+          ) : null}
           {reveal.gloss.length > 0 ? (
             <span className="ml-2 text-stone-600 dark:text-slate-400" data-testid="feedback-gloss">
               {reveal.gloss.join('; ')}
@@ -929,11 +951,18 @@ const DrillFeedback = ({ reveal, lang }: { reveal: DrillReveal; lang: TargetLang
     >
       <p className="font-semibold">
         {!reveal.correct
-          ? copy.session.feedback.wrong(reveal.task.drill.answer)
+          ? copy.session.feedback.wrong(reveal.task.drill.answer, reveal.task.drill.answerRomaji)
           : reveal.outcome === 'near-miss'
-            ? copy.session.feedback.nearMiss(reveal.task.drill.answer)
+            ? copy.session.feedback.nearMiss(reveal.task.drill.answer, reveal.task.drill.answerRomaji)
             : copy.session.feedback.correct}
       </p>
+      {/* A right answer still shows how it reads: an option picked by shape
+          is not yet one the learner can say (D111). */}
+      {reveal.correct && reveal.outcome !== 'near-miss' && reveal.task.drill.answerRomaji ? (
+        <p className="mt-1 text-sm" data-testid="feedback-romaji">
+          {copy.session.feedback.reads(reveal.task.drill.answer, reveal.task.drill.answerRomaji)}
+        </p>
+      ) : null}
       {/* Named only now: shown above the question, the category label told
           the learner which error to look for ("Akhiran -s untuk dia"). */}
       <p className="mt-1 text-sm" data-testid="drill-category">

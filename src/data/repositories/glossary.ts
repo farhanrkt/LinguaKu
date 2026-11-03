@@ -3,6 +3,7 @@ import { retrievability } from '../../core/scheduler.ts';
 import { isMastered, LEECH_LAPSE_THRESHOLD } from '../../core/ladder.ts';
 import { glossFor } from '../glosses.ts';
 import { getAnchor } from '../content.ts';
+import { romajiOfTokens } from '../../core/kana.ts';
 import type { ItemKind, TargetLang, Timestamp } from '../types.ts';
 
 /**
@@ -40,12 +41,17 @@ export interface GlossaryEntry {
   itemId: string;
   headword: string;
   reading?: string;
+  /** A phrase's compiled romaji (a chunk, D111). */
+  romaji?: string;
   kind: ItemKind;
   band: number;
   /** Indonesian meaning where one exists — authored for chunks, else the shard. */
   gloss?: string;
-  /** An example sentence and its translation, for the detail row. */
-  example?: { text: string; translation: string };
+  /**
+   * An example sentence and its translation, for the detail row — and, for
+   * Japanese, its romaji (D111).
+   */
+  example?: { text: string; translation: string; romaji?: string };
   strength: GlossaryStrength;
   ladderLevel: number;
   lastReviewedAt: Timestamp | null;
@@ -144,10 +150,21 @@ export const buildGlossary = async (
         itemId: item.id,
         headword: item.headword,
         ...(item.reading !== undefined ? { reading: item.reading } : {}),
+        ...(item.romaji !== undefined ? { romaji: item.romaji } : {}),
         kind: item.kind,
         band: item.band,
         ...(gloss !== undefined ? { gloss } : {}),
-        ...(anchor ? { example: { text: anchor.text, translation: anchor.tr.text } } : {}),
+        ...(anchor
+          ? {
+              example: {
+                text: anchor.text,
+                translation: anchor.tr.text,
+                ...(anchor.tokens && anchor.readings
+                  ? { romaji: romajiOfTokens(anchor.tokens, anchor.readings) }
+                  : {}),
+              },
+            }
+          : {}),
         strength,
         ladderLevel: card.ladderLevel,
         lastReviewedAt: card.fsrs.lastReviewAt,

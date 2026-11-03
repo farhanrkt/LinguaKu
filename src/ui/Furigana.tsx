@@ -20,8 +20,8 @@ import { type RubySegment } from '../core/furigana.ts';
  * set, and the separator exists to make words readable, not to detach them
  * from their full stop.
  */
-const gap = (separator: string, index: number, text: string): string =>
-  index === 0 || separator === '' || CLOSING_PUNCTUATION.test(text) ? '' : separator;
+const gap = (separator: string, index: number, text: string, attach?: boolean): string =>
+  index === 0 || separator === '' || attach === true || CLOSING_PUNCTUATION.test(text) ? '' : separator;
 
 /**
  * Japanese is set without spaces; romaji is not.
@@ -48,12 +48,12 @@ export const Furigana = ({
         // would reserve the line space above it for nothing and make a sentence
         // with no kanji taller than one with kanji.
         <span key={index}>
-          {gap(separator, index, segment.text)}
+          {gap(separator, index, segment.text, segment.attach)}
           {segment.text}
         </span>
       ) : (
         <ruby key={index}>
-          {gap(separator, index, segment.text)}
+          {gap(separator, index, segment.text, segment.attach)}
           {segment.text}
           <rp>(</rp>
           <rt className="text-[0.5em] font-normal">{segment.ruby}</rt>

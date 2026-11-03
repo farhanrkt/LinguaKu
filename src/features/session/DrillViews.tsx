@@ -5,6 +5,7 @@ import { OptionCard } from '../../ui/OptionCard.tsx';
 import type { Category } from '../../data/contrastive.ts';
 import type { TargetLang } from '../../data/types.ts';
 import type { DrillTask } from './drill.ts';
+import { RomajiLine } from './TaskViews.tsx';
 
 /**
  * The contrastive drill (SPEC §3.3) and the note that follows it (SPEC §2.9).
@@ -30,6 +31,10 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) =
   // a correction asks for the whole sentence back rather than one word.
   const correction = task.drill.type === 'correction';
   const typed = task.drill.type === 'cloze' || correction;
+  // The options are shuffled; their romaji is authored in order (D111).
+  const romajiOf = new Map(
+    (task.drill.options ?? []).map((option, index) => [option, task.drill.optionsRomaji?.[index] ?? '']),
+  );
 
   useEffect(() => {
     if (typed) input.current?.focus();
@@ -57,6 +62,7 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) =
       >
         {task.drill.prompt}
       </p>
+      {task.drill.promptRomaji ? <RomajiLine romaji={task.drill.promptRomaji} /> : null}
 
       {task.drill.audio ? (
         <button
@@ -101,15 +107,19 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) =
         </form>
       ) : (
         <div className="mt-6 flex flex-col gap-3">
-          {task.options.map((option) => (
-            <OptionCard
-              key={option}
-              label={option}
-              selected={false}
-              disabled={busy === true}
-              onToggle={() => onAnswer(option)}
-            />
-          ))}
+          {task.options.map((option) => {
+            const romaji = romajiOf.get(option) ?? '';
+            return (
+              <OptionCard
+                key={option}
+                label={option}
+                {...(romaji.length > 0 ? { hint: romaji } : {})}
+                selected={false}
+                disabled={busy === true}
+                onToggle={() => onAnswer(option)}
+              />
+            );
+          })}
         </div>
       )}
     </div>

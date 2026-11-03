@@ -13,6 +13,10 @@ import {
   type Deferral,
 } from '../../data/repositories/deferrals.ts';
 import type { Profile } from '../../data/types.ts';
+import { toHiragana } from '../../core/kana.ts';
+import { wordInfo, type KanjiInfo } from '../../data/repositories/wordInfo.ts';
+import { KanjiBreakdown } from '../word/WordBreakdown.tsx';
+import { romajiFor } from '../word/WordChip.tsx';
 
 /**
  * Everything the learner has met, browsable (SPEC §2.2, §2.14).
@@ -43,8 +47,24 @@ const TONE: Record<GlossaryStrength, string> = {
   leech: 'bg-stone-100 text-stone-700 dark:bg-slate-900 dark:text-slate-300',
 };
 
+/** Each kanji of a Japanese headword, read when the row is opened (D111). */
+const EntryKanji = ({ headword, reading }: { headword: string; reading: string | null }) => {
+  const [kanji, setKanji] = useState<KanjiInfo[]>([]);
+  useEffect(() => {
+    let live = true;
+    void wordInfo(headword, reading).then((info) => {
+      if (live) setKanji(info.kanji);
+    });
+    return () => {
+      live = false;
+    };
+  }, [headword, reading]);
+  return <KanjiBreakdown kanji={kanji} />;
+};
+
 const Entry = ({ entry }: { entry: GlossaryEntry }) => {
   const [open, setOpen] = useState(false);
+  const romaji = romajiFor(entry.headword, entry.reading, entry.romaji);
 
   return (
     <li className="border-b border-stone-200 py-3 dark:border-slate-800">
@@ -56,8 +76,13 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
       >
         <span>
           <span className="text-lg font-semibold">{entry.headword}</span>
-          {entry.reading ? (
-            <span className="ml-2 text-sm text-stone-500 dark:text-slate-400">{entry.reading}</span>
+          {entry.reading && toHiragana(entry.reading) !== toHiragana(entry.headword) ? (
+            <span className="ml-2 text-sm text-stone-500 dark:text-slate-400">{toHiragana(entry.reading)}</span>
+          ) : null}
+          {romaji !== null ? (
+            <span className="ml-2 text-sm text-stone-600 dark:text-slate-400" data-testid="glossary-romaji">
+              {romaji}
+            </span>
           ) : null}
           {entry.gloss ? (
             <span className="ml-2 text-stone-600 dark:text-slate-400">{entry.gloss}</span>
@@ -73,6 +98,9 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
           {entry.example ? (
             <p>
               {entry.example.text}
+              {entry.example.romaji ? (
+                <span className="mt-1 block text-stone-600 dark:text-slate-400">{entry.example.romaji}</span>
+              ) : null}
               <span className="mt-1 block text-stone-500 dark:text-slate-400">
                 {entry.example.translation}
               </span>
@@ -82,6 +110,7 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
               English and 4% of Japanese, measured (D59). */}
           {entry.gloss ? null : <p className="mt-1">{copy.glossary.noGloss}</p>}
           <p className="mt-1">{copy.glossary.band(entry.band)}</p>
+          {romaji !== null ? <EntryKanji headword={entry.headword} reading={entry.reading ?? null} /> : null}
         </div>
       ) : null}
     </li>
@@ -131,7 +160,14 @@ const Deferrals = ({
             className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border-2 border-stone-200 px-4 py-2 dark:border-slate-800"
           >
             <span>
-              <span className="block font-semibold">{row.headword}</span>
+              <span className="block font-semibold">
+                {row.headword}
+                {romajiFor(row.headword, row.reading, row.romaji) !== null ? (
+                  <span className="ml-1.5 font-normal text-stone-600 dark:text-slate-400">
+                    {romajiFor(row.headword, row.reading, row.romaji)}
+                  </span>
+                ) : null}
+              </span>
               <span className="block text-sm text-stone-600 dark:text-slate-400">
                 {copy.glossary.deferred.until(Math.ceil((row.until - now) / DAY))}
               </span>

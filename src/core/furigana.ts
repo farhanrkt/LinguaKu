@@ -1,4 +1,13 @@
-import { hasKanji, isKana, isKanji, latinPunctuation, romajiOfToken, toHiragana, toRomaji } from './kana.ts';
+import {
+  hasKanji,
+  isKana,
+  isKanji,
+  latinPunctuation,
+  romajiOfToken,
+  romajiWords,
+  toHiragana,
+  toRomaji,
+} from './kana.ts';
 import type { ScriptMode } from '../data/types.ts';
 
 /**
@@ -39,6 +48,8 @@ export interface RubySegment {
    * shown: pure kana, no kanji, or every kanji in it already stable.
    */
   ruby: string | null;
+  /** An inflection written joined to the word before it in romaji (まし, た…). */
+  attach?: true;
 }
 
 export interface FuriganaInput {
@@ -77,8 +88,12 @@ export const isFaded = (stability: number | null): boolean =>
  * The script mode decides the *base* text (SPEC §4.3's romaji → kana → kanji
  * ladder); stability decides whether a reading rides above it.
  */
-export const furiganaFor = (input: FuriganaInput): RubySegment[] =>
-  input.tokens.map((token, index) => {
+export const furiganaFor = (input: FuriganaInput): RubySegment[] => {
+  // Worked out for the whole sentence, because two things in romaji cross a
+  // token boundary: inflection joins its word, and a final っ doubles the next
+  // consonant (kana.ts).
+  const romaji = input.scriptMode === 'romaji' ? romajiWords(input.tokens, input.readings) : [];
+  return input.tokens.map((token, index) => {
     const katakana = input.readings[index] ?? token;
     const reading = toHiragana(katakana);
 
@@ -100,7 +115,12 @@ export const furiganaFor = (input: FuriganaInput): RubySegment[] =>
         (character) => !isKana(character) || readsKana(character),
       );
       // As it is said, not as it is spelt: the particle は is "wa".
-      return { text: readable ? asKana : romajiOfToken(token, katakana), ruby: null };
+      const word = romaji[index]!;
+      return {
+        text: readable ? asKana : word.text,
+        ruby: null,
+        ...(word.attach ? { attach: true as const } : {}),
+      };
     }
 
     // Kana: kanji are replaced by their readings outright rather than annotated.
@@ -117,6 +137,7 @@ export const furiganaFor = (input: FuriganaInput): RubySegment[] =>
 
     return { text: token, ruby: allFaded ? null : reading };
   });
+};
 
 /**
  * The headword as the learner's current rung writes it (SPEC §4.3).
@@ -134,8 +155,11 @@ export const headwordIn = (
   scriptMode: ScriptMode,
   headword: string,
   reading: string | null,
+  /** A phrase's own romaji, spaced into words (a chunk, D111). */
+  romaji?: string | null,
 ): string => {
   if (scriptMode === 'kanji') return headword;
+  if (scriptMode === 'romaji' && romaji !== undefined && romaji !== null && romaji.length > 0) return romaji;
   // A kana headword needs no reading to be romanized. This branch used to sit
   // behind the empty-reading check and never ran: 96 of the 500 band-1 words
   // (する, いる, この…) carry no separate reading, so the romaji rung showed

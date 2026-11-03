@@ -111,6 +111,12 @@ export interface Item {
   headword: string;
   reading?: string;
   /**
+   * The headword in romaji, where it was compiled with one: a Japanese chunk,
+   * which is several words and is spaced as words are (D111). A word's romaji
+   * is otherwise derived from `reading` (`romajiOfWord`).
+   */
+  romaji?: string;
+  /**
    * Optional: no Indonesian gloss source is licence-cleared yet (risk R3), so
    * M1/M2 content carries none. Meaning is conveyed by `anchorSentenceIds`
    * instead, which is what SPEC §2.5 asks for anyway.

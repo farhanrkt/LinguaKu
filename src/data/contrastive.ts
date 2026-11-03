@@ -31,6 +31,15 @@ export interface Drill {
   /** Minimal pairs only — requires audio, and is withheld without it (§2.6). */
   audio?: true;
   say?: string;
+  /**
+   * Japanese only (D111): the romaji of a Japanese sentence prompt, one per
+   * option ('' for an option with no Japanese), and of the answer. Prose that
+   * merely mentions Japanese carries its romaji inline instead, written by the
+   * compiler. A drill that tests the script itself has no `optionsRomaji`.
+   */
+  promptRomaji?: string;
+  optionsRomaji?: string[];
+  answerRomaji?: string;
 }
 
 export interface ContrastiveNote {

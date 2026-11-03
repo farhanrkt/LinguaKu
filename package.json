@@ -33,6 +33,7 @@
     "ingest:glosses": "node scripts/ingest/build-glosses.ts",
     "ingest:chunks": "node scripts/ingest/build-chunks.ts",
     "ingest:topics": "node scripts/ingest/build-topics.ts",
+    "ingest:meanings": "node scripts/ingest/build-meanings.ts",
     "check:offline": "node scripts/check-offline.mjs"
   },
   "dependencies": {

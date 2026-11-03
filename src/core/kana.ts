@@ -120,13 +120,14 @@ export const toRomaji = (kana: string): string => {
   for (let index = 0; index < source.length; ) {
     const character = source[index]!;
 
-    // Small tsu: double whatever consonant comes next.
+    // Small tsu: double whatever consonant comes next — as "t" before "ch",
+    // which is how Hepburn writes まっちゃ (matcha).
     if (character === 'っ') {
       const next = source.slice(index + 1);
       const match = ROMAJI.find(([kanaForm]) => next.startsWith(kanaForm));
       const romaji = match?.[1];
       if (romaji && /^[a-z]/.test(romaji) && !/^[aiueo]/.test(romaji)) {
-        result += romaji[0];
+        result += romaji.startsWith('ch') ? 't' : romaji[0];
       }
       index += 1;
       continue;
@@ -185,10 +186,17 @@ const LATIN_PUNCTUATION: Readonly<Record<string, string>> = {
 export const latinPunctuation = (text: string): string =>
   [...text].map((character) => LATIN_PUNCTUATION[character] ?? character).join('');
 
-/** Whole words whose spelling and sound part ways at a final は. */
+/**
+ * Whole tokens whose spelling and sound part ways at a final は: two greetings,
+ * and the particle pairs IPAdic keeps as one token (では is "dewa").
+ */
 const SPOKEN: Readonly<Record<string, string>> = {
   こんにちは: 'konnichiwa',
   こんばんは: 'konbanwa',
+  では: 'dewa',
+  には: 'niwa',
+  とは: 'towa',
+  へは: 'ewa',
 };
 
 /**
@@ -218,6 +226,134 @@ export const romajiOfToken = (token: string, reading?: string | null): string =>
 const ATTACHES = /^[.,?!)":~…]/u;
 
 /**
+ * Inflection the tokenizer splits off a verb or adjective. IPAdic cuts 読みました
+ * into 読み + まし + た, and spaced out that reads "yomi mashi ta"; romaji
+ * writes the word whole, "yomimashita". These are written onto whatever word
+ * comes before them, kanji-only stems included (来 + ます is "kimasu").
+ *
+ * The app has the tokens and their readings but no part of speech (D10: no
+ * tokenizer at runtime), so the rule is lexical, and the ambiguous tokens get
+ * narrower rules below rather than a guess. Checked against IPAdic's own
+ * part-of-speech tags over all 14,491 shipped anchor sentences, it agrees on
+ * 98% of them; where it still differs from a textbook (急いで as "isoi de",
+ * 出来ない as "deki nai") the difference is a space, never a sound.
+ */
+const INFLECTION: ReadonlySet<string> = new Set([
+  'ます', 'まし', 'ませ', 'ましょ',
+  'た', 'たら', 'たり', 'て', 'ば', 'う', 'ず', 'ぬ', 'ざる',
+  'たい', 'たく', 'たかっ', 'たけれ', 'がる', 'がっ', 'がら', 'がり', 'がれ',
+  'れる', 'れ', 'られる', 'られ', 'せる', 'せ', 'させる', 'させ', 'せよ', 'させよ',
+  'てる', 'てた', 'ちゃう', 'ちゃっ', 'ちゃ',
+]);
+
+/**
+ * The negative, onto the stem a verb or adjective takes before it — 知らない,
+ * 食べない, よくない, and a one-kanji stem like 見ない — but not onto a noun or
+ * an adverb: 問題ない is "mondai nai", 違いない "chigai nai", ことない "koto nai".
+ */
+const NEGATIVE: ReadonlySet<string> = new Set(['ない', 'なかっ', 'なく', 'なけれ', 'なきゃ', 'なくちゃ']);
+const NEGATIVE_STEM = /[かがさたなばまらわきぎしじちにひびみりえけげせぜてでねべめれくこ]$/u;
+
+/**
+ * The voiced て and た after a verb's sound change — 読んで, 楽しんだ — which
+ * are also the particle で and the copula だ. Only a stem with a kanji that ends
+ * in ん is a verb's: 本で and ごはんで keep their space. The い of 急いで is
+ * left out because 嫌いだ is as common and is a noun.
+ */
+const VOICED: ReadonlySet<string> = new Set(['で', 'だ', 'だら', 'だり', 'じゃう', 'じゃっ']);
+
+/**
+ * What an inflection never joins: a particle. IPAdic splits a hiragana name it
+ * does not know — わたしはたなかです comes out as わたし は た なか です — and
+ * joining that た to the particle read "watashi wata naka". A particle is never
+ * the stem of a verb, so nothing is written onto one.
+ */
+const PARTICLES: ReadonlySet<string> = new Set([
+  'は', 'が', 'を', 'に', 'で', 'と', 'も', 'へ', 'の', 'か', 'や', 'よ', 'ね', 'わ', 'な',
+  'から', 'まで', 'より', 'って', 'けど', 'けれど', 'じゃ', 'では', 'には', 'とは',
+  'ので', 'のに', 'など', 'だけ', 'しか', 'ほど', 'くらい', 'ぐらい',
+]);
+
+/** Whether `token` is written onto `previous` (read `previousKana`) in romaji. */
+const joins = (previous: string | undefined, previousKana: string | undefined, token: string): boolean => {
+  if (previous === undefined || PARTICLES.has(previous)) return false;
+  if (![...previous].some((character) => isKana(character) || isKanji(character))) return false;
+  // A small っ ends no word: what follows it is the rest of the word, so an
+  // all-kana word the tokenizer split there is put back — がっ + こう is gakkou.
+  if (previousKana?.endsWith('っ') === true) return true;
+  // The polite prefix is written onto its word: お + 元気 is "ogenki", ご + 家族
+  // "gokazoku".
+  if (previous === 'お' || previous === 'ご') return true;
+  if (INFLECTION.has(token)) return true;
+  // ません: the negative ん. The explanatory ん of 行くんです stays apart.
+  if (token === 'ん') return previous === 'ませ';
+  // い is いる's stem — している's negative is "shite inai".
+  if (NEGATIVE.has(token)) {
+    return NEGATIVE_STEM.test(previous) || previous === 'い' || (previous.length === 1 && isKanji(previous));
+  }
+  if (VOICED.has(token)) return (hasKanji(previous) && previous.endsWith('ん')) || previous === 'ない';
+  return false;
+};
+
+/** One token of a sentence in romaji, and whether it is written onto the word before it. */
+export interface RomajiWord {
+  text: string;
+  attach: boolean;
+}
+
+/** The consonant a small っ doubles: matcha, not maccha (Hepburn). */
+const geminate = (next: string): string => {
+  if (next.startsWith('ch')) return 't';
+  return /^[b-df-hj-np-tv-z]/.test(next) ? next[0]! : '';
+};
+
+/**
+ * A sentence in romaji, token by token — what the romaji rung shows, one tap
+ * target per token, and what `romajiOfTokens` joins into a line.
+ *
+ * Two things cross a token boundary and are handled here rather than per token:
+ * an inflection is written onto its word (読み + まし + た → yomimashita), and a
+ * small っ that ends a token doubles the consonant that starts the next one —
+ * 高かっ + た is "takakatta", where spelling each token alone gave "takakata",
+ * a different word.
+ */
+export const romajiWords = (
+  tokens: readonly string[],
+  readings: readonly (string | null | undefined)[],
+): RomajiWord[] => {
+  const kana = tokens.map((token, index) => {
+    const reading = readings[index];
+    return toHiragana(reading !== undefined && reading !== null && reading.length > 0 ? reading : token);
+  });
+  const spelled = tokens.map((token, index) => romajiOfToken(token, readings[index] ?? null));
+  return tokens.map((token, index) => {
+    const next = spelled[index + 1];
+    const text = kana[index]!.endsWith('っ') && next !== undefined ? `${spelled[index]!}${geminate(next)}` : spelled[index]!;
+    return { text, attach: joins(tokens[index - 1], kana[index - 1], token) };
+  });
+};
+
+/**
+ * A headword in romaji, or null where there is no honest way to spell it.
+ *
+ * A phrase compiled with its own romaji (a chunk: "o genki desu ka") keeps
+ * that spacing. A word with kanji in it is spelled from its reading — and has
+ * no romaji at all without one, because `toRomaji` passes kanji through and
+ * "o元気desuka" is not a reading of anything. Latin headwords have none either:
+ * there is nothing to add to "house".
+ */
+export const romajiOfWord = (
+  headword: string,
+  reading?: string | null,
+  romaji?: string | null,
+): string | null => {
+  if (![...headword].some((character) => isKana(character) || isKanji(character))) return null;
+  if (romaji !== undefined && romaji !== null && romaji.length > 0) return romaji;
+  if (hasKanji(headword) && (reading === undefined || reading === null || reading.length === 0)) return null;
+  return romajiOfToken(headword, reading ?? headword);
+};
+
+/**
  * A sentence in romaji: words separated by spaces, punctuation attached to the
  * word before it, particles as they are said.
  */
@@ -225,12 +361,11 @@ export const romajiOfTokens = (
   tokens: readonly string[],
   readings: readonly (string | null | undefined)[],
 ): string =>
-  tokens
-    .map((token, index) => romajiOfToken(token, readings[index] ?? null))
-    .reduce((sentence, word, index) => {
-      if (word.trim().length === 0) return sentence;
-      if (index === 0 || sentence.length === 0) return word.trimStart();
-      return ATTACHES.test(word) ? `${sentence}${word}` : `${sentence} ${word}`;
+  romajiWords(tokens, readings)
+    .reduce((sentence, word) => {
+      if (word.text.trim().length === 0) return sentence;
+      if (sentence.length === 0) return word.text.trimStart();
+      return ATTACHES.test(word.text) || word.attach ? `${sentence}${word.text}` : `${sentence} ${word.text}`;
     }, '')
     .replace(/\s+/g, ' ')
     .trim();

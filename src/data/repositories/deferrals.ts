@@ -75,6 +75,10 @@ export const deferredItemIds = async (
 export interface Deferral {
   itemId: string;
   headword: string;
+  /** Katakana, where the word has one — for its romaji (D111). */
+  reading?: string;
+  /** A phrase's compiled romaji (a chunk). */
+  romaji?: string;
   /** When the composer will stop skipping it on its own. */
   until: Timestamp;
   times: number;
@@ -96,7 +100,16 @@ export const activeDeferrals = async (
     // nothing to bring back. Dropping it from the list is honest; inventing a
     // headword for it would not be.
     if (!item) return [];
-    return [{ itemId: row.itemId, headword: item.headword, until: row.until, times: row.times }];
+    return [
+      {
+        itemId: row.itemId,
+        headword: item.headword,
+        ...(item.reading ? { reading: item.reading } : {}),
+        ...(item.romaji ? { romaji: item.romaji } : {}),
+        until: row.until,
+        times: row.times,
+      },
+    ];
   });
 };
 

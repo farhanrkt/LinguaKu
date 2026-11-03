@@ -20,6 +20,7 @@ import { gzipSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
+import { annotate, hasJapanese, loadTokenizer, romajiLine, sentenceRomaji, startsJapanese } from './japaneseRomaji.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -52,6 +53,20 @@ interface AuthoredDrill {
   /** Minimal pairs need to be heard; `say` is what the engine speaks. */
   audio?: boolean;
   say?: string;
+  /**
+   * Romaji written by hand, for the strings the tokenizer gets wrong. IPAdic
+   * is trained on text with kanji in it, so a drill written all in hiragana —
+   * としょかんにほんをよみます — or one ungrammatical on purpose can split
+   * into nonsense, and a nonsense romaji line is worse than none. Options are
+   * keyed by the option text.
+   */
+  romaji?: { prompt?: string; answer?: string; options?: Record<string, string> };
+  /**
+   * The question is whether the learner can read the script itself — which
+   * hiragana matches which katakana. Romaji beside the options would answer
+   * it, so the options carry none and the reading arrives with the verdict.
+   */
+  testsScript?: boolean;
 }
 
 interface AuthoredCategory {
@@ -181,6 +196,22 @@ for (const lang of LANGS) {
       } else if (drill.audio) {
         fail(`${drill.id}: only minimal pairs require audio`);
       }
+
+      // A hand-written romaji line must belong to a string the learner sees.
+      if (drill.romaji) {
+        if (lang !== 'ja') fail(`${drill.id}: romaji is for Japanese drills`);
+        if (drill.romaji.prompt !== undefined && !startsJapanese(drill.prompt)) {
+          fail(`${drill.id}: romaji.prompt is for a Japanese sentence; write prose as かな{kana}`);
+        }
+        for (const option of Object.keys(drill.romaji.options ?? {})) {
+          if (!(drill.options ?? []).includes(option)) fail(`${drill.id}: romaji for "${option}", which is not an option`);
+        }
+      }
+      // The faulty sentence is what a correction is graded against
+      // (drillGrade.ts), so it has to reach the app exactly as written.
+      if (drill.type === 'correction' && lang === 'ja' && !startsJapanese(drill.prompt)) {
+        fail(`${drill.id}: a Japanese correction drill's prompt is the Japanese sentence alone`);
+      }
     }
   }
 
@@ -214,6 +245,23 @@ for (const lang of LANGS) {
 
   await mkdir(OUT_DIR, { recursive: true });
 
+  // Japanese only: the tokenizer is a 30 MB dictionary load, and English
+  // prose carries no Japanese to spell.
+  //
+  // Every Japanese string a learner sees comes with its romaji (D111), in one
+  // of three shapes: inline after Japanese inside Indonesian prose ("は (wa)
+  // menandai topik"), as a line under a Japanese sentence, and one per option.
+  const tokenizer = lang === 'ja' ? await loadTokenizer() : null;
+  const spelled: string[] = [];
+  const spell = (text: string): string => {
+    const result = tokenizer ? annotate(tokenizer, text) : text;
+    spelled.push(result);
+    return result;
+  };
+  // A Japanese sentence is shown as written, with its romaji underneath;
+  // prose that only mentions Japanese is spelled inline instead.
+  const sentence = (text: string): boolean => tokenizer !== null && startsJapanese(text);
+
   const payload = {
     // The licence gate's hook (SPEC §5.2, decision D9). This content is authored
     // for LinguaKu — no third-party dataset is involved, and the example sentences
@@ -226,29 +274,57 @@ for (const lang of LANGS) {
     categories: source.categories.map((category) => ({
       id: category.id,
       kind: category.kind,
-      label: category.label,
-      summary: category.summary,
+      label: spell(category.label),
+      summary: spell(category.summary),
       ...(category.positiveTransfer ? { positiveTransfer: true as const } : {}),
       note: {
-        l1: category.note.l1,
-        target: category.note.target,
-        minimalPair: category.note.minimalPair,
-        ...(category.note.tip ? { tip: category.note.tip } : {}),
+        l1: spell(category.note.l1),
+        target: spell(category.note.target),
+        minimalPair: {
+          wrong: spell(category.note.minimalPair.wrong),
+          right: spell(category.note.minimalPair.right),
+          gloss: spell(category.note.minimalPair.gloss),
+        },
+        ...(category.note.tip ? { tip: spell(category.note.tip) } : {}),
       },
       drills: (category.drills ?? []).map((drill) => ({
         id: drill.id,
         categoryId: category.id,
         type: drill.type,
-        prompt: drill.prompt,
+        prompt: sentence(drill.prompt) ? drill.prompt : spell(drill.prompt),
         ...(drill.options ? { options: drill.options } : {}),
         answer: drill.answer,
-        explain: drill.explain,
+        explain: spell(drill.explain),
+        ...(sentence(drill.prompt)
+          ? { promptRomaji: drill.romaji?.prompt ?? sentenceRomaji(tokenizer!, drill.prompt) }
+          : {}),
+        ...(tokenizer && drill.testsScript !== true && drill.options?.some(hasJapanese)
+          ? {
+              optionsRomaji: drill.options.map((option) =>
+                hasJapanese(option) ? (drill.romaji?.options?.[option] ?? romajiLine(tokenizer, option)) : '',
+              ),
+            }
+          : {}),
+        ...(tokenizer && hasJapanese(drill.answer)
+          ? {
+              answerRomaji:
+                drill.romaji?.answer ?? drill.romaji?.options?.[drill.answer] ?? romajiLine(tokenizer, drill.answer),
+            }
+          : {}),
         ...(drill.difficulty !== undefined ? { difficulty: drill.difficulty } : {}),
         ...(drill.audio ? { audio: true as const, say: drill.say } : {}),
       })),
     })),
     falseFriends: source.falseFriends ?? [],
   };
+
+  // A hand-written reading that did not follow Japanese would reach the
+  // learner as literal braces.
+  const stray = spelled.find((text) => /[{}]/.test(text));
+  if (stray !== undefined) {
+    console.error(`✗ a {romaji} override with no Japanese before it: "${stray}". Nothing written.`);
+    process.exit(1);
+  }
 
   const body = JSON.stringify(payload);
   await writeFile(join(OUT_DIR, 'contrastive.json'), body);

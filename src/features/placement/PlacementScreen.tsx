@@ -19,6 +19,7 @@ import {
   type PlacementState,
 } from './placementRun.ts';
 import type { Profile } from '../../data/types.ts';
+import { romajiFor } from '../word/WordChip.tsx';
 
 /**
  * SPEC §4.2: ≤90 seconds, ≤25 items, adaptive, and it must feel like learning
@@ -189,6 +190,16 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
         >
           {phase.probe.word}
         </p>
+        {/* How it reads, so a learner who knows the word by ear is not marked
+            down for not reading its script (D111). Never what it means. */}
+        {romajiFor(phase.probe.word, phase.probe.reading) !== null ? (
+          <p
+            className="mt-2 text-center text-xl text-stone-600 dark:text-slate-400"
+            data-testid="placement-romaji"
+          >
+            {romajiFor(phase.probe.word, phase.probe.reading)}
+          </p>
+        ) : null}
       </Screen>
     );
   }

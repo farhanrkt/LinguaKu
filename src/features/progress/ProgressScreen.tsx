@@ -17,6 +17,7 @@ import { retuneTarget } from '../../core/retention.ts';
 import { updateProfile } from '../../data/repositories/profiles.ts';
 import { ImportError, exportFilename, exportProfile, importProfile, parseBundle } from '../../data/export.ts';
 import { BarRow, Columns, Radar, TargetMeter } from './charts.tsx';
+import { WordChip } from '../word/WordChip.tsx';
 import type { Profile, TargetLang } from '../../data/types.ts';
 
 /**
@@ -149,11 +150,13 @@ const Slipping = ({ words }: { words: SlippingWord[] }) => (
         </p>
         <ol className="mt-3 flex flex-wrap gap-2">
           {words.map((word) => (
-            <li
-              key={word.itemId}
-              className="rounded-lg bg-stone-100 px-3 py-1.5 font-semibold dark:bg-slate-900"
-            >
-              {word.headword}
+            <li key={word.itemId}>
+              <WordChip
+                headword={word.headword}
+                reading={word.reading}
+                romaji={word.romaji}
+                className="block rounded-lg bg-stone-100 px-3 py-1.5 font-semibold dark:bg-slate-900"
+              />
             </li>
           ))}
         </ol>

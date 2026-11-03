@@ -103,36 +103,36 @@
       "band": 1,
       "path": "chunks.b1.json",
       "count": 9,
-      "bytes": 7292,
-      "gzipBytes": 2045,
-      "sha256": "d75165a3e8c9fb33ddfd967c41d7b010eeda2f8920d23257c0704d5c4a7f20b2"
+      "bytes": 7880,
+      "gzipBytes": 2255,
+      "sha256": "a70d7da17f5febe8575be3245b3e549f53e4eea7dfcfcceadbd9f6ac4eb381af"
     },
     {
       "kind": "chunks",
       "band": 2,
       "path": "chunks.b2.json",
       "count": 6,
-      "bytes": 5393,
-      "gzipBytes": 1674,
-      "sha256": "2314efbfae714ebf9e4a845091eb8399b82710e03664295d946c7f1e09d56da0"
+      "bytes": 5836,
+      "gzipBytes": 1832,
+      "sha256": "66c5aad65a678ba91d518dda401df653641f29792b77fe29c21da43d0bf0f040"
     },
     {
       "kind": "chunks",
       "band": 3,
       "path": "chunks.b3.json",
       "count": 2,
-      "bytes": 1850,
-      "gzipBytes": 752,
-      "sha256": "cc8e6ee866573aeaef01ac2fb4072ea2152a97f379ef316b5bd87f3f5856b123"
+      "bytes": 1983,
+      "gzipBytes": 808,
+      "sha256": "c09068cfbe452ec04cd83cd00b4b294fe2156b059c18fb8cde7dc3bc12fecde1"
     },
     {
       "kind": "chunks",
       "band": 4,
       "path": "chunks.b4.json",
       "count": 6,
-      "bytes": 4545,
-      "gzipBytes": 1369,
-      "sha256": "e7a0591a204c270e790450c4a2fb90a88c9aa556009aaba4eb29ebd08fd629b4"
+      "bytes": 4881,
+      "gzipBytes": 1480,
+      "sha256": "67d4ad85b66007cf57a1815eb367279eea22f10d84a83f3c08e84850e6bb4b43"
     },
     {
       "kind": "glosses",
@@ -232,6 +232,15 @@
       "bytes": 431437,
       "gzipBytes": 60517,
       "sha256": "bac97911f37c3813e4f90c5ffb76c34641db9ed5312f82d8cc95871642846e00"
+    },
+    {
+      "kind": "meanings",
+      "band": 1,
+      "path": "meanings.b1.json",
+      "count": 421,
+      "bytes": 19509,
+      "gzipBytes": 6728,
+      "sha256": "b00aff991a42b07bfee7f29aa44e85a6a33f68d3796077104f162e0c044b7f67"
     },
     {
       "kind": "sentences",

@@ -12,7 +12,9 @@ import {
 } from '../../platform/speechRecognition.ts';
 import { Furigana } from '../../ui/Furigana.tsx';
 import { furiganaFor, headwordIn } from '../../core/furigana.ts';
-import { toHiragana, toRomaji } from '../../core/kana.ts';
+import { romajiOfTokens, romajiOfWord, toHiragana, toRomaji } from '../../core/kana.ts';
+import { TappableText, type TextPart } from '../../ui/TappableText.tsx';
+import { WordSheet } from '../word/WordSheet.tsx';
 import type { Confidence, ScriptMode } from '../../data/types.ts';
 import type { ClozeHint, KanjiFace, Task } from './task.ts';
 import type { Cloze } from '../../core/cloze.ts';
@@ -100,6 +102,81 @@ const segmentsOf = (task: Task, scriptMode: ScriptMode) => {
   });
 };
 
+const JAPANESE = /[\u3040-\u30ff\u4e00-\u9fff]/u;
+const WORDLIKE = /[\p{L}\p{N}]/u;
+
+/**
+ * The romaji line under a Japanese sentence — every sentence, at every rung.
+ *
+ * The learner's rule: every Japanese character on screen comes with its
+ * romaji. The kana rung used to draw kanji as kana with nothing else, and the
+ * kanji rung set kana readings above the characters — neither of which a
+ * learner who cannot yet read kana can say aloud. On the romaji rung the line
+ * is dropped only while the sentence itself is still all Latin.
+ */
+export const RomajiLine = ({ romaji }: { romaji: string }) => (
+  <p className="mt-1 text-base font-normal text-stone-600 dark:text-slate-400" data-testid="romaji-line">
+    {romaji}
+  </p>
+);
+
+/**
+ * A Japanese sentence whose every word can be opened (see `WordSheet`): reading,
+ * romaji, meaning, and for a word of two or more kanji, each character and the
+ * combined meaning. One tab stop for the block (invariant 35), arrows inside.
+ */
+const JapaneseSentence = ({
+  task,
+  scriptMode,
+  segments,
+}: {
+  task: Task;
+  scriptMode: ScriptMode;
+  segments: NonNullable<ReturnType<typeof segmentsOf>>;
+}) => {
+  const [open, setOpen] = useState<{ token: string; reading: string | null } | null>(null);
+  const tokens = task.sentence.tokens ?? [];
+  const readings = task.sentence.readings ?? [];
+  const separator = scriptMode === 'romaji' ? ' ' : '';
+  const parts: TextPart[] = tokens.flatMap((token, index): TextPart[] => {
+    const segment = segments[index];
+    const shown = segment?.text ?? token;
+    const gap =
+      index > 0 && separator.length > 0 && WORDLIKE.test(shown) && segment?.attach !== true
+        ? [{ kind: 'gap' as const, text: separator }]
+        : [];
+    if (!WORDLIKE.test(token)) return [...gap, { kind: 'gap', text: shown }];
+    return [
+      ...gap,
+      {
+        kind: 'word',
+        text: shown,
+        ...(shown !== token ? { value: token } : {}),
+        ...(segment?.ruby ? { ruby: segment.ruby } : {}),
+        className: 'rounded px-0.5 text-left hover:bg-stone-100 dark:hover:bg-slate-800',
+      },
+    ];
+  });
+  const showsJapanese = segments.some((segment) => JAPANESE.test(segment.text));
+  return (
+    <>
+      <TappableText
+        parts={parts}
+        label={copy.word.hint}
+        onTap={(token) => {
+          const index = tokens.indexOf(token);
+          setOpen({ token, reading: index >= 0 ? (readings[index] ?? null) : null });
+        }}
+        wordTestId="sentence-word"
+      />
+      {showsJapanese ? <RomajiLine romaji={romajiOfTokens(tokens, readings)} /> : null}
+      {open ? (
+        <WordSheet token={open.token} reading={open.reading} onClose={() => setOpen(null)} />
+      ) : null}
+    </>
+  );
+};
+
 export const SentenceText = ({
   task,
   scriptMode,
@@ -109,8 +186,7 @@ export const SentenceText = ({
 }) => {
   const segments = segmentsOf(task, scriptMode);
   if (segments === null) return <>{task.sentence.text}</>;
-  // Romaji is written with spaces between words. Kana and kanji are not.
-  return <Furigana separator={scriptMode === 'romaji' ? ' ' : ''} segments={segments} />;
+  return <JapaneseSentence task={task} scriptMode={scriptMode} segments={segments} />;
 };
 
 const Blank = () => (
@@ -144,13 +220,30 @@ export const ClozeFrame = ({
     );
   }
   const separator = scriptMode === 'romaji' ? ' ' : '';
+  const tokens = task.sentence.tokens ?? [];
+  const readings = task.sentence.readings ?? [];
+  const index = cloze.tokenIndex;
+  // The blank stays a blank in romaji too: the line spells everything else.
+  const romaji = [
+    romajiOfTokens(tokens.slice(0, index), readings.slice(0, index)),
+    '___',
+    romajiOfTokens(tokens.slice(index + 1), readings.slice(index + 1)),
+  ]
+    .filter((part) => part.length > 0)
+    .join(' ')
+    .replace(/ ([.,?!])/g, '$1');
   return (
     <>
-      <Furigana segments={segments.slice(0, cloze.tokenIndex)} separator={separator} />
+      <Furigana segments={segments.slice(0, index)} separator={separator} />
       {separator}
       <Blank />
       {separator}
-      <Furigana segments={segments.slice(cloze.tokenIndex + 1)} separator={separator} />
+      <Furigana segments={segments.slice(index + 1)} separator={separator} />
+      {segments.some((segment) => JAPANESE.test(segment.text)) ? (
+        <span className="mt-1 block text-base font-normal text-stone-600 dark:text-slate-400" data-testid="romaji-line">
+          {romaji}
+        </span>
+      ) : null}
     </>
   );
 };
@@ -190,17 +283,50 @@ const DontKnow = ({ onAnswer, busy }: { onAnswer: TaskProps['onAnswer']; busy?: 
   </button>
 );
 
+/**
+ * Romaji for a headword, or null where the chip already shows Latin (English,
+ * or the romaji rung) — the learner's rule is romaji beside every Japanese
+ * character shown, not twice beside the same word.
+ */
+export const headwordRomaji = (task: Task, scriptMode: ScriptMode): string | null => {
+  const shown = headwordIn(scriptMode, task.headword, task.reading ?? null, task.romaji ?? null);
+  if (!/[\u3040-\u30ff\u4e00-\u9fff]/u.test(shown)) return null;
+  return romajiOfWord(task.headword, task.reading ?? null, task.romaji ?? null);
+};
+
 const WordMeaning = ({ task, scriptMode }: { task: Task; scriptMode: ScriptMode }) => {
   const senses = task.gloss ?? [];
+  const romaji = headwordRomaji(task, scriptMode);
+  const [open, setOpen] = useState(false);
+  const japanese = /[\u3040-\u30ff\u4e00-\u9fff]/u.test(task.headword);
+  const chip = headwordIn(scriptMode, task.headword, task.reading ?? null, task.romaji ?? null);
   return (
     <div className="mt-4">
       <p>
-        <span
-          data-testid="task-headword"
-          className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200"
-        >
-          {headwordIn(scriptMode, task.headword, task.reading ?? null)}
-        </span>
+        {japanese ? (
+          // Tappable: a word of two or more kanji opens to each character and
+          // the combined meaning (WordSheet).
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            data-testid="task-headword"
+            className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 underline decoration-dotted underline-offset-4 dark:bg-teal-950 dark:text-teal-200"
+          >
+            {chip}
+          </button>
+        ) : (
+          <span
+            data-testid="task-headword"
+            className="inline-block rounded-lg bg-teal-50 px-3 py-1 font-semibold text-teal-900 dark:bg-teal-950 dark:text-teal-200"
+          >
+            {chip}
+          </span>
+        )}
+        {romaji ? (
+          <span className="ml-2 text-base text-stone-600 dark:text-slate-400" data-testid="task-headword-romaji">
+            ({romaji})
+          </span>
+        ) : null}
         {senses.length > 0 ? (
           <span data-testid="task-gloss" className="ml-2 text-lg text-stone-600 dark:text-slate-400">
             {senses.join('; ')}
@@ -211,6 +337,9 @@ const WordMeaning = ({ task, scriptMode }: { task: Task; scriptMode: ScriptMode 
         <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="task-no-gloss">
           {copy.session.meaning.none}
         </p>
+      ) : null}
+      {open ? (
+        <WordSheet token={task.headword} reading={task.reading ?? null} onClose={() => setOpen(false)} />
       ) : null}
     </div>
   );
@@ -249,7 +378,11 @@ const KanjiReadingLine = ({
       </p>
       {okurigana === undefined ? null : (
         <p className="mt-1 text-sm text-stone-600 dark:text-slate-400" data-testid="kanji-in-word">
-          {copy.session.kanji.inWord(`${literal}${okurigana}`, `${reading}${okurigana}`)}
+          {copy.session.kanji.inWord(
+            `${literal}${okurigana}`,
+            `${reading}${okurigana}`,
+            toRomaji(toHiragana(`${reading}${okurigana}`)),
+          )}
         </p>
       )}
     </div>
@@ -377,9 +510,9 @@ export const ExposureTask = ({
       {copy.session.exposure.instruction}
     </p>
 
-    <p className="mt-6 text-2xl leading-snug font-bold" data-testid="task-sentence">
+    <div className="mt-6 text-2xl leading-snug font-bold" data-testid="task-sentence">
       <SentenceText task={task} scriptMode={scriptMode} />
-    </p>
+    </div>
     <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
     {/* SPEC §2.3 L0: sentence + audio + gloss. */}
     <WordMeaning task={task} scriptMode={scriptMode} />
@@ -441,9 +574,9 @@ export const RecognitionTask = ({
         <p className="mt-2 text-lg text-stone-600 dark:text-slate-400">{task.translation}</p>
       </>
     ) : (
-      <p className="mt-4 text-2xl leading-snug font-bold" data-testid="task-sentence">
+      <div className="mt-4 text-2xl leading-snug font-bold" data-testid="task-sentence">
         <SentenceText task={task} scriptMode={scriptMode} />
-      </p>
+      </div>
     )}
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
 
@@ -653,6 +786,15 @@ export const KanjiDetails = ({
           <p className="mt-1 text-2xl" data-testid="kanji-components">
             {face.components.join('  +  ')}
           </p>
+          <ul className="mt-2 flex flex-col gap-1 text-sm text-stone-600 dark:text-slate-400" data-testid="kanji-component-details">
+            {face.componentDetails.map((detail) => (
+              <li key={detail.part}>
+                <span className="font-semibold text-stone-800 dark:text-slate-200">{detail.part}</span>
+                {detail.romaji ? ` (${detail.romaji})` : ''}
+                {detail.meaning ? ` — ${copy.word.englishMeaning(detail.meaning)}` : ''}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -777,6 +919,18 @@ export const KanjiTask = ({
       <p className="mt-6 text-center text-7xl leading-none font-bold" data-testid="kanji-literal">
         {face.literal}
       </p>
+      {/* Whichever half is not being asked is shown: how it is read while its
+          meaning is the question, and what it means while its reading is. */}
+      {face.mode === 'meaning' && face.reading ? (
+        <p className="mt-3 text-center text-lg text-stone-600 dark:text-slate-400" data-testid="kanji-said">
+          {face.reading} ({face.romaji})
+        </p>
+      ) : null}
+      {face.mode === 'reading' && face.meanings.length > 0 ? (
+        <p className="mt-3 text-center text-lg text-stone-600 dark:text-slate-400" data-testid="kanji-means">
+          {copy.word.englishMeaning(face.meanings.slice(0, 3).join(', '))}
+        </p>
+      ) : null}
 
       {face.mode === 'meaning' ? (
         <>
@@ -1071,8 +1225,11 @@ export const FreeProductionTask = ({
         {copy.session.free.heading}
       </p>
       <p className="mt-2 text-lg">
-        {copy.session.free.instruction(headwordIn(scriptMode, task.headword, task.reading ?? null))}
+        {copy.session.free.instruction(headwordIn(scriptMode, task.headword, task.reading ?? null, task.romaji ?? null))}
       </p>
+      {/* The word to use, with its romaji and meaning (D111): writing a
+          sentence around a word you cannot read or define is guesswork. */}
+      <WordMeaning task={task} scriptMode={scriptMode} />
       <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{copy.session.free.graded}</p>
 
       <textarea
@@ -1090,7 +1247,7 @@ export const FreeProductionTask = ({
 
       {missing ? (
         <p className="mt-2 text-sm text-amber-800 dark:text-amber-300" role="status">
-          {copy.session.free.missing(headwordIn(scriptMode, task.headword, task.reading ?? null))}
+          {copy.session.free.missing(headwordIn(scriptMode, task.headword, task.reading ?? null, task.romaji ?? null))}
         </p>
       ) : null}
 

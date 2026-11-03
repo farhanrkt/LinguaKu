@@ -56,7 +56,62 @@ export const loadGlosses = async (
 };
 
 /**
- * The senses for one item, or an empty list.
+ * Authored meanings (data/meanings/*.yaml, `linguaku-authored`, D112) for
+ * words id.wiktionary does not cover — 421 of the 500 Japanese band-1 words had
+ * no meaning at all. A separate shard, so a CC BY-SA gloss and an MIT meaning
+ * never share a file (invariant 28).
+ */
+interface MeaningShard {
+  meanings: ReadonlyMap<string, readonly string[]>;
+  /**
+   * What a grammar token does — は, ます, なかっ — keyed by the token as the
+   * corpus spells it. Band 1 only (D112).
+   */
+  forms: ReadonlyMap<string, readonly string[]>;
+}
+
+const NO_MEANINGS: MeaningShard = { meanings: EMPTY, forms: EMPTY };
+const meaningCache = new Map<string, MeaningShard>();
+
+const loadMeaningShard = async (lang: TargetLang, band: FrequencyBand): Promise<MeaningShard> => {
+  const key = `${lang}:${band}`;
+  const cached = meaningCache.get(key);
+  if (cached) return cached;
+  try {
+    const payload = await fetchShard<{
+      meanings?: Record<string, string[]>;
+      forms?: Record<string, string[]>;
+    }>(contentUrl(lang, `meanings.b${band}.json`));
+    const shard: MeaningShard =
+      payload === null
+        ? NO_MEANINGS
+        : {
+            meanings: new Map(Object.entries(payload.meanings ?? {})),
+            forms: new Map(Object.entries(payload.forms ?? {})),
+          };
+    meaningCache.set(key, shard);
+    return shard;
+  } catch {
+    // A failed fetch is not "no meaning" (invariant 50): not remembered.
+    return NO_MEANINGS;
+  }
+};
+
+export const loadMeanings = async (
+  lang: TargetLang,
+  band: FrequencyBand,
+): Promise<ReadonlyMap<string, readonly string[]>> => (await loadMeaningShard(lang, band)).meanings;
+
+/**
+ * What a token that is not a word does: a particle, an auxiliary, an inflected
+ * piece of a verb (D112). Empty where the table has nothing.
+ */
+export const formFor = async (lang: TargetLang, token: string): Promise<readonly string[]> =>
+  (await loadMeaningShard(lang, 1)).forms.get(token) ?? [];
+
+/**
+ * The senses for one item, or an empty list: the Wiktionary gloss where one
+ * exists, the authored meaning where it does not (D112).
  *
  * At most three, because a dictionary page is not a gloss — and the caller
  * renders them joined, so a long tail of rare senses would bury the one the
@@ -66,10 +121,17 @@ export const glossFor = async (
   lang: TargetLang,
   band: FrequencyBand,
   itemId: string,
-): Promise<readonly string[]> => (await loadGlosses(lang, band)).get(itemId) ?? [];
+): Promise<readonly string[]> => {
+  const gloss = (await loadGlosses(lang, band)).get(itemId);
+  if (gloss !== undefined && gloss.length > 0) return gloss;
+  return (await loadMeanings(lang, band)).get(itemId) ?? [];
+};
 
 /**
  * Test seam. The cache is keyed `lang:band`, so a language switch needs no
  * clearing — an earlier version of this comment claimed otherwise.
  */
-export const clearGlossCache = (): void => cache.clear();
+export const clearGlossCache = (): void => {
+  cache.clear();
+  meaningCache.clear();
+};

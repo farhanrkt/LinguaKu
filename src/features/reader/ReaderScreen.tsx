@@ -11,10 +11,12 @@ import {
   type ReaderItem,
 } from '../../core/reader.ts';
 import { knownForSelection, knownItemIds, lexemeIdFor } from '../../core/coverage.ts';
-import { isKanji, toHiragana } from '../../core/kana.ts';
+import { isKanji, romajiOfTokens, toHiragana } from '../../core/kana.ts';
 import { furiganaFor, type RubySegment } from '../../core/furigana.ts';
 import { kanjiStability } from '../../data/repositories/kanji.ts';
 import { glossFor } from '../../data/glosses.ts';
+import { wordInfo, type WordInfo } from '../../data/repositories/wordInfo.ts';
+import { WordBreakdown } from '../word/WordBreakdown.tsx';
 import { loadPassages, type Passage } from '../../data/passages.ts';
 import { PassageView } from './PassageView.tsx';
 import { downloadCost, loadSentences, type AnchorSentence } from '../../data/content.ts';
@@ -69,7 +71,20 @@ interface Tapped {
   mined: boolean;
   /** Indonesian senses, where this word has any (risk R3, partial by design). */
   senses: readonly string[];
+  /**
+   * Japanese only: reading, romaji, meaning and each kanji's own meaning
+   * (D111). The rest of the panel still applies — band, mining, the sentence.
+   */
+  info: WordInfo | null;
 }
+
+/** The reading a sentence gives one of its own tokens. */
+const readingIn = (sentence: AnchorSentence, token: string): string | null => {
+  const index = sentence.tokens?.indexOf(token) ?? -1;
+  return index >= 0 ? (sentence.readings?.[index] ?? null) : null;
+};
+
+const JAPANESE = /[\u3040-\u30ff\u4e00-\u9fff]/u;
 
 /**
  * The feed's words, with §2.4's unknown-word highlight preserved per token.
@@ -254,6 +269,7 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         source: passageId,
         mined: mined.has(itemId),
         senses: item ? await glossFor(lang, item.band, itemId) : [],
+        info: null,
       });
     },
     [lang, mined],
@@ -261,8 +277,11 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
 
   const handleTap = useCallback(
     async (token: string, sentence: AnchorSentence) => {
-      const itemId = lexemeIdFor(lang, token.toLowerCase());
-      const item = (await db.items.get(itemId)) ?? null;
+      // Japanese: an inflected token (読み) is resolved to the word it belongs
+      // to (読む), so the meaning, the band and what gets mined are the word's.
+      const info = lang === 'ja' ? await wordInfo(token, readingIn(sentence, token)) : null;
+      const itemId = info?.item?.id ?? lexemeIdFor(lang, token.toLowerCase());
+      const item = info ? info.item : ((await db.items.get(itemId)) ?? null);
       setTapped({
         token,
         itemId,
@@ -272,7 +291,8 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         mined: mined.has(itemId),
         // Glossed where we have one, and honest where we do not — coverage is
         // 30% of English and 4% of Japanese, measured (src/data/glosses.ts).
-        senses: item ? await glossFor(lang, item.band, itemId) : [],
+        senses: info ? info.meaning : item ? await glossFor(lang, item.band, itemId) : [],
+        info,
       });
     },
     [lang, mined],
@@ -361,27 +381,39 @@ export const ReaderScreen = ({ profile, onBack }: ReaderScreenProps) => {
         <p className="mt-8 text-stone-600 dark:text-slate-400">{copy.reader.empty}</p>
       ) : (
         <ul className="mt-6 flex flex-col gap-5" data-testid="reader-feed">
-          {items.map((item) => (
-            <li
-              key={item.sentence.id}
-              className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
-            >
-              <TappableText
-                parts={tokenParts(
-                  tokensOf(item.sentence),
-                  lang,
-                  item.unknown,
-                  segmentsFor(item.sentence, profile.scriptMode, stability),
-                )}
-                label={copy.reader.sentenceLabel}
-                describedBy={WORD_NAV_HINT_ID}
-                onTap={(token) => void handleTap(token, item.sentence)}
-                className="text-xl leading-relaxed"
-                wordTestId="reader-token"
-              />
-              <p className="mt-2 text-stone-600 dark:text-slate-400">{item.sentence.tr.text}</p>
-            </li>
-          ))}
+          {items.map((item) => {
+            const segments = segmentsFor(item.sentence, profile.scriptMode, stability);
+            const { tokens, readings } = item.sentence;
+            // Every Japanese sentence is said in romaji too (D111) — unless
+            // the rung already drew it all in Latin.
+            const romaji =
+              segments?.some((segment) => JAPANESE.test(segment.text)) === true &&
+              tokens !== undefined &&
+              readings !== undefined
+                ? romajiOfTokens(tokens, readings)
+                : null;
+            return (
+              <li
+                key={item.sentence.id}
+                className="rounded-2xl border-2 border-stone-200 p-4 dark:border-slate-800"
+              >
+                <TappableText
+                  parts={tokenParts(tokensOf(item.sentence), lang, item.unknown, segments)}
+                  label={copy.reader.sentenceLabel}
+                  describedBy={WORD_NAV_HINT_ID}
+                  onTap={(token) => void handleTap(token, item.sentence)}
+                  className="text-xl leading-relaxed"
+                  wordTestId="reader-token"
+                />
+                {romaji ? (
+                  <p className="mt-1 text-base text-stone-600 dark:text-slate-400" data-testid="romaji-line">
+                    {romaji}
+                  </p>
+                ) : null}
+                <p className="mt-2 text-stone-600 dark:text-slate-400">{item.sentence.tr.text}</p>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -413,7 +445,7 @@ const WordPanel = ({
   onMine: () => void;
   onClose: () => void;
 }) => {
-  const { item, sentence } = tapped;
+  const { item, sentence, info } = tapped;
   const kanji = [...tapped.token].filter(isKanji);
 
   return (
@@ -430,19 +462,27 @@ const WordPanel = ({
         </span>
       </div>
 
-      {item?.reading ? (
-        <p className="mt-1 text-lg text-stone-600 dark:text-slate-400">
-          {copy.reader.word.reading}: {toHiragana(item.reading)}
-        </p>
-      ) : null}
-
       {item ? (
         <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">
           {copy.reader.word.band(item.band)}
         </p>
       ) : null}
 
-      {kanji.length > 0 ? (
+      {/* Japanese: the whole breakdown — reading, romaji, meaning, and each
+          kanji's own meaning beside the combined one (D111). */}
+      {info !== null ? (
+        <div className="mt-2">
+          <WordBreakdown info={info} />
+        </div>
+      ) : null}
+
+      {info === null && item?.reading ? (
+        <p className="mt-1 text-lg text-stone-600 dark:text-slate-400">
+          {copy.reader.word.reading}: {toHiragana(item.reading)}
+        </p>
+      ) : null}
+
+      {info === null && kanji.length > 0 ? (
         <p className="mt-2 text-sm text-stone-600 dark:text-slate-400">
           {copy.reader.word.components}: {kanji.join(' · ')}
         </p>
@@ -450,8 +490,9 @@ const WordPanel = ({
 
       {/* A gloss where one exists, and the honest empty state where none does.
           Glosses are reference only: they are never graded against, because
-          coverage is partial and an unfair "wrong" is what §2.7 forbids. */}
-      {tapped.senses.length > 0 ? (
+          coverage is partial and an unfair "wrong" is what §2.7 forbids. The
+          breakdown above already says it for Japanese. */}
+      {info !== null ? null : tapped.senses.length > 0 ? (
         <p className="mt-3 text-base text-stone-800 dark:text-slate-200" data-testid="word-gloss">
           {tapped.senses.join('; ')}
         </p>

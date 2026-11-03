@@ -23,13 +23,16 @@ const PACK = join(
 interface Drill {
   id: string;
   categoryId: string;
-  type: 'mcq' | 'cloze' | 'minimal-pair';
+  type: 'mcq' | 'cloze' | 'minimal-pair' | 'correction';
   prompt: string;
   options?: string[];
   answer: string;
   explain: string;
   audio?: true;
   say?: string;
+  promptRomaji?: string;
+  optionsRomaji?: string[];
+  answerRomaji?: string;
 }
 
 interface Category {
@@ -178,5 +181,91 @@ describe('provenance', () => {
   it('declares itself as authored content', () => {
     expect(pack.sources).toEqual(['linguaku-authored']);
     expect(pack.lang).toBe('ja');
+  });
+});
+
+/**
+ * D111, in the learner's words: every Japanese character shown must come with
+ * its romaji. The compiler writes it three ways, and each is checked here
+ * against the shipped pack rather than the YAML, because the pack is what a
+ * learner sees.
+ */
+describe('romaji beside every Japanese string (D111)', () => {
+  const JAPANESE = /[\u3040-\u30ff\u4e00-\u9fff]/u;
+  // The compiler's own notion of a run of Japanese.
+  const RUN = /[぀-ヿ一-鿿々〆][぀-ヿ一-鿿々〆ー、。？！・〜「」]*/gu;
+
+  /** Every run of Japanese in prose is followed by its romaji in parentheses. */
+  const spelledInline = (text: string): string[] =>
+    [...text.matchAll(RUN)]
+      .filter((match) => {
+        // A lone っ has no sound of its own to write.
+        if (/^[っ、。？！・〜「」]+$/u.test(match[0])) return false;
+        return !/^\s*\([a-z]/u.test(text.slice(match.index + match[0].length));
+      })
+      .map((match) => match[0]);
+
+  const latin = (romaji: string | undefined): void => {
+    expect(romaji).toBeDefined();
+    expect(romaji!.trim().length).toBeGreaterThan(0);
+    expect(romaji).not.toMatch(JAPANESE);
+  };
+
+  it('spells Japanese inline wherever prose mentions it', () => {
+    for (const category of pack.categories) {
+      const { note } = category;
+      for (const text of [
+        category.label,
+        category.summary,
+        note.l1,
+        note.target,
+        note.minimalPair.wrong,
+        note.minimalPair.right,
+        note.minimalPair.gloss,
+        note.tip ?? '',
+      ]) {
+        expect(spelledInline(text), `${category.id}: ${text}`).toEqual([]);
+      }
+    }
+    for (const drill of drills) {
+      expect(spelledInline(drill.explain), `${drill.id}: ${drill.explain}`).toEqual([]);
+    }
+  });
+
+  it('puts a romaji line under every Japanese sentence prompt', () => {
+    for (const drill of drills) {
+      if (/^[぀-ヿ一-鿿々〆]/u.test(drill.prompt)) {
+        latin(drill.promptRomaji);
+      } else {
+        expect(spelledInline(drill.prompt), `${drill.id}: ${drill.prompt}`).toEqual([]);
+      }
+    }
+  });
+
+  it('gives every Japanese option and answer its own romaji', () => {
+    for (const drill of drills) {
+      if (JAPANESE.test(drill.answer)) latin(drill.answerRomaji);
+      const options = drill.options ?? [];
+      if (!options.some((option) => JAPANESE.test(option))) continue;
+      // The one exception is a question about the script itself, where romaji
+      // beside the options would answer it; the reading comes with the verdict.
+      if (drill.optionsRomaji === undefined) {
+        expect(pack.categories.find((category) => category.id === drill.categoryId)?.kind).toBe('script');
+        continue;
+      }
+      expect(drill.optionsRomaji).toHaveLength(options.length);
+      options.forEach((option, index) => {
+        if (JAPANESE.test(option)) latin(drill.optionsRomaji![index]);
+      });
+    }
+  });
+
+  it('leaves no hand-written romaji marker behind', () => {
+    expect(readFileSync(PACK, 'utf8')).not.toMatch(/[{}][a-z]|[a-z][{}]/);
+  });
+
+  it('reads the commonest particles by their sound', () => {
+    const particle = drills.find((drill) => drill.id === 'PARTICLES_WA_GA-2')!;
+    expect(particle.optionsRomaji).toEqual(['wa', 'ga', 'o', 'de']);
   });
 });

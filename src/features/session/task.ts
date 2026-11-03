@@ -66,6 +66,8 @@ export interface Task {
    * answer and what a verdict shows, so the two never drift.
    */
   reading?: string;
+  /** A phrase's own romaji, spaced into words — chunks only (D111). */
+  romaji?: string;
   ladderLevel: LadderLevel;
   kind: TaskKind;
   sentence: {
@@ -235,6 +237,12 @@ export interface KanjiFace {
   mnemonicIsMine: boolean;
   /** Every reading, unpacked and in hiragana, for the verdict (and recall). */
   readings: string[];
+  /**
+   * Each component with what it sounds like and means, where the component is
+   * itself a kanji the app knows (or a kana-shaped radical, which has a sound).
+   * Every character on the card gets its romaji and meaning.
+   */
+  componentDetails: Array<{ part: string; romaji: string | null; meaning: string | null }>;
 }
 
 const DISTRACTORS = 3;
@@ -477,10 +485,22 @@ export const buildTask = async (
     // and one with neither stays an introduction rather than an empty question.
     const mode: KanjiFace['mode'] =
       rung === 0 ? 'intro' : rung === 1 && meaning.length > 0 ? 'meaning' : readings.length > 0 ? 'reading' : meaning.length > 0 ? 'meaning' : 'intro';
+    const parts = componentsOf(item);
+    const partRows = await db.items.bulkGet(parts.map((part) => `ja:kanji:${part}`));
+    const componentDetails = parts.map((part, index) => {
+      const row = partRows[index];
+      const reading = row ? kanjiReadingsOf(row)[0] : undefined;
+      return {
+        part,
+        romaji: reading ? toRomaji(reading) : isKana(part) ? toRomaji(toHiragana(part)) : null,
+        meaning: row?.meanings?.[0] ?? null,
+      };
+    });
     const face: KanjiFace = {
       mode,
       literal: item.headword,
-      components: componentsOf(item),
+      components: parts,
+      componentDetails,
       ...kanjiReadingOf(item.reading),
       meanings: item.meanings ?? [],
       mnemonic: mine?.text ?? baselineMnemonic(item.headword, componentsOf(item)),
@@ -563,6 +583,7 @@ export const buildTask = async (
     cardId: cardIdFor(profileId, itemId),
     headword: item.headword,
     ...(item.reading !== undefined ? { reading: item.reading } : {}),
+    ...(item.romaji !== undefined ? { romaji: item.romaji } : {}),
     ...(gloss.length > 0 ? { gloss } : {}),
   };
 

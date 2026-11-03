@@ -6,7 +6,7 @@ import type { TargetLang } from '../data/types.ts';
 const CACHE = 'linguaku-content';
 
 /** What a session reads for a band, offline (invariant 54). */
-const KINDS = ['lexemes', 'anchors', 'glosses', 'chunks'] as const;
+const KINDS = ['lexemes', 'anchors', 'glosses', 'meanings', 'chunks'] as const;
 
 /**
  * Writes the chosen language's bands into the service worker's runtime cache.
