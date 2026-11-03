@@ -67,7 +67,7 @@ npm run test:e2e
 | | Check | Expected |
 |---|---|---|
 | 2.1 | Full suite | **68 passed**, emulated Pixel 5 / android-chrome, ~96 s. |
-| 2.2 | Cold start | `coldstart.spec.ts` — icon tap → first answerable question **under 3 s** on a warm cache. This run: **108 ms**. Invariant 12. |
+| 2.2 | Cold start | `coldstart.spec.ts` — icon tap → first answerable question **under 3 s** on a warm cache. This run (v1.35.0, cloud development container): **≈330 ms** — v1.34.0 measures the same there; its 108 ms was a faster machine. Invariant 12. |
 | 2.3 | Installability | Manifest validity, icon resolution, maskable icon, service-worker control, offline `start_url` (D23). |
 | 2.4 | Offline session | `session.spec.ts` runs a session with the network cut. |
 | 2.5 | Lossless resume | Killing the app mid-session resumes at the exact next item. |

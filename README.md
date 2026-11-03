@@ -9,7 +9,7 @@ offline — and that question should be there because a memory model predicts
 they are about to forget it, or because it targets a mistake Indonesian
 speakers specifically make.
 
-## Status — v1.34.0
+## Status — v1.35.0
 
 **Milestones 0 through 11 complete.** Every §2 requirement is implemented and
 the §8 exercise catalog is finished. See [`CHANGELOG.md`](CHANGELOG.md) for the
@@ -19,16 +19,18 @@ production verification procedure.
 
 | | |
 |---|---|
-| icon tap → first answerable question | **108 ms** (budget 3 s) |
-| initial JS / CSS, gzipped | **144.1 KB** / **6.8 KB** (budgets 200 / 40) |
-| tests | **955** unit · **79** e2e |
+| icon tap → first answerable question | **≈330 ms** in a cloud development container (budget 3 s; v1.34.0 measures the same there) |
+| initial JS / CSS, gzipped | **159.7 KB** / **6.7 KB** (budgets 200 / 40) |
+| tests | **1,023** unit · **85** e2e |
 | WCAG 2.1 AA violations | **0**, gated in CI in **both themes** |
 | recurring cost | **zero** |
 
 English: 23,497 banded sentence pairs, 5,245 lexemes, 1,581 Indonesian glosses,
 1,680 graded reading passages, 73 authored collocations, 12 topic clusters, 21
 contrastive categories, 126 drills, 75 false friends. Japanese: 15,324 pairs, 6,904 lexemes, all 1,748 kanji with component
-breakdowns, 14 contrastive categories including **six positive-transfer notes**.
+breakdowns, 14 contrastive categories including **six positive-transfer notes**,
+romaji beside every Japanese string, and an Indonesian meaning for every band-1
+word plus notes on the 79 commonest grammar tokens.
 
 Two things are deliberately still missing and are named rather than hidden: the
 **pre-cached audio** set is empty until a voice model's licence is read and

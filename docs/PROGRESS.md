@@ -1,5 +1,81 @@
 # PROGRESS.md
 
+## v1.35.0 — a review, and every Japanese character readable (2026-11-03)
+
+> Do a complete analysis of the app. Use playwright to experience the app
+> yourself
+
+> Fix everything all at once. Plus … make it a rule every japanese characters
+> shown must also include the romaji, and word meaning … Also make the bahasa
+> indonesia more formal but not too formal
+
+The review played every screen as a learner — an English beginner, an English
+intermediate, a Japanese beginner who skipped placement and one who took it —
+and read the code behind what it found. The fixes are in seven commits; the
+decisions are D110–D120 and the release note is CHANGELOG v1.35.0. What follows
+is what the review measured and what it cost.
+
+### What was wrong, measured
+
+- **Drill grading graded the question away.** Word-stress options differ only by
+  capitals; case-folding made all four correct. A correction drill accepted its
+  own faulty sentence as a near-miss. (D113)
+- **131 Japanese readings were wrong** — the first JMdict entry listing a
+  headword, not the word's: 彼 as あれ, 僕 as しもべ, 本 as もと — so a learner
+  typing the right reading was marked wrong. 197 readings contradicted their own
+  example sentences; all are resolved in a reviewed table.
+- **Bands 4–5 were never imported**: 65% of English and 71% of Japanese lexemes
+  unreachable, and placement could not find anyone past rank 2,000. (D115)
+- **"Known" meant seen.** One L0 exposure counted; and in the other direction a
+  placed intermediate learner had zero readable reader sentences. (D114)
+- **Sync could not work from a browser** (no CORS preflight) and could not join
+  two phones (separate profile ids). (D117)
+- **Back closed the app**, mid-session included. (D118)
+- **First load shipped both languages**: 44 precache entries, 5.7 MB raw. (D119)
+
+### The romaji rule (D111) and the meanings behind it (D112)
+
+The display half was mechanical once it was a rule. The hard half was that a
+romaji line is only as good as its word division, and the app has tokens and
+readings but no part of speech. Spaced per token, 読みました read *yomi mashi
+ta*; joined naively, わたしはたなかです read *watashi wata naka* — IPAdic splits
+an unknown hiragana name and the た was glued onto the particle. The lexical
+rule that replaced both was measured against IPAdic's own tags over all 14,491
+anchor sentences: 29% disagreement for the first draft, **2%** for the rule that
+shipped, and the remainder is a space, never a sound.
+
+Authored strings could not rely on the tokenizer at all — としょかんにほんをよみます
+came out *to shi yokannihonoyomimasu* — so the YAML carries hand-written romaji
+where IPAdic misreads, and the content tests fail on any Japanese run that
+reaches the pack without romaji. Falsified against the previous pack: 75
+unannotated runs.
+
+The meaning half was a coverage problem. Wiktionary glossed 79 of the 500
+band-1 Japanese words; 421 are now authored. Then measuring *where the empty
+sheets were* showed the bigger hole was not words at all: 60% of taps that found
+nothing were particles and endings (は alone: 4,378). A 79-entry table of what
+grammar tokens do moved tap coverage from 34–40% to **74–86%**.
+
+### The register (D110)
+
+`src/i18n/id.ts` was rewritten end to end rather than patched: the old voice was
+built on *kamu* and colloquial verbs, and swapping pronouns leaves *bikin* and
+*nempel* behind. Keys did not move, so it is reversible as a copy change. 27 e2e
+selectors quoted the old copy and follow it.
+
+### Open, for the human
+
+1. **A native speaker's pass** over the authored Indonesian — the 421 meanings,
+   the 79 grammar notes, and the register itself. Written carefully, but by a
+   non-native writer, like every other authored file here.
+2. **Meanings past band 1.** Bands 2–5 are 1–10% covered. JMdict would give
+   English glosses for all of them, and its hosts are outside this environment's
+   network policy; the alternative is authoring band 2 (451 words) the same way.
+3. **"Anda" was a judgement call** on *"formal but not too formal"*. If it reads
+   as too distant, the keys are unchanged and the copy can move back.
+
+1,023 unit · 85 e2e · initial JS 159.7 KB / 200 KB.
+
 ## v1.34.0 — a first screen that is mostly settings (2026-10-04)
 
 > the landing page, i don't like it, its not structured and weird

@@ -20,12 +20,15 @@ npm run ingest:en    # rebuild assets/content/en/ (committed; deterministic)
 npm run ingest:ja    # rebuild assets/content/ja/ — needs JMdict, KANJIDIC2 and
                      # KRADFILE in .cache/ as well. It rewrites manifest.json
                      # from scratch, so it DROPS the shard entries the other
-                     # compilers added: re-run ingest:chunks, ingest:glosses and
-                     # ingest:topics after it or the build goes red
-                     # (chunks.test.ts catches it).
+                     # compilers added: re-run ingest:chunks, ingest:glosses,
+                     # ingest:topics and ingest:meanings after it or the build
+                     # goes red (chunks.test.ts catches it).
+npm run ingest:ja:readings  # apply the reviewed reading table to committed shards
+npm run ingest:glosses:review  # apply glossReview.ts to committed gloss shards
 npm run ingest:contrastive  # compile data/contrastive/*.yaml → contrastive.json
 npm run ingest:chunks       # compile data/chunks/*.yaml, validated against the corpus
 npm run ingest:topics       # compile data/topics/*.yaml → topics.json
+npm run ingest:meanings     # data/meanings/*.yaml → meanings.b*.json (D112)
 
 npm run ingest:fetch:wiki   # download the Wikimedia dumps into .cache/ (needs bunzip2)
 npm run ingest:glosses      # id.wiktionary → assets/content/*/glosses.b*.json
@@ -54,6 +57,7 @@ src/core/        pure logic — no React, no Dexie, no DOM. 100% unit tested.   
 src/data/        Dexie schema, migrations, repositories. The source of truth.
 src/features/    session, reader, placement, progress, habit, settings — screens.
                  settings holds attribution, sync and diagnostics (R1).
+                 word holds the tap-to-explain sheet every Japanese word opens.
 src/ui/          presentational primitives.
 src/platform/    browser capability wrappers: speech, storage, notifications.
 src/i18n/        all learner-facing copy. Components hold no literal strings.
@@ -61,7 +65,8 @@ scripts/         offline build-time tooling (content pipeline, CI gates).
 workers/         optional sync Worker + D1 schema. Deployed separately; nothing
                  in src/ imports it, and the app is complete without it.
 data/            authored, versioned content: licences, contrastive YAML,
-                 chunks (§2.5) and topic clusters (§2.10).
+                 chunks (§2.5), topic clusters (§2.10) and Indonesian meanings
+                 for Japanese words and grammar tokens (D112).
 assets/content/  generated content shards (from M1).
 ```
 
@@ -121,7 +126,8 @@ needs React state to work, it is in the wrong place.
     ability is estimated — listening and grammar rows stay absent rather than
     guessed (decision D25).
 14. **Audio must be proven before L4 is offered.** The TTS probe runs once per
-    language per boot and requires `onend` within 500 ms (D29) — per *language*,
+    language per boot and requires `onend` within 2,000 ms (D29, widened when
+    the device matrix showed 500 ms rejected working voices) — per *language*,
     because a device with an en-US voice and no ja-JP one is exactly what R1
     predicts; `ladderCeiling(hasAudio)` in
     `src/core/ladder.ts` is the gate, and it defaults to *no audio* so a
@@ -182,8 +188,9 @@ needs React state to work, it is in the wrong place.
     A shard's licence is never widened by mixing sources into it, and the
     content tests assert the split in both directions.
 29. **A gloss is reference, never an answer key** (D59). Coverage is 30% of
-    English lexemes and 4% of Japanese, measured. Displaying one where it exists
-    is honest; grading against a set that thin would mark good answers wrong,
+    English lexemes; Japanese band 1 is fully covered by Wiktionary plus
+    authored meanings (D112) and bands 2–5 are 1–10%, measured. Displaying one
+    where it exists is honest; grading against it would mark good answers wrong,
     which is what §2.7 exists to prevent. L2 stays D21's supported cloze.
 30. **There is no AI layer, and there is no seam for one** (D63). Not a flag,
     not a dormant module, not a key field. §14 question 5 is answered *declined*:
@@ -224,9 +231,9 @@ needs React state to work, it is in the wrong place.
     row is permanent and lands in the retention rate §9 reports. Both halves
     have e2e gates.
 38. **A card shows what the word means, or says it has no entry** (D73). The
-    gloss is resolved for every rung, not just L0, and coverage is 30% / 4% —
-    so the absent branch is the common one and it is never rendered as blank
-    space. It is still reference, never an answer key (invariant 29).
+    gloss is resolved for every rung, not just L0, and coverage is partial
+    (invariant 29) — so the absent branch is a common one and it is never
+    rendered as blank space. It is still reference, never an answer key.
 
 39. **An answered card retires** (D75). Its content stays — a verdict refers to
     the sentence it came from — but every control goes, which makes a second
@@ -334,13 +341,41 @@ needs React state to work, it is in the wrong place.
     for the band. Proved by removing both caching mechanisms: the new test
     fails, the old one still passes.
 
+55. **Every Japanese string shown carries its romaji** (D111). A line under
+    every sentence, beside every headword, option and tile; inline after
+    Japanese in Indonesian prose, written at build time by the compilers (no
+    tokenizer ships, D10); and every word in a sentence opens the word sheet.
+    The content tests fail on a Japanese run that reaches a pack without
+    romaji. Two exceptions, because the reading *is* the question: a drill that
+    tests the script itself (`testsScript`) and the placement word's meaning.
+56. **Romaji is divided by `romajiWords`, from tokens and readings alone**
+    (D111). Inflection joins its word, a final っ doubles across the token
+    boundary, nothing joins a particle. 98% agreement with IPAdic's tags over
+    the shipped anchors; change the rule and re-measure, do not eyeball it.
+57. **Authored meanings are validated, never trusted** (D112, invariant 32
+    applied again). `build-meanings.ts` fails on a headword the inventory does
+    not contain and on a grammar token no shipped sentence contains. The
+    meanings shard is MIT and separate from the CC BY-SA glosses (invariant 28).
+58. **A drill is graded by `gradeDrill`, never by `gradeAnswer`** (D113). An
+    option drill accepts its answer verbatim; a typo is forgiven only where it
+    cannot be the error under test.
+59. **"Known" means retrieved; "readable" may assume the frontier** (D114).
+    Progress counts FSRS-Review cards above R 0.6; `knownForSelection` adds the
+    bands below `learnerFrontier` for choosing material only. Every subsystem
+    reads one frontier (D115).
+60. **A shard URL carries its hash** (D119). `contentUrl` adds `?v=`, so the
+    worker's `CacheFirst` is true; only the shell, manifests, contrastive packs
+    and topic maps are precached, and the chosen language's starter bands are
+    written into the runtime cache by `fillContentCache`.
+
 ## Conventions
 
 - Every learner-facing mechanic carries a `// SCIENCE: <mechanism> — see SPEC §2.x`
   comment. Anything invented without a basis is marked `// UNVALIDATED:` and
   reported to the human.
 - Timestamps are epoch milliseconds. Indexed booleans are `Flag` (`0 | 1`).
-- Copy lives in `src/i18n/id.ts`, addresses the learner as "kamu", and never
+- Copy lives in `src/i18n/id.ts`, addresses the learner as "Anda" in a
+  professional register — standard vocabulary, no slang (D110) — and never
   uses loss or shame framing.
 - Dark mode, WCAG AA contrast, `motion-safe:` on every transition, 56px+ tap
   targets, primary actions in the thumb zone.

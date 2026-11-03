@@ -5,6 +5,85 @@ record; `docs/PROGRESS.md` is the per-milestone engineering log behind it.
 
 ---
 
+## v1.35.0 — 2026-11-03
+
+A full review of the app — every screen played through as a learner in both
+languages — and the fixes that came out of it, plus two requests from the user:
+romaji and a meaning beside every Japanese string, and Indonesian in a
+professional register.
+
+### Added — romaji beside every Japanese string, and every word opens (D111)
+
+> how am i supposed to know how to read it. So make it a rule every japanese
+> characters shown must also include the romaji, and word meaning
+
+- A romaji line under every Japanese sentence and cloze, at every rung; romaji
+  beside every headword, drill option, building tile, glossary row, home and
+  progress chip, and the placement word.
+- Every word in a sentence is tappable: reading, romaji, meaning, the dictionary
+  form of an inflected token (読み → 読む), and for a word of two or more kanji
+  each character's own reading and meaning under *"Arti gabungan"*.
+- Drills are compiled with romaji: inline in Indonesian prose (*は (wa)*), a line
+  under Japanese sentence prompts, one per option, and the answer's in the
+  verdict. A question about the script itself keeps its options bare.
+- Romaji is divided as Hepburn divides it — *yomimashita*, *takakatta*,
+  *ogenki desu ka* — and agrees with IPAdic's part-of-speech tags on 98% of the
+  14,491 shipped anchor sentences.
+
+### Added — meanings for the words a beginner meets (D112)
+
+421 authored Indonesian meanings for the band-1 Japanese words Wiktionary does
+not cover, and a table of what the 79 commonest grammar tokens do (は, ます,
+なかっ …), both validated against what ships. Tap coverage of Japanese tokens in
+sentences: 34–40% → 74–86%. Phrases (お元気ですか …) carry a reading and spaced
+romaji.
+
+### Changed — professional Indonesian (D110)
+
+All learner-facing copy addresses the learner as *Anda*, in standard vocabulary:
+no *bikin*, *nempel*, *kepeleset*, *angkot*, *HP* or *"Oke, paham"*. The
+contrastive notes, chunk notes and authored meanings follow.
+
+### Fixed — grading, cards and content
+
+- **Drills are graded exactly** (D113): word-stress options differed only by
+  capitals and all graded correct; a correction drill accepted its own faulty
+  sentence.
+- **Kanji cards ask something** (D116): meaning at L1, reading at L2+; the
+  verdict shows parts, meanings, readings and the mnemonic.
+- **Clozes** keep two words of context or use another anchor, show the first
+  letter and length, and are cut on tokens for Japanese. L1 asks which word
+  completes the sentence. **"Saya tidak tahu"** records an honest miss (D120).
+- **Kana cards**: the answer button submits, the counterpart names its script,
+  the placeholder no longer prints the answer.
+- **131 Japanese readings** were the first JMdict entry's rather than the
+  word's — 彼 as あれ, 本 as もと — and marked right answers wrong. Fixed at the
+  source with a reviewed table; four English glosses (he/she, I) corrected.
+
+### Fixed — progress and level
+
+- "Known" now means retrieved, not merely seen; selection may assume the common
+  words below the frontier, so a placed learner can read on day one (D114).
+- Bands 4–5 are imported and reachable — 65% of English and 71% of Japanese
+  lexemes could not be taught — and every subsystem reads one frontier (D115).
+- Progress, slipping words, consistency and recap are scoped to the active
+  language and counted in local days; the session summary is read from the log.
+
+### Fixed — platform
+
+- **Sync** works from a browser (CORS), joins two phones by a sync code, and
+  pages by the server's own cursor (D117).
+- **Back** returns to the previous screen instead of closing the app, and a
+  session left that way can be resumed (D118).
+- **First load** precaches the shell and one language: 44 → 20 entries,
+  5.7 → 0.7 MB raw. Shard URLs carry their hash, closing risk R11. Updates wait
+  for the learner (D119).
+- The sticky footer no longer prints over the first screen's last option.
+
+1,023 unit · 85 e2e.
+
+---
+
 ## v1.34.0 — 2026-10-04
 
 ### Changed — the home screen leads with where the learner is
