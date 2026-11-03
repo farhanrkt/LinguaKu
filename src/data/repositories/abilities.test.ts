@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
-import { getAbility, refreshListeningAbility } from './abilities.ts';
+import { getAbility, refreshListeningAbility, vocabularyAbility } from './abilities.ts';
+import { bandForAbility } from '../../core/placement.ts';
 import { LISTENING_MIN_ANSWERS } from '../../core/listening.ts';
 import type { Card, Item, LadderLevel, ReviewLog, TargetLang } from '../types.ts';
 
@@ -112,5 +113,19 @@ describe('refreshListeningAbility (SPEC §4.2)', () => {
 
     expect(await refreshListeningAbility(PROFILE, 'ja', NOW)).not.toBeNull();
     expect(await refreshListeningAbility(PROFILE, 'en', NOW)).toBeNull();
+  });
+});
+
+describe('the cold start (D3)', () => {
+  beforeEach(async () => {
+    await db.delete();
+    await db.open();
+  });
+
+  it('starts an unplaced Japanese learner at band 1, and English mid-frequency', async () => {
+    // "Mulai dari nol, dari hiragana": skipping placement must not put a
+    // beginner in band 3, which is what one shared θ = 0 prior did (贈, 欠席).
+    expect(bandForAbility((await vocabularyAbility(PROFILE, 'ja')).theta)).toBe(1);
+    expect(bandForAbility((await vocabularyAbility(PROFILE, 'en')).theta)).toBe(3);
   });
 });

@@ -5,7 +5,7 @@ import { Screen } from '../../ui/Screen.tsx';
 import { db } from '../../data/db.ts';
 import { loadPseudowords } from '../../data/content.ts';
 import { saveAbility } from '../../data/repositories/abilities.ts';
-import { bandForAbility, type AbilityEstimate } from '../../core/placement.ts';
+import { bandForAbility, priorFor, type AbilityEstimate } from '../../core/placement.ts';
 import {
   buildProbePool,
   correctedAbility,
@@ -92,10 +92,10 @@ export const PlacementScreen = ({ profile, onDone }: PlacementScreenProps) => {
   );
 
   const begin = useCallback(() => {
-    const fresh = emptyPlacement(Date.now());
+    const fresh = emptyPlacement(Date.now(), priorFor(lang));
     setState(fresh);
     advance(fresh);
-  }, [advance]);
+  }, [advance, lang]);
 
   const answer = useCallback(
     (knows: boolean) => {

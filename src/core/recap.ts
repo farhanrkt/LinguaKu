@@ -1,3 +1,5 @@
+import { startOfLocalDay } from './forecast.ts';
+
 /**
  * SPEC §9: *"Weekly recap; consistency band, not a punishable streak."*
  *
@@ -58,7 +60,8 @@ export interface Recap {
 const DAY = 86_400_000;
 export const RECAP_DAYS = 7;
 
-const dayKey = (at: number): number => Math.floor(at / DAY);
+/** The device's local day, matching the daily cap and the consistency band. */
+const dayKey = (at: number): number => startOfLocalDay(at);
 
 /**
  * `firstSeenAt` is passed in rather than derived from the window, because "first

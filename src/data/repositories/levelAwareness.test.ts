@@ -193,10 +193,14 @@ describe('new-item throttle (SPEC §7.2)', () => {
     expect((await planSession(profile, NOW)).throttle.allowed).toBe(0);
 
     // Push every card far into the future: what answering them all looks like.
-    for (const card of await db.cards.where('profileId').equals(profile.id).toArray()) {
-      await db.cards.update(card.id, { fsrs: { ...card.fsrs, dueAt: NOW + 400 * DAY } });
-    }
+    // One bulk write rather than 900 sequential updates — the loop alone put
+    // this test past Vitest's 5 s default on a slower machine, turning
+    // `npm run verify` red for a reason that had nothing to do with the app.
+    const cards = await db.cards.where('profileId').equals(profile.id).toArray();
+    await db.cards.bulkPut(
+      cards.map((card) => ({ ...card, fsrs: { ...card.fsrs, dueAt: NOW + 400 * DAY } })),
+    );
 
     expect((await planSession(profile, NOW)).throttle.allowed).toBeGreaterThan(0);
-  });
+  }, 20_000);
 });

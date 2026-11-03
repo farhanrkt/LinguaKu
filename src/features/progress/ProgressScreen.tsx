@@ -71,7 +71,7 @@ const Path = ({ path, lang }: { path: LearningPath; lang: TargetLang }) => {
       <p className="mt-3 text-lg" data-testid="path-reach">
         {path.securedTotal === 0
           ? copy.progress.path.reachNone
-          : copy.progress.path.reach(pct(path.reach))}
+          : copy.progress.path.reach(pct(path.reach), path.securedTotal)}
       </p>
 
       <ol className="mt-4 flex flex-col gap-4">
@@ -188,7 +188,7 @@ export const ProgressScreen = ({ profile, onBack, onGlossary }: ProgressScreenPr
     const [built, journey, fading, standings, count] = await Promise.all([
       buildProgressReport(profile, Date.now()),
       buildLearningPath(profile, Date.now()),
-      slippingSoon(profile.id, Date.now()),
+      slippingSoon(profile.id, Date.now(), 5, profile.targets[0] ?? 'en'),
       categoryStandings(profile.id, lang, pack.categories.map((category) => category.id)),
       drillAttemptCount(profile.id),
     ]);

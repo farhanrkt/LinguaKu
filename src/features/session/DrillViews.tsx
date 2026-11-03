@@ -3,6 +3,7 @@ import { copy } from '../../i18n/id.ts';
 import { Button } from '../../ui/Button.tsx';
 import { OptionCard } from '../../ui/OptionCard.tsx';
 import type { Category } from '../../data/contrastive.ts';
+import type { TargetLang } from '../../data/types.ts';
 import type { DrillTask } from './drill.ts';
 
 /**
@@ -39,7 +40,6 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) =
       <p className="text-sm font-semibold tracking-wide text-teal-800 uppercase dark:text-teal-300">
         {copy.session.drill.heading}
       </p>
-      <p className="mt-1 text-sm text-stone-500 dark:text-slate-400">{task.category.label}</p>
 
       {/* SPEC §8's "perbaiki kalimat ini". The instruction has to come first:
           a wrong sentence shown without it reads as something to copy. */}
@@ -125,8 +125,11 @@ export const DrillPrompt = ({ task, onAnswer, onPlayAudio, busy }: DrillProps) =
 export const ContrastiveNote = ({
   category,
   explain,
+  lang,
 }: {
   category: Category;
+  /** The language being taught, which the second heading names. */
+  lang: TargetLang;
   /**
    * The item-specific line. A drill has one; an error caught in an ordinary
    * review does not, and the category's own summary stands in.
@@ -149,7 +152,7 @@ export const ContrastiveNote = ({
       <p className="text-stone-700 dark:text-slate-300">{note.l1}</p>
 
       <p className="mt-3 font-semibold text-stone-500 dark:text-slate-400">
-        {copy.session.drill.targetHeading}
+        {copy.session.drill.targetHeading[lang]}
       </p>
       <p className="text-stone-700 dark:text-slate-300">{note.target}</p>
 

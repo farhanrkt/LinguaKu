@@ -149,6 +149,9 @@ export const copy = {
     // wording is the spec's own — "belum perlu", not "lewati" — because it says
     // the word is fine and the timing is not.
     skipItem: 'Belum perlu kata ini',
+    // A drill or a sentence puzzle is not a word, and skipping one defers
+    // nothing — it only moves on.
+    skipQuestion: 'Lewati soal ini',
     preparing: 'Menyiapkan materi…',
     downloading: 'Mengunduh materi sekali saja…',
     empty: 'Semua materi sudah kamu kerjakan hari ini. Sampai besok!',
@@ -215,6 +218,14 @@ export const copy = {
       correct: 'Tepat.',
       nearMiss: (answer: string) => `Hampir — maksudmu “${answer}”.`,
       wrong: (answer: string) => `Jawabannya “${answer}”.`,
+      /**
+       * L6 when the word could not be found in the sentence and the learner
+       * sent it anyway. Their sentence stands, but it is not called correct:
+       * nothing checked it.
+       */
+      freeUnverified: (word: string) =>
+        `Kalimatmu tersimpan. Kata “${word}” tidak terdeteksi otomatis, jadi tidak kami tandai benar.`,
+      freeVerified: (word: string) => `Tepat — kata “${word}” ada di kalimatmu.`,
       promoted: 'Kata ini naik tingkat.',
       demoted: 'Kita pelan-pelan lagi untuk kata ini.',
       leech: 'Kata ini kita ajarkan ulang dengan contoh lain.',
@@ -226,6 +237,8 @@ export const copy = {
       // SPEC §2.14: capability, never points.
       strengthened: (count: number) => `${count} kata jadi lebih kuat.`,
       learned: (count: number) => `${count} kata baru kamu kenali.`,
+      // Kana and kanji are characters, not words.
+      characters: (count: number) => `${count} huruf baru kamu kenali.`,
       promoted: (count: number) => `${count} kata naik ke tugas yang lebih sulit.`,
       built: (count: number) =>
         count === 1 ? 'Satu kalimat kamu susun ulang.' : `${count} kalimat kamu susun ulang.`,
@@ -249,10 +262,13 @@ export const copy = {
       heading: 'Huruf baru',
       instruction: 'Ini bunyinya. Baca keras-keras sekali, lalu lanjut.',
       recall: 'Huruf ini dibaca apa? Tulis dengan huruf latin.',
-      placeholder: 'Contoh: ka',
+      // Not an example sound: any example is some character's answer, and
+      // "Contoh: ka" printed the answer on the か card.
+      placeholder: 'Tulis dalam huruf Latin',
       scriptLabel: { hiragana: 'Hiragana', katakana: 'Katakana' },
-      counterpart: (other: string, script: string) =>
-        `Bunyi yang sama ditulis ${other} dalam ${script}.`,
+      /** The same sound in the *other* script, named as that script. */
+      counterpart: (other: string, romaji: string, otherScript: string) =>
+        `Bunyi yang sama (${romaji}) ditulis ${other} dalam ${otherScript}.`,
       confirm: 'Oke, paham',
       submit: 'Jawab',
     },
@@ -378,7 +394,11 @@ export const copy = {
       submit: 'Jawab',
       whyHeading: 'Kenapa begitu',
       l1Heading: 'Di bahasa Indonesia',
-      targetHeading: 'Di bahasa Inggris',
+      // Named for the language being taught: a Japanese note headed "Di bahasa
+      // Inggris" told the learner the wrong language was being described.
+      targetHeading: { en: 'Dalam bahasa Inggris', ja: 'Dalam bahasa Jepang' },
+      /** Shown after the answer, never before: the label names the error. */
+      categoryLabel: (label: string) => `Pola: ${label}`,
       pairHeading: 'Bandingkan',
       pairWrong: 'Sering ditulis',
       pairRight: 'Seharusnya',
@@ -695,8 +715,12 @@ export const copy = {
     path: {
       heading: 'Jalur belajar',
       intro: 'Kata diajarkan dari yang paling sering dipakai. Ini posisimu.',
-      reach: (percent: number) =>
-        `Kata yang sudah kamu kunci mencakup sekitar ${percent}% kata yang muncul sehari-hari.`,
+      // The same guard as the home screen's: under one percent the figure is
+      // dropped rather than rounded to "sekitar 0%" (§2.14).
+      reach: (percent: number, words: number) =>
+        percent < 1
+          ? `${words.toLocaleString('id-ID')} kata sudah kamu kunci. Persentasenya mulai terlihat setelah beberapa ratus kata.`
+          : `Kata yang sudah kamu kunci mencakup sekitar ${percent}% kata yang muncul sehari-hari.`,
       reachNone:
         'Belum ada kata yang terkunci. Satu sesi saja sudah cukup untuk mulai menaikkan angka ini.',
       stage: (band: number) => `Tahap ${band}`,

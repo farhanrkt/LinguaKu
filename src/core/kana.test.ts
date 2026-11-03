@@ -135,3 +135,26 @@ describe('splitKanjiReading (KANJIDIC2 notation is not a reading)', () => {
     }
   });
 });
+
+describe('romaji as it is said', () => {
+  it('reads the particles は, へ and を by their sound', async () => {
+    const { romajiOfToken } = await import('./kana.ts');
+    expect(romajiOfToken('は', 'ハ')).toBe('wa');
+    expect(romajiOfToken('へ', 'ヘ')).toBe('e');
+    expect(romajiOfToken('を', 'ヲ')).toBe('o');
+    // Inside a word は is still "ha".
+    expect(romajiOfToken('はし', 'ハシ')).toBe('hashi');
+    expect(romajiOfToken('こんにちは')).toBe('konnichiwa');
+  });
+
+  it('spaces a sentence by word and attaches its punctuation', async () => {
+    const { romajiOfTokens } = await import('./kana.ts');
+    expect(
+      romajiOfTokens(
+        ['彼', 'は', 'よく', '学校', 'を', '欠席', 'する', '。'],
+        ['カレ', 'ハ', 'ヨク', 'ガッコウ', 'ヲ', 'ケッセキ', 'スル', '。'],
+      ),
+    ).toBe('kare wa yoku gakkou o kesseki suru.');
+    expect(romajiOfTokens(['彼', 'は', '誰', '？'], ['カレ', 'ハ', 'ダレ', '？'])).toBe('kare wa dare?');
+  });
+});

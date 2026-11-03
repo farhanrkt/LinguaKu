@@ -1,5 +1,5 @@
 import { difficultyForRank, estimateAbility, selectNextItem, shouldStop } from '../../core/placement.ts';
-import { correctForFalseAlarms, PRIOR_MEAN, PRIOR_SD } from '../../core/placement.ts';
+import { correctForFalseAlarms, DEFAULT_PRIOR, type Prior } from '../../core/placement.ts';
 import { mulberry32, shuffle } from '../../core/rng.ts';
 import type { AbilityEstimate, PlacementResponse } from '../../core/placement.ts';
 
@@ -62,12 +62,15 @@ export interface PlacementState {
   asked: PlacementProbe[];
   answers: boolean[];
   startedAt: number;
+  /** Where this language starts before any answer (D3, `priorFor`). */
+  prior: Prior;
 }
 
-export const emptyPlacement = (startedAt: number): PlacementState => ({
+export const emptyPlacement = (startedAt: number, prior: Prior = DEFAULT_PRIOR): PlacementState => ({
   asked: [],
   answers: [],
   startedAt,
+  prior,
 });
 
 const realResponses = (state: PlacementState): PlacementResponse[] =>
@@ -76,7 +79,7 @@ const realResponses = (state: PlacementState): PlacementResponse[] =>
   );
 
 export const abilityFrom = (state: PlacementState): AbilityEstimate =>
-  estimateAbility(realResponses(state));
+  estimateAbility(realResponses(state), state.prior);
 
 export const tallyFrom = (state: PlacementState) => {
   let hits = 0;
@@ -137,11 +140,11 @@ export const correctedAbility = (state: PlacementState): AbilityEstimate => {
 
   const trust = Math.min(1, Math.max(0.1, corrected / hitRate));
   return {
-    theta: PRIOR_MEAN + (raw.theta - PRIOR_MEAN) * trust,
+    theta: state.prior.mean + (raw.theta - state.prior.mean) * trust,
     // Never wider than the prior. Evidence can fail to narrow what we knew;
     // it cannot make us less certain than before we asked anything, and an
     // uncapped division here produced bands spanning the entire scale.
-    standardError: Math.min(PRIOR_SD, raw.standardError / trust),
+    standardError: Math.min(state.prior.sd, raw.standardError / trust),
   };
 };
 

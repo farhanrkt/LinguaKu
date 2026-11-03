@@ -1,6 +1,6 @@
 import { db } from '../db.ts';
 import { fetchManifest, type ContentManifest } from '../content.ts';
-import { knownItemIds } from '../../core/coverage.ts';
+import { knownItemIds, langOfItemId } from '../../core/coverage.ts';
 import { buildPath, type LearningPath } from '../../core/path.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { FORECAST_DAYS, forecastLoad, type ForecastDay } from '../../core/forecast.ts';
@@ -125,6 +125,18 @@ export const buildLearningPath = async (
   );
 };
 
+/** The item a card belongs to: card ids are `profileId::itemId` (`cardIdFor`). */
+const itemOfCardId = (cardId: string): string => cardId.slice(cardId.indexOf('::') + 2);
+
+/**
+ * Every figure on the progress screen is about the language being studied.
+ *
+ * The review queue has been scoped since invariant 42, but this report read the
+ * whole profile: a learner who studied English and switched to Japanese saw an
+ * English retention rate, an English 14-day forecast, "Kosakata 80% · 30
+ * jawaban" and "30 kata baru" on the *Japanese* screen — beside sections that
+ * said nothing had been studied yet.
+ */
 export const buildProgressReport = async (
   profile: Profile,
   now: Timestamp,
@@ -135,7 +147,7 @@ export const buildProgressReport = async (
   const shareByBand = bandsOf(manifest);
   const teachableShare = manifest?.coverage?.teachableShare ?? 0;
 
-  const [items, cards, logs] = await Promise.all([
+  const [items, allCards, allLogs] = await Promise.all([
     db.items.where('[lang+kind]').equals([lang, 'lexeme']).toArray(),
     db.cards.where('profileId').equals(profile.id).toArray(),
     db.reviewLogs
@@ -143,6 +155,8 @@ export const buildProgressReport = async (
       .between([profile.id, 0], [profile.id, Number.MAX_SAFE_INTEGER])
       .toArray(),
   ]);
+  const cards = allCards.filter((card) => langOfItemId(card.itemId) === lang);
+  const logs = allLogs.filter((log) => langOfItemId(itemOfCardId(log.cardId)) === lang);
 
   const known = knownItemIds(cards, now);
   const cardByItem = new Map(cards.map((card) => [card.itemId, card]));
@@ -172,7 +186,9 @@ export const buildProgressReport = async (
   const bandEvidence = [...evidence.values()].sort((a, b) => a.band - b.band);
 
   // ------------------------------------------------------------- skills
-  const drillAttempts = await db.drillAttempts.where('profileId').equals(profile.id).toArray();
+  const drillAttempts = (
+    await db.drillAttempts.where('profileId').equals(profile.id).toArray()
+  ).filter((attempt) => attempt.lang === lang);
   const standings = await categoryStandings(
     profile.id,
     lang,
@@ -187,7 +203,7 @@ export const buildProgressReport = async (
   // a careless one. Counting only the drills would leave the newer evidence on
   // the floor and understate a learner who is good at exactly the thing §3.1
   // says they will find hard.
-  const builds = await buildAttempts(profile.id);
+  const builds = (await buildAttempts(profile.id)).filter((attempt) => attempt.lang === lang);
   const grammarAnswers =
     standings.reduce((sum, standing) => sum + standing.attempts, 0) + builds.length;
   const grammarCorrect =
@@ -199,7 +215,10 @@ export const buildProgressReport = async (
   // only record of what was actually on screen.
   const listeningLogs = logs.filter((log) => log.ladderLevel === AUDIO_LEVEL);
   const productionLogs = logs.filter((log) => log.ladderLevel > AUDIO_LEVEL);
-  const vocabAnswers = logs.filter((log) => log.ladderLevel < AUDIO_LEVEL);
+  // Not L0. A first exposure asks nothing — the learner confirms and the log
+  // records "correct" by construction — so counting it made five taps of
+  // "Oke, paham" read as "Kosakata 100%".
+  const vocabAnswers = logs.filter((log) => log.ladderLevel > 0 && log.ladderLevel < AUDIO_LEVEL);
 
   // Minimal-pair drills are listening too, and they are the only listening a
   // learner gets on the phonology categories. They are counted in the axis (a
@@ -306,8 +325,10 @@ export const buildProgressReport = async (
     calibration: measureCalibration(
       logs.map((log) => ({ confidence: log.confidence, rating: log.rating })),
     ),
+    // The one cross-language figure, deliberately: it describes the learner's
+    // habit, and a day spent on the other language was still a day practised.
     consistency: measureConsistency(
-      logs.map((log) => log.reviewedAt),
+      allLogs.map((log) => log.reviewedAt),
       now,
     ),
     forecast: forecastLoad(cards, now, FORECAST_DAYS),
@@ -331,9 +352,14 @@ export interface SlippingWord {
 export const slippingSoon = async (
   profileId: string,
   now: Timestamp,
-  limit = 5,
+  limit: number,
+  lang: TargetLang,
 ): Promise<SlippingWord[]> => {
-  const cards = await db.cards.where('profileId').equals(profileId).toArray();
+  // Scoped like the queue (invariant 42): the home screen says these come first
+  // next session, which is only true of the language being studied.
+  const cards = (await db.cards.where('profileId').equals(profileId).toArray()).filter(
+    (card) => langOfItemId(card.itemId) === lang,
+  );
   const ranked = cards
     .map((card) => ({ card, r: retrievability(card.fsrs, now) }))
     .filter((entry) => entry.r < 1)

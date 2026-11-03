@@ -1,4 +1,4 @@
-import { hasKanji, isKana, isKanji, toHiragana, toRomaji } from './kana.ts';
+import { hasKanji, isKana, isKanji, latinPunctuation, romajiOfToken, toHiragana, toRomaji } from './kana.ts';
 import type { ScriptMode } from '../data/types.ts';
 
 /**
@@ -92,11 +92,15 @@ export const furiganaFor = (input: FuriganaInput): RubySegment[] =>
     // is left only where it is still doing work.
     if (input.scriptMode === 'romaji') {
       const asKana = hasKanji(token) ? reading : token;
+      // Punctuation and anything else with no kana in it is set as Latin text
+      // sets it: "suru." rather than "suru。".
+      if (![...asKana].some(isKana)) return { text: latinPunctuation(asKana), ruby: null };
       const readsKana = input.readsKana ?? (() => false);
       const readable = [...asKana].every(
         (character) => !isKana(character) || readsKana(character),
       );
-      return { text: readable ? asKana : toRomaji(reading), ruby: null };
+      // As it is said, not as it is spelt: the particle は is "wa".
+      return { text: readable ? asKana : romajiOfToken(token, katakana), ruby: null };
     }
 
     // Kana: kanji are replaced by their readings outright rather than annotated.
@@ -131,8 +135,13 @@ export const headwordIn = (
   headword: string,
   reading: string | null,
 ): string => {
-  if (scriptMode === 'kanji' || reading === null || reading.length === 0) return headword;
-  if (!hasKanji(headword)) return scriptMode === 'romaji' ? toRomaji(headword) : headword;
+  if (scriptMode === 'kanji') return headword;
+  // A kana headword needs no reading to be romanized. This branch used to sit
+  // behind the empty-reading check and never ran: 96 of the 500 band-1 words
+  // (する, いる, この…) carry no separate reading, so the romaji rung showed
+  // them in kana to a learner who could not yet read kana.
+  if (!hasKanji(headword)) return scriptMode === 'romaji' ? romajiOfToken(headword) : headword;
+  if (reading === null || reading.length === 0) return headword;
   return scriptMode === 'romaji' ? toRomaji(toHiragana(reading)) : toHiragana(reading);
 };
 

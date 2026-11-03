@@ -19,6 +19,11 @@ import type { Task } from './task.ts';
 export interface AnswerPayload {
   raw: string;
   confidence: Confidence | null;
+  /**
+   * L6 only: whether the target word was found in the learner's sentence. A
+   * sentence sent without it is recorded, never called correct.
+   */
+  verified?: boolean;
 }
 
 interface TaskProps {
@@ -192,6 +197,10 @@ export const KanaTask = ({ task, onAnswer, busy }: TaskProps) => {
 
   const asks = task.ladderLevel > 0;
   const script = copy.session.kana.scriptLabel[face.script];
+  // The counterpart is in the *other* script. Passing `script` here printed
+  // "ditulis ア dalam Hiragana" on every hiragana card.
+  const otherScript =
+    copy.session.kana.scriptLabel[face.script === 'hiragana' ? 'katakana' : 'hiragana'];
 
   return (
     <div>
@@ -226,7 +235,14 @@ export const KanaTask = ({ task, onAnswer, busy }: TaskProps) => {
             spellCheck={false}
             className="mt-6 min-h-14 w-full rounded-2xl border-2 border-stone-300 px-4 text-center text-2xl focus-visible:border-teal-700 focus-visible:outline-none dark:border-slate-700 dark:bg-slate-900 dark:focus-visible:border-teal-400"
           />
-          <Button className="mt-4 w-full" disabled={busy === true} data-testid="kana-submit">
+          {/* `type="submit"`: Button defaults to "button", so without this the
+              primary action did nothing and only the keyboard's Enter worked. */}
+          <Button
+            type="submit"
+            className="mt-4 w-full"
+            disabled={busy === true || value.trim().length === 0}
+            data-testid="kana-submit"
+          >
             {copy.session.kana.submit}
           </Button>
         </form>
@@ -236,7 +252,7 @@ export const KanaTask = ({ task, onAnswer, busy }: TaskProps) => {
             {face.romaji}
           </p>
           <p className="mt-4 text-center text-sm text-stone-600 dark:text-slate-400">
-            {copy.session.kana.counterpart(face.counterpart, script)}
+            {copy.session.kana.counterpart(face.counterpart, face.romaji, otherScript)}
           </p>
           <Button
             className="mt-6 w-full"
@@ -826,7 +842,7 @@ export const FreeProductionTask = ({
       setMissing(true);
       return;
     }
-    onAnswer({ raw: value, confidence: null });
+    onAnswer({ raw: value, confidence: null, verified: used });
   };
 
   return (

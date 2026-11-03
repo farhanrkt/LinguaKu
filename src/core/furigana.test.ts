@@ -129,7 +129,9 @@ describe('the script ladder (SPEC §4.3)', () => {
 
   it('romaji transliterates everything and shows no ruby', () => {
     const segments = build(tokens, readings, {}, 'romaji');
-    expect(segments.map((s) => s.text).join(' ')).toBe('watashi ha gakkou he iku');
+    // As it is said: the particles は and へ are "wa" and "e". This assertion
+    // used to read 'watashi ha gakkou he iku' — the test pinned the defect.
+    expect(segments.map((s) => s.text).join(' ')).toBe('watashi wa gakkou e iku');
     expect(segments.every((s) => s.ruby === null)).toBe(true);
   });
 
@@ -191,6 +193,11 @@ describe('headwordIn', () => {
 
   it('transliterates a kana headword for the romaji rung', () => {
     expect(headwordIn('romaji', 'ねこ', 'ねこ')).toBe('neko');
+    // A kana headword with no reading of its own is still romanized — 96 of
+    // the 500 band-1 words ship that way (する, いる, この…).
+    expect(headwordIn('romaji', 'する', null)).toBe('suru');
+    expect(headwordIn('romaji', 'する', '')).toBe('suru');
+    expect(headwordIn('kana', 'する', null)).toBe('する');
     expect(headwordIn('kana', 'ねこ', 'ねこ')).toBe('ねこ');
   });
 });
@@ -251,5 +258,12 @@ describe('romaji is a rung that climbs itself (SPEC §4.3)', () => {
       scriptMode: 'kana',
     });
     expect(kana.map((s) => s.text)).toEqual(['ねこ', 'が', 'すき']);
+  });
+});
+
+describe('romaji punctuation', () => {
+  it('sets ideographic punctuation as Latin text sets it', () => {
+    const segments = build(['する', '。'], ['スル', '。'], {}, 'romaji');
+    expect(segments.map((s) => s.text)).toEqual(['suru', '.']);
   });
 });

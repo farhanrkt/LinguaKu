@@ -162,6 +162,79 @@ export const toRomaji = (kana: string): string => {
   return result;
 };
 
+// ------------------------------------------------------- romaji as it is said
+
+/** Ideographic punctuation, as Latin text sets it. */
+const LATIN_PUNCTUATION: Readonly<Record<string, string>> = {
+  '。': '.',
+  '、': ',',
+  '？': '?',
+  '！': '!',
+  '「': '"',
+  '」': '"',
+  '『': '"',
+  '』': '"',
+  '（': '(',
+  '）': ')',
+  '：': ':',
+  '・': ' ',
+  '〜': '~',
+  '　': ' ',
+};
+
+export const latinPunctuation = (text: string): string =>
+  [...text].map((character) => LATIN_PUNCTUATION[character] ?? character).join('');
+
+/** Whole words whose spelling and sound part ways at a final は. */
+const SPOKEN: Readonly<Record<string, string>> = {
+  こんにちは: 'konnichiwa',
+  こんばんは: 'konbanwa',
+};
+
+/**
+ * One token in romaji, the way it is pronounced.
+ *
+ * `toRomaji` spells kana; a learner reading romaji needs the sound. The topic
+ * particle は is written with the kana for *ha* and said *wa*, the direction
+ * particle へ is said *e*, and を is said *o*. Spelling them out put "kare ha
+ * yoku gakkou …" in front of 49% of the shipped starter sentences — teaching a
+ * beginner the wrong sound for the commonest particle in the language.
+ *
+ * A standalone は or へ token is the particle: IPADIC keeps the noun 葉 and
+ * the like in kanji and folds kana words into a single token, so the bare
+ * character only reaches here as a particle.
+ */
+export const romajiOfToken = (token: string, reading?: string | null): string => {
+  const kana = toHiragana(reading !== undefined && reading !== null && reading.length > 0 ? reading : token);
+  const spoken = SPOKEN[toHiragana(token)];
+  if (spoken !== undefined) return spoken;
+  if (token === 'は' && kana === 'は') return 'wa';
+  if (token === 'へ' && kana === 'へ') return 'e';
+  if (token === 'を') return 'o';
+  return latinPunctuation(toRomaji(kana));
+};
+
+/** Closing punctuation takes no space before it. */
+const ATTACHES = /^[.,?!)":~…]/u;
+
+/**
+ * A sentence in romaji: words separated by spaces, punctuation attached to the
+ * word before it, particles as they are said.
+ */
+export const romajiOfTokens = (
+  tokens: readonly string[],
+  readings: readonly (string | null | undefined)[],
+): string =>
+  tokens
+    .map((token, index) => romajiOfToken(token, readings[index] ?? null))
+    .reduce((sentence, word, index) => {
+      if (word.trim().length === 0) return sentence;
+      if (index === 0 || sentence.length === 0) return word.trimStart();
+      return ATTACHES.test(word) ? `${sentence}${word}` : `${sentence} ${word}`;
+    }, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 // ------------------------------------------------------------ romaji → kana
 
 /**

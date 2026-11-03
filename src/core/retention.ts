@@ -1,4 +1,5 @@
 import { wilsonInterval } from './vocabulary.ts';
+import { startOfLocalDay } from './forecast.ts';
 import type { Confidence, Grade } from '../data/types.ts';
 
 /**
@@ -223,11 +224,15 @@ export const measureConsistency = (
   window = CONSISTENCY_WINDOW_DAYS,
 ): ConsistencyReport => {
   const DAY = 86_400_000;
-  const today = Math.floor(now / DAY);
+  // The device's own days, as the daily new-word cap counts them. UTC days
+  // put a 06:00 WIB session on the previous day, and a learner whose habit is
+  // "setelah subuh" would have watched the band count the wrong mornings.
+  const today = startOfLocalDay(now);
   const days = new Set<number>();
   for (const at of reviewedAt) {
-    const day = Math.floor(at / DAY);
-    if (today - day < window && today - day >= 0) days.add(day);
+    const day = startOfLocalDay(at);
+    const ago = Math.round((today - day) / DAY);
+    if (ago < window && ago >= 0) days.add(day);
   }
   return { days: days.size, window, share: days.size / window };
 };

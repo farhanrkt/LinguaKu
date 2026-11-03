@@ -1,5 +1,5 @@
 import { db } from '../db.ts';
-import { PRIOR_MEAN, PRIOR_SD, type AbilityEstimate } from '../../core/placement.ts';
+import { priorFor, type AbilityEstimate } from '../../core/placement.ts';
 import { estimateListening, type ListeningAnswer } from '../../core/listening.ts';
 import { AUDIO_LEVEL } from '../../core/ladder.ts';
 import type { Ability, AbilityDimension, TargetLang, Timestamp } from '../types.ts';
@@ -56,9 +56,10 @@ export const vocabularyAbility = async (
   lang: TargetLang,
 ): Promise<AbilityEstimate> => {
   const stored = await getAbility(profileId, lang, 'vocab');
-  return stored
-    ? { theta: stored.theta, standardError: stored.standardError }
-    : { theta: PRIOR_MEAN, standardError: PRIOR_SD };
+  if (stored) return { theta: stored.theta, standardError: stored.standardError };
+  // Per language (D3): Japanese starts at band 1, English mid-frequency.
+  const prior = priorFor(lang);
+  return { theta: prior.mean, standardError: prior.sd };
 };
 
 export const hasBeenPlaced = async (profileId: string, lang: TargetLang): Promise<boolean> =>

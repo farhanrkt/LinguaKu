@@ -74,6 +74,30 @@ export const THETA_GRID: readonly number[] = Array.from(
 export const PRIOR_MEAN = 0;
 export const PRIOR_SD = 1.5;
 
+export interface Prior {
+  mean: number;
+  sd: number;
+}
+
+export const DEFAULT_PRIOR: Prior = { mean: PRIOR_MEAN, sd: PRIOR_SD };
+
+/**
+ * Where a learner we know nothing about starts, per language (decision D3).
+ *
+ * D3 has always said *"intermediate English + beginner Japanese"* — English
+ * cold-starts mid-frequency, Japanese at kana — but one θ = 0 prior served both,
+ * and θ = 0 is rank 2,000. So a Japanese learner who skipped placement was
+ * introduced to band-3 items on day one (贈, 欠席), while the same learner who
+ * answered "Belum" to every word got あ, い, 日, する: skipping cost them, which
+ * invariant 13 forbids. θ = −2.5 is rank ≈ 210, inside band 1.
+ */
+const PRIORS: Readonly<Record<string, Prior>> = {
+  en: DEFAULT_PRIOR,
+  ja: { mean: -2.5, sd: PRIOR_SD },
+};
+
+export const priorFor = (lang: string): Prior => PRIORS[lang] ?? DEFAULT_PRIOR;
+
 export interface PlacementResponse {
   /** 1PL difficulty of the item, in logits. */
   difficulty: number;
@@ -99,9 +123,12 @@ const normalDensity = (x: number, mean: number, sd: number): number =>
  * learner who skipped placement, and why a skipped placement needs no special
  * case anywhere else.
  */
-export const estimateAbility = (responses: readonly PlacementResponse[]): AbilityEstimate => {
+export const estimateAbility = (
+  responses: readonly PlacementResponse[],
+  prior: Prior = DEFAULT_PRIOR,
+): AbilityEstimate => {
   const posterior = THETA_GRID.map((theta) => {
-    let density = normalDensity(theta, PRIOR_MEAN, PRIOR_SD);
+    let density = normalDensity(theta, prior.mean, prior.sd);
     for (const response of responses) {
       const p = probabilityCorrect(theta, response.difficulty);
       density *= response.correct ? p : 1 - p;
@@ -111,7 +138,7 @@ export const estimateAbility = (responses: readonly PlacementResponse[]): Abilit
 
   const total = posterior.reduce((sum, value) => sum + value, 0);
   if (total === 0 || !Number.isFinite(total)) {
-    return { theta: PRIOR_MEAN, standardError: PRIOR_SD };
+    return { theta: prior.mean, standardError: prior.sd };
   }
 
   const mean = THETA_GRID.reduce((sum, theta, i) => sum + theta * posterior[i]!, 0) / total;

@@ -113,5 +113,19 @@ export const retrievability = (
 /** SPEC §2.4: the known-set threshold. */
 export const KNOWN_RETRIEVABILITY = 0.6;
 
+/** ts-fsrs `State.Review`: learned, and retrieved successfully since. */
+const REVIEW = 2;
+
+/**
+ * SPEC §2.4's "known": retrievable now, **and** retrieved at least once.
+ *
+ * Retrievability alone counted a word as known after one errorless exposure —
+ * the learner tapped "Oke, paham" on a card that says "belum perlu dihafal",
+ * FSRS rated it Good, and with the shipped parameters R stays above 0.6 for 63
+ * days. The home screen then called it "terkunci", the coverage figures and the
+ * reader treated it as readable, and a kana seen once was assumed legible. A
+ * card in Learning (just introduced) or Relearning (just failed) has not shown
+ * that the learner can produce it; one in Review has.
+ */
 export const isKnown = (state: StoredFsrsState, now: Timestamp): boolean =>
-  retrievability(state, now) > KNOWN_RETRIEVABILITY;
+  state.state === REVIEW && retrievability(state, now) > KNOWN_RETRIEVABILITY;

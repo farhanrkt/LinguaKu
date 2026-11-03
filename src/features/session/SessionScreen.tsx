@@ -4,12 +4,18 @@ import { Button } from '../../ui/Button.tsx';
 import { Screen } from '../../ui/Screen.tsx';
 import { SwipeCard } from '../../ui/SwipeCard.tsx';
 import { gradeAnswer, gradeForOutcome, type GradeResult } from '../../core/grader.ts';
+import { gradeDrill, type DrillOutcome } from '../../core/drillGrade.ts';
 import { detectInterference } from '../../core/interference.ts';
 import { EMPTY_CLIP_INDEX, hasAudio, loadClipIndex, playSentence, stopAudio, type ClipIndex } from '../../platform/audio.ts';
 import { speak } from '../../platform/speech.ts';
 import { recordReview } from '../../data/repositories/reviews.ts';
 import { recordCategoryAttempt, recordDrillAnswer } from '../../data/repositories/contrastive.ts';
-import { advanceCursor, completeSession } from '../../data/repositories/sessions.ts';
+import {
+  advanceCursor,
+  completeSession,
+  sessionTally,
+  type SessionTally,
+} from '../../data/repositories/sessions.ts';
 import { deferItem } from '../../data/repositories/deferrals.ts';
 import {
   EMPTY_PACK,
@@ -40,7 +46,7 @@ import {
 } from './TaskViews.tsx';
 import { saveMnemonic } from '../../data/repositories/mnemonics.ts';
 import { ContrastiveNote, DrillPrompt } from './DrillViews.tsx';
-import type { Profile, ScriptMode, Session } from '../../data/types.ts';
+import type { Profile, ScriptMode, Session, TargetLang } from '../../data/types.ts';
 import type { LadderDecision } from '../../core/ladder.ts';
 
 /**
@@ -78,6 +84,8 @@ interface BuildReveal {
 
 interface Reveal {
   result: GradeResult;
+  /** L6 sent without the word being detected: recorded, not called correct. */
+  unverified: boolean;
   decision: LadderDecision;
   answer: string;
   /** The word this card was about, and what it means (SPEC §2.3, D59). */
@@ -93,17 +101,12 @@ interface Reveal {
 
 interface DrillReveal {
   correct: boolean;
+  /** A near-miss is shown as one (SPEC §2.7), even where it counts as right. */
+  outcome: DrillOutcome;
   raw: string;
   task: DrillTask;
 }
 
-interface Tally {
-  strengthened: number;
-  learned: number;
-  promoted: number;
-  drills: number;
-  builds: number;
-}
 
 export const SessionScreen = ({
   profile,
@@ -117,13 +120,20 @@ export const SessionScreen = ({
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [drillReveal, setDrillReveal] = useState<DrillReveal | null>(null);
   const [buildReveal, setBuildReveal] = useState<BuildReveal | null>(null);
-  const [tally, setTally] = useState<Tally>({
-    strengthened: 0,
-    learned: 0,
-    promoted: 0,
-    drills: 0, builds: 0,
-  });
   const [finished, setFinished] = useState(cursor >= session.itemIds.length);
+  // Read back from the log once the session ends, never counted in state: a
+  // count kept here forgot everything answered before a kill (§2.13).
+  const [tally, setTally] = useState<SessionTally | null>(null);
+  useEffect(() => {
+    if (!finished) return;
+    let live = true;
+    void sessionTally(session).then((result) => {
+      if (live) setTally(result);
+    });
+    return () => {
+      live = false;
+    };
+  }, [finished, session]);
   // Set when the task actually renders, not during render — `latencyMs` is a
   // real measurement (SPEC §6) and must start from when the learner saw it.
   const shownAt = useRef(0);
@@ -304,7 +314,6 @@ export const SessionScreen = ({
         now: Date.now(),
       });
 
-      setTally((current) => ({ ...current, builds: current.builds + 1 }));
       setBuildReveal({ correct: result.outcome === 'correct', task });
     },
     [entry, profile.id, lang, buildReveal],
@@ -336,8 +345,10 @@ export const SessionScreen = ({
       // the only honest grade for it is "fine". True of an exposure card and of
       // a character the learner is seeing for the first time (SPEC §4.3).
       const errorless = task.kind === 'exposure' || (task.kind === 'kana' && task.ladderLevel === 0);
-      const grade = errorless ? 3 : gradeForOutcome(result.outcome);
-      const wasNew = task.ladderLevel === 0;
+      // A free sentence the matcher could not confirm is the learner's word
+      // against ours: Hard, not Good, and never announced as correct.
+      const unverified = task.kind === 'free' && payload.verified === false;
+      const grade = errorless ? 3 : unverified ? 2 : gradeForOutcome(result.outcome);
 
       // SPEC §2.9 / §3.3: a wrong answer that matches a known Indonesian-L1
       // pattern is evidence about that pattern, and it is logged as such.
@@ -374,12 +385,6 @@ export const SessionScreen = ({
         });
       }
 
-      setTally((current) => ({
-        ...current,
-        strengthened: current.strengthened + (result.outcome === 'wrong' ? 0 : 1),
-        learned: current.learned + (wasNew ? 1 : 0),
-        promoted: current.promoted + (decision.change === 'promoted' ? 1 : 0),
-      }));
       // L0 asked nothing, so there is nothing to reveal. It used to submit the
       // headword as its own answer, grade it "correct", and congratulate the
       // learner for reading — two taps and a compliment nobody earned. The
@@ -392,6 +397,7 @@ export const SessionScreen = ({
 
       setReveal({
         result,
+        unverified,
         decision,
         answer: task.answer,
         headword: task.headword,
@@ -411,7 +417,9 @@ export const SessionScreen = ({
     async (raw: string) => {
       if (entry?.kind !== 'drill' || drillReveal !== null) return;
       const { drill, category } = entry.task;
-      const correct = gradeAnswer(raw, drill.answer).outcome !== 'wrong';
+      // Not `gradeAnswer`: its typo tolerance swallowed the very morpheme a
+      // drill tests (src/core/drillGrade.ts has the measurements).
+      const { outcome, correct } = gradeDrill(drill, raw);
 
       await recordDrillAnswer({
         profileId: profile.id,
@@ -425,8 +433,7 @@ export const SessionScreen = ({
         now: Date.now(),
       });
 
-      setTally((current) => ({ ...current, drills: current.drills + 1 }));
-      setDrillReveal({ correct, raw, task: entry.task });
+      setDrillReveal({ correct, outcome, raw, task: entry.task });
     },
     [entry, profile.id, lang, drillReveal],
   );
@@ -592,7 +599,7 @@ export const SessionScreen = ({
               data-testid="session-skip"
               className="min-h-12 w-full rounded-2xl text-sm font-semibold text-stone-600 underline-offset-4 hover:underline dark:text-slate-400"
             >
-              {copy.session.skipItem}
+              {entry.kind === 'item' ? copy.session.skipItem : copy.session.skipQuestion}
             </button>
             <button
               type="button"
@@ -646,14 +653,14 @@ export const SessionScreen = ({
                 scriptMode={profile.scriptMode}
               />
             </SwipeCard>
-            <Feedback reveal={reveal} />
+            <Feedback reveal={reveal} lang={lang} />
           </>
         ) : drillReveal ? (
           <>
             <SwipeCard right={{ label: copy.session.swipe.next, onCommit: handleNext }}>
               <AnsweredDrill reveal={drillReveal} />
             </SwipeCard>
-            <DrillFeedback reveal={drillReveal} />
+            <DrillFeedback reveal={drillReveal} lang={lang} />
           </>
         ) : (
           view
@@ -773,17 +780,22 @@ const AnsweredDrill = ({ reveal }: { reveal: DrillReveal }) => (
  * matches an Indonesian-L1 pattern, the contrastive note comes with it — in
  * Indonesian, with the L1 pattern named first.
  */
-const Feedback = ({ reveal }: { reveal: Reveal }) => {
+const Feedback = ({ reveal, lang }: { reveal: Reveal; lang: TargetLang }) => {
   const { result, decision, answer } = reveal;
   const tone =
-    result.outcome === 'correct'
+    reveal.unverified
+      ? 'bg-stone-100 text-stone-900 dark:bg-slate-900 dark:text-slate-100'
+      : result.outcome === 'correct'
       ? 'bg-teal-50 text-teal-900 dark:bg-teal-950 dark:text-teal-100'
       : result.outcome === 'near-miss'
         ? 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100'
         : 'bg-stone-100 text-stone-900 dark:bg-slate-900 dark:text-slate-100';
 
-  const message =
-    result.outcome === 'correct'
+  const message = reveal.unverified
+    ? copy.session.feedback.freeUnverified(reveal.headword)
+    : reveal.task.kind === 'free'
+      ? copy.session.feedback.freeVerified(reveal.headword)
+      : result.outcome === 'correct'
       ? copy.session.feedback.correct
       : result.outcome === 'near-miss'
         ? copy.session.feedback.nearMiss(answer)
@@ -832,14 +844,14 @@ const Feedback = ({ reveal }: { reveal: Reveal }) => {
         <div className="mt-3" key={category.id}>
           {/* No per-item explanation: this error happened in the wild rather
               than in an authored drill, so the category's own summary leads. */}
-          <ContrastiveNote category={category} />
+          <ContrastiveNote category={category} lang={lang} />
         </div>
       ))}
     </div>
   );
 };
 
-const DrillFeedback = ({ reveal }: { reveal: DrillReveal }) => (
+const DrillFeedback = ({ reveal, lang }: { reveal: DrillReveal; lang: TargetLang }) => (
   <div>
     <div
       className={`rounded-2xl p-4 ${
@@ -851,40 +863,62 @@ const DrillFeedback = ({ reveal }: { reveal: DrillReveal }) => (
       data-testid="feedback"
     >
       <p className="font-semibold">
-        {reveal.correct
-          ? copy.session.feedback.correct
-          : copy.session.feedback.wrong(reveal.task.drill.answer)}
+        {!reveal.correct
+          ? copy.session.feedback.wrong(reveal.task.drill.answer)
+          : reveal.outcome === 'near-miss'
+            ? copy.session.feedback.nearMiss(reveal.task.drill.answer)
+            : copy.session.feedback.correct}
+      </p>
+      {/* Named only now: shown above the question, the category label told
+          the learner which error to look for ("Akhiran -s untuk dia"). */}
+      <p className="mt-1 text-sm" data-testid="drill-category">
+        {copy.session.drill.categoryLabel(reveal.task.category.label)}
       </p>
     </div>
 
     <div className="mt-3">
-      <ContrastiveNote category={reveal.task.category} explain={reveal.task.drill.explain} />
+      <ContrastiveNote
+        category={reveal.task.category}
+        explain={reveal.task.drill.explain}
+        lang={lang}
+      />
     </div>
   </div>
 );
 
 /** SPEC §10: the end screen shows what got stronger, never points. */
-const SessionSummary = ({ tally, onDone }: { tally: Tally; onDone: () => void }) => {
-  const lines = [
-    tally.strengthened > 0 ? copy.session.summary.strengthened(tally.strengthened) : null,
-    tally.learned > 0 ? copy.session.summary.learned(tally.learned) : null,
-    tally.promoted > 0 ? copy.session.summary.promoted(tally.promoted) : null,
-    tally.drills > 0 ? copy.session.summary.drilled(tally.drills) : null,
-    tally.builds > 0 ? copy.session.summary.built(tally.builds) : null,
-  ].filter((line): line is string => line !== null);
+const SessionSummary = ({ tally, onDone }: { tally: SessionTally | null; onDone: () => void }) => {
+  const lines =
+    tally === null
+      ? []
+      : [
+          tally.newWords > 0 ? copy.session.summary.learned(tally.newWords) : null,
+          tally.newCharacters > 0 ? copy.session.summary.characters(tally.newCharacters) : null,
+          tally.strengthened > 0 ? copy.session.summary.strengthened(tally.strengthened) : null,
+          tally.promoted > 0 ? copy.session.summary.promoted(tally.promoted) : null,
+          tally.drills > 0 ? copy.session.summary.drilled(tally.drills) : null,
+          tally.builds > 0 ? copy.session.summary.built(tally.builds) : null,
+        ].filter((line): line is string => line !== null);
 
   return (
     <Screen footer={<Button onClick={onDone}>{copy.session.summary.done}</Button>}>
       <h1 className="mt-8 text-2xl font-bold" data-testid="session-summary">
         {copy.session.summary.heading}
       </h1>
-      <ul className="mt-4 flex flex-col gap-2 text-lg text-stone-700 dark:text-slate-300">
-        {lines.length > 0 ? (
-          lines.map((line) => <li key={line}>{line}</li>)
-        ) : (
-          <li>{copy.session.summary.nothing}</li>
-        )}
-      </ul>
+      {/* Nothing while it is read back: "nothing was done" flashed first would
+          be a small false statement (invariant 18). */}
+      {tally === null ? null : (
+        <ul
+          className="mt-4 flex flex-col gap-2 text-lg text-stone-700 dark:text-slate-300"
+          data-testid="session-summary-lines"
+        >
+          {lines.length > 0 ? (
+            lines.map((line) => <li key={line}>{line}</li>)
+          ) : (
+            <li>{copy.session.summary.nothing}</li>
+          )}
+        </ul>
+      )}
     </Screen>
   );
 };

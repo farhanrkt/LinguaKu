@@ -3,11 +3,12 @@ import { db } from '../db.ts';
 import { dueCardCount, dueCards, introducedToday } from './reviews.ts';
 import { retrievability } from '../../core/scheduler.ts';
 import { knownItemIds, coverageOf } from '../../core/coverage.ts';
-import { buildIdFor, isBuildable } from '../../core/sentenceBuild.ts';
+import { buildIdFor, isBuildable, parseBuildId } from '../../core/sentenceBuild.ts';
 import { tokensOf } from '../../core/reader.ts';
 import { recentBuildIds } from './builds.ts';
 import { composeSession, type Candidate } from '../../core/sessionComposer.ts';
 import {
+  startOfLocalDay,
   dailyCapacityFor,
   dailyNewWords,
   forecastLoad,
@@ -95,6 +96,7 @@ const newCandidates = async (
   limit: number,
   frontier: FrequencyBand,
   deferred: Set<string>,
+  started: ReadonlySet<string>,
 ): Promise<Candidate[]> => {
   if (limit <= 0) return [];
   const lang = profile.targets[0] ?? 'en';
@@ -115,9 +117,6 @@ const newCandidates = async (
   )
     .flat()
     .sort((a, b) => a.freqRank - b.freqRank);
-  const started = new Set(
-    (await db.cards.where('profileId').equals(profile.id).toArray()).map((card) => card.itemId),
-  );
 
   // SPEC §8: a word the learner mined in the reader jumps the queue. They met
   // it, went looking for it, and have a context for it — all of which beats
@@ -331,12 +330,11 @@ const buildCandidates = async (
   now: Timestamp,
   frontier: FrequencyBand,
   limit: number,
+  known: ReadonlySet<string>,
 ): Promise<Candidate[]> => {
   if (limit <= 0) return [];
   const lang = profile.targets[0] ?? 'en';
 
-  const cards = await db.cards.where('profileId').equals(profile.id).toArray();
-  const known = knownItemIds(cards, now);
   // Nothing to build from until the learner knows some words.
   if (known.size < MIN_KNOWN_FOR_BUILDS) return [];
 
@@ -505,21 +503,22 @@ export const planSession = async (
   const deferred = await deferredItemIds(profile.id, now);
   // Which characters the learner can read, for §2.9's drill gate: a question
   // written in a script nothing has taught them is unanswerable, not hard.
-  const known = knownItemIds(
-    await db.cards.where('profileId').equals(profile.id).toArray(),
-    now,
-  );
+  // Read once from the cards already in hand — this function used to fetch the
+  // whole table four times per plan, which a learner with a few thousand cards
+  // pays for on every session start.
+  const known = knownItemIds(allCards, now);
+  const started = new Set(allCards.map((card) => card.itemId));
   const [due, fresh, drills, builds] = await Promise.all([
     dueCandidates(profile, now, deferred),
-    newCandidates(profile, newAllowance, frontier, deferred),
+    newCandidates(profile, newAllowance, frontier, deferred, started),
     drillCandidates(profile, MAX_DRILLS, options.audioAvailable ?? false, known),
-    buildCandidates(profile, now, frontier, MAX_BUILDS),
+    buildCandidates(profile, now, frontier, MAX_BUILDS, known),
   ]);
 
   const composed = composeSession({
     budgetMinutes: profile.dailyMinutes,
     // The day is the seed: one stable session per day, fresh ordering tomorrow.
-    seed: Math.floor(now / 86_400_000),
+    seed: Math.floor(startOfLocalDay(now) / 86_400_000),
     due,
     fresh,
     drills,
@@ -564,3 +563,80 @@ export const sessionProgress = (session: Session): { done: number; total: number
   done: Math.min(session.resumeCursor, session.itemIds.length),
   total: session.itemIds.length,
 });
+
+// ------------------------------------------------------------- the summary
+
+export interface SessionTally {
+  /** New words met for the first time. */
+  newWords: number;
+  /** New characters (kana, kanji) met for the first time. */
+  newCharacters: number;
+  /** Items answered correctly at a graded rung — retrieval, not exposure. */
+  strengthened: number;
+  /** Items a graded answer moved up the ladder (not the L0 → L1 introduction). */
+  promoted: number;
+  drills: number;
+  builds: number;
+}
+
+const isCharacterId = (itemId: string): boolean => /^ja:(kana|kanji):/.test(itemId);
+
+/**
+ * What a session did, read back from what it wrote (SPEC §10: *"the end screen
+ * shows what got stronger"*).
+ *
+ * It used to be counted in component state as answers arrived, which had two
+ * consequences. A session resumed after the app was killed (§2.13) forgot
+ * everything answered before the kill — 17 of 19 in one test — and a first
+ * exposure counted three times: as strengthened, as learned and as promoted,
+ * so five "Oke, paham" taps read "5 kata jadi lebih kuat, 5 kata baru, 5 kata
+ * naik tingkat". The log knows which answers were graded, and survives a kill.
+ */
+export const sessionTally = async (session: Session): Promise<SessionTally> => {
+  const queued = new Set(session.itemIds);
+  const itemOf = (cardId: string): string => cardId.slice(cardId.indexOf('::') + 2);
+
+  const [logs, drills, builds] = await Promise.all([
+    db.reviewLogs
+      .where('[profileId+reviewedAt]')
+      .between([session.profileId, session.startedAt], [session.profileId, Dexie.maxKey])
+      .toArray(),
+    db.drillAttempts
+      .where('[profileId+answeredAt]')
+      .between([session.profileId, session.startedAt], [session.profileId, Dexie.maxKey])
+      .toArray(),
+    db.buildAttempts.where('profileId').equals(session.profileId).toArray(),
+  ]);
+
+  const mine = logs.filter((log) => queued.has(itemOf(log.cardId)));
+  const introduced = mine.filter((log) => log.introduction === 1).map((log) => itemOf(log.cardId));
+  const graded = mine.filter((log) => log.ladderLevel > 0);
+
+  // The last graded answer per item, and where the card sits now.
+  const lastLevel = new Map<string, number>();
+  for (const log of [...graded].sort((a, b) => a.reviewedAt - b.reviewedAt)) {
+    lastLevel.set(log.cardId, log.ladderLevel);
+  }
+  const cards = await db.cards.bulkGet([...lastLevel.keys()]);
+  const promoted = cards.filter(
+    (card) => card !== undefined && card.ladderLevel > (lastLevel.get(card.id) ?? card.ladderLevel),
+  ).length;
+
+  const sentences = new Set(
+    session.itemIds.flatMap((id) => {
+      const parsed = parseBuildId(id);
+      return parsed ? [parsed.sentenceId] : [];
+    }),
+  );
+
+  return {
+    newWords: new Set(introduced.filter((id) => !isCharacterId(id))).size,
+    newCharacters: new Set(introduced.filter(isCharacterId)).size,
+    strengthened: new Set(graded.filter((log) => log.correct === 1).map((log) => log.cardId)).size,
+    promoted,
+    drills: drills.filter((attempt) => queued.has(attempt.drillId)).length,
+    builds: builds.filter(
+      (attempt) => attempt.answeredAt >= session.startedAt && sentences.has(attempt.sentenceId),
+    ).length,
+  };
+};

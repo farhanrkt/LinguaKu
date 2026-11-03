@@ -130,9 +130,12 @@ describe('retrievability (SPEC §2.4)', () => {
     expect(retrievability(state, state.dueAt)).toBeLessThan(0.95);
   });
 
-  it('treats a card above the known threshold as known', () => {
-    const { state } = applyRating(emptyFsrsState(NOW), 3, NOW);
-    expect(isKnown(state, NOW)).toBe(true);
+  it('treats a retrieved card above the known threshold as known', () => {
+    const first = applyRating(emptyFsrsState(NOW), 3, NOW).state;
+    // A first exposure is not knowledge yet, however high R is (SPEC §2.4).
+    expect(isKnown(first, NOW)).toBe(false);
+    const { state } = applyRating(first, 3, first.dueAt);
+    expect(isKnown(state, first.dueAt)).toBe(true);
     expect(isKnown(state, NOW + 3650 * DAY)).toBe(false);
   });
 });

@@ -19,13 +19,22 @@ const DAY = 86_400_000;
 const knowing = (...words: string[]) => new Set(words.map((word) => lexemeIdFor('en', word)));
 
 describe('knownItemIds (SPEC §2.4)', () => {
-  it('counts a freshly reviewed card as known', () => {
+  it('does not count a first exposure as known', () => {
+    // One errorless "Oke, paham" leaves the card in Learning. Counting it made
+    // the home screen call a word "terkunci" the learner had only read once.
     const { state } = applyRating(emptyFsrsState(NOW), 3, NOW);
-    expect(knownItemIds([{ itemId: 'en:lex:cat', fsrs: state }], NOW)).toContain('en:lex:cat');
+    expect(knownItemIds([{ itemId: 'en:lex:cat', fsrs: state }], NOW).size).toBe(0);
+  });
+
+  it('counts a card once it has been retrieved after learning', () => {
+    const first = applyRating(emptyFsrsState(NOW), 3, NOW).state;
+    const { state } = applyRating(first, 3, first.dueAt);
+    expect(knownItemIds([{ itemId: 'en:lex:cat', fsrs: state }], state.lastReviewAt ?? NOW)).toContain('en:lex:cat');
   });
 
   it('stops counting it once retrievability has decayed past the threshold', () => {
-    const { state } = applyRating(emptyFsrsState(NOW), 3, NOW);
+    const first = applyRating(emptyFsrsState(NOW), 3, NOW).state;
+    const { state } = applyRating(first, 3, first.dueAt);
     expect(knownItemIds([{ itemId: 'en:lex:cat', fsrs: state }], NOW + 3650 * DAY).size).toBe(0);
   });
 

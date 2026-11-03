@@ -71,7 +71,7 @@ export const Home = ({
     void buildLearningPath(profile, now).then((result) => {
       if (live) setPath(result);
     });
-    void slippingSoon(profile.id, now, 3).then((result) => {
+    void slippingSoon(profile.id, now, 3, profile.targets[0] ?? 'en').then((result) => {
       if (live) setSlipping(result);
     });
     return () => {
