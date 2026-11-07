@@ -347,43 +347,14 @@ for (const line of kradText.split('\n')) {
 console.log(`  ${components.size.toLocaleString()} kanji decompositions`);
 
 /**
- * KRADFILE gives the *radical* components — the atoms you would search by. It
- * decomposes 校 as 父 + 木 + 亠, which is correct and is not what SPEC §2.11
- * asks a learner to see: *"a component graph so the learner sees 校 as 木 + 交"*.
- * 交 is itself 亠 + 父, so the spec's split is one level up from the radicals.
- *
- * This recovers that level. For each kanji, it looks for another *kanji* whose
- * own radical set is a proper subset of this one's; where it finds one, the
- * shared radicals collapse into that kanji. 校 = {父, 木, 亠} contains 交 =
- * {亠, 父}, leaving 木 — so 校 = 木 + 交, which is the spec's own example
- * recovered from licensed data rather than authored by hand.
- *
- * UNVALIDATED: the subset rule is a derived heuristic, not something KRADFILE
- * states. It is deliberately conservative — one level, largest match, and only
- * against characters that are themselves kanji — and the raw radical list ships
- * alongside it, so nothing is lost if a grouping turns out to be wrong.
+ * KRADFILE gives the *radical* components — the atoms you would search by — and
+ * they ship as they are (D121). A "one level up" grouping (校 = 木 + 交) was
+ * derived here from radical-set subsets until v1.36.0, and matched any kanji
+ * that merely shares radicals: 事 came out as ヨ + 叮, 東 as 一 + 柚, 何 as 亻 +
+ * 叮. KRADFILE says which radicals a kanji contains, not how they combine, so no
+ * subset rule can recover structure; that needs structural data (KanjiVG) that
+ * the project does not ship. Each radical is named in data/radicals/ja.yaml.
  */
-const groupComponents = (literal: string): string[] => {
-  const own = components.get(literal);
-  if (!own || own.length < 2) return own ?? [];
-  const ownSet = new Set(own);
-
-  let best: { kanji: string; parts: string[] } | null = null;
-  for (const [candidate, parts] of components) {
-    if (candidate === literal || parts.length < 2 || parts.length >= own.length) continue;
-    if (!parts.every((part) => ownSet.has(part))) continue;
-    if (!best || parts.length > best.parts.length ||
-        (parts.length === best.parts.length && candidate < best.kanji)) {
-      best = { kanji: candidate, parts };
-    }
-  }
-  if (!best) return own;
-
-  const consumed = new Set(best.parts);
-  const rest = own.filter((part) => !consumed.has(part));
-  // A grouping that consumes everything says nothing ("校 = 校").
-  return rest.length > 0 ? [...rest, best.kanji] : own;
-};
 
 // ------------------------------------------------------------ 6. the inventory
 
@@ -468,14 +439,8 @@ interface KanjiRecord {
   on: string[];
   kun: string[];
   meanings: string[];
-  /** The radical components, straight from KRADFILE. Authoritative. */
+  /** The radical components, straight from KRADFILE. Authoritative (D121). */
   components: string[];
-  /**
-   * The same kanji grouped one level up, so 校 reads as 木 + 交 rather than as
-   * three radicals (SPEC §2.11). Derived, not stated by KRADFILE — see
-   * `groupComponents`. Equal to `components` where no grouping was found.
-   */
-  breakdown: string[];
 }
 
 const kanji: KanjiRecord[] = [];
@@ -503,7 +468,6 @@ for (const character of kanjidic.kanjidic2.character) {
     kun: readings.filter((r) => r['@_r_type'] === 'ja_kun').map((r) => r['#text']).slice(0, 4),
     meanings,
     components: components.get(character.literal) ?? [],
-    breakdown: groupComponents(character.literal),
   });
 }
 kanji.sort((a, b) => (a.freq ?? 99_999) - (b.freq ?? 99_999) || a.literal.localeCompare(b.literal));

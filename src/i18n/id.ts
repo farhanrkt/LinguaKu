@@ -100,11 +100,11 @@ export const copy = {
         hint: 'Paling mudah dibaca di awal, dan merupakan tahap yang paling cepat Anda tinggalkan.',
       },
       kana: {
-        label: 'Kana (わたし)',
+        label: 'Kana (わたし, dibaca watashi)',
         hint: 'Kanji diganti dengan bacaannya.',
       },
       kanji: {
-        label: 'Kanji dengan bacaan di atasnya (私)',
+        label: 'Kanji dengan bacaan di atasnya (私, dibaca watashi)',
         hint: 'Bacaan di atas kanji hilang dengan sendirinya setelah kanji itu kuat dalam ingatan Anda.',
       },
     },
@@ -162,6 +162,14 @@ export const copy = {
     hiragana: 'あ hiragana',
     katakana: 'ア katakana',
     hint: 'Ketik dengan huruf Latin dan teks akan otomatis menjadi kana. Anda juga dapat mengetuk hurufnya di bawah.',
+    /** What each special key does, under the key (D111). */
+    keys: {
+      '゛': 'g z d b',
+      '゜': 'p',
+      'っ': 'konsonan ganda',
+      'ー': 'vokal panjang',
+      '⌫': 'hapus',
+    },
   },
   langNames: {
     en: 'Inggris',
@@ -244,6 +252,8 @@ export const copy = {
     cloze: {
       /** The first letter and length of the missing word. */
       hint: (shown: string) => `Petunjuk: ${shown}`,
+      /** The answer is one character long, and its first character would be all of it. */
+      oneCharacter: 'satu huruf',
       supported: 'Lengkapi kalimat ini',
       unaided: 'Lengkapi kalimat ini tanpa bantuan',
       placeholder: 'Ketik kata yang hilang',

@@ -13,7 +13,7 @@ import {
   type Deferral,
 } from '../../data/repositories/deferrals.ts';
 import type { Profile } from '../../data/types.ts';
-import { toHiragana } from '../../core/kana.ts';
+import { toHiragana, toRomaji } from '../../core/kana.ts';
 import { wordInfo, type KanjiInfo } from '../../data/repositories/wordInfo.ts';
 import { KanjiBreakdown } from '../word/WordBreakdown.tsx';
 import { romajiFor } from '../word/WordChip.tsx';
@@ -76,10 +76,15 @@ const Entry = ({ entry }: { entry: GlossaryEntry }) => {
       >
         <span>
           <span className="text-lg font-semibold">{entry.headword}</span>
-          {entry.reading && toHiragana(entry.reading) !== toHiragana(entry.headword) ? (
+          {entry.kanjiReadings ? (
+            <span className="ml-2 text-sm text-stone-600 dark:text-slate-400" data-testid="glossary-romaji">
+              {entry.kanjiReadings.map((reading) => `${reading} (${toRomaji(reading)})`).join(', ')}
+            </span>
+          ) : null}
+          {!entry.kanjiReadings && entry.reading && toHiragana(entry.reading) !== toHiragana(entry.headword) ? (
             <span className="ml-2 text-sm text-stone-500 dark:text-slate-400">{toHiragana(entry.reading)}</span>
           ) : null}
-          {romaji !== null ? (
+          {!entry.kanjiReadings && romaji !== null ? (
             <span className="ml-2 text-sm text-stone-600 dark:text-slate-400" data-testid="glossary-romaji">
               {romaji}
             </span>

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../data/db.ts';
 import { clearAnchorCache } from '../../data/content.ts';
+import { clearRadicalCache } from '../../data/radicals.ts';
 import { gradeAnswer } from '../../core/grader.ts';
 import { buildTask } from './task.ts';
 import type { Card, Item, StoredFsrsState } from '../../data/types.ts';
@@ -447,5 +448,58 @@ describe('L1 asks for the word, not for a translation of the sentence (SPEC §2.
     const task = await buildTask(PROFILE, 'ja:lex:ねこ', 7);
     expect(task?.kind).toBe('cloze-unaided');
     expect(task?.hint).toEqual({ first: 'ね', rest: 1, script: 'kana' });
+  });
+});
+
+/**
+ * D121: a kanji card names every part — KRADFILE's radicals, drawn as written
+ * (氵, never its stand-in 汁), each with a romaji name and an Indonesian
+ * meaning — and the mnemonic scaffold says each part aloud.
+ */
+describe('a kanji card names its parts (D121)', () => {
+  beforeEach(() => {
+    clearRadicalCache();
+    vi.stubGlobal('fetch', (url: string) =>
+      Promise.resolve(
+        url.includes('radicals.json')
+          ? new Response(
+              JSON.stringify({
+                radicals: {
+                  汁: { glyph: '氵', romaji: 'sanzui', meaning: ['air'] },
+                  毎: { romaji: 'mai', meaning: ['setiap'] },
+                },
+              }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            )
+          : new Response('not found', { status: 404 }),
+      ),
+    );
+  });
+  afterEach(() => clearRadicalCache());
+
+  it('draws a stand-in as its radical and names every part', async () => {
+    await db.items.put({
+      id: 'ja:kanji:海',
+      lang: 'ja',
+      kind: 'kanji',
+      headword: '海',
+      reading: 'うみ',
+      readings: ['カイ', 'うみ'],
+      anchorSentenceIds: [],
+      componentsOf: ['汁', '毎'],
+      freqRank: 200,
+      band: 1,
+      sourceRef: { dataset: 'kanjidic2', externalId: '海' },
+    });
+    await db.cards.put(card('ja:kanji:海', 0));
+    const face = (await buildTask(PROFILE, 'ja:kanji:海', 1))?.kanji;
+    expect(face?.components).toEqual(['氵', '毎']);
+    expect(face?.componentDetails).toEqual([
+      { part: '氵', romaji: 'sanzui', meaning: 'air' },
+      { part: '毎', romaji: 'mai', meaning: 'setiap' },
+    ]);
+    // The scaffold is readable: the character and each part, said.
+    expect(face?.mnemonic).toContain('海 (kai)');
+    expect(face?.mnemonic).toContain('氵 (sanzui) + 毎 (mai)');
   });
 });

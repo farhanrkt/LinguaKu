@@ -350,7 +350,9 @@ export const romajiOfWord = (
   if (![...headword].some((character) => isKana(character) || isKanji(character))) return null;
   if (romaji !== undefined && romaji !== null && romaji.length > 0) return romaji;
   if (hasKanji(headword) && (reading === undefined || reading === null || reading.length === 0)) return null;
-  return romajiOfToken(headword, reading ?? headword);
+  // A kanji item's reading is KANJIDIC2's notation (なが.い); its own sound is
+  // the part before the dot, and "naga.i" is not a reading of anything.
+  return romajiOfToken(headword, reading ? splitKanjiReading(reading).reading : headword);
 };
 
 /**

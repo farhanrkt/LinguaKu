@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { copy } from '../i18n/id.ts';
-import { romajiToKana, toKatakana } from '../core/kana.ts';
+import { romajiToKana, toKatakana, toRomaji } from '../core/kana.ts';
 
 /**
  * Japanese input without an IME headache (SPEC §10).
@@ -119,15 +119,20 @@ export const KanaInput = ({
                   type="button"
                   onClick={() => append(kana)}
                   // 56px+ tap targets (SPEC §10), even at five to a row.
-                  className="min-h-14 rounded-lg bg-stone-100 text-lg font-semibold motion-safe:transition-colors hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+                  className="min-h-14 rounded-lg bg-stone-100 text-lg leading-tight font-semibold motion-safe:transition-colors hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-slate-800"
                 >
                   {katakana ? toKatakana(kana) : kana}
+                  {/* Every key says its sound (D111): a keyboard for a script
+                      the learner is still learning is otherwise a guessing game. */}
+                  <span className="block text-xs font-normal text-stone-600 dark:text-slate-400">
+                    {toRomaji(kana)}
+                  </span>
                 </button>
               ),
             )}
           </div>
           <div className="mt-1 grid grid-cols-5 gap-1">
-            {['゛', '゜', 'っ', 'ー', '⌫'].map((key) => (
+            {(['゛', '゜', 'っ', 'ー', '⌫'] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -136,9 +141,12 @@ export const KanaInput = ({
                   if (key === '゛' || key === '゜') return onChange(addDiacritic(value, key));
                   return append(key);
                 }}
-                className="min-h-14 rounded-lg bg-stone-100 text-lg font-semibold motion-safe:transition-colors hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+                className="min-h-14 rounded-lg bg-stone-100 text-lg leading-tight font-semibold motion-safe:transition-colors hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-slate-800"
               >
                 {key}
+                <span className="block text-xs font-normal text-stone-600 dark:text-slate-400">
+                  {copy.kana.keys[key]}
+                </span>
               </button>
             ))}
           </div>

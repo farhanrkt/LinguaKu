@@ -3,7 +3,7 @@ import { retrievability } from '../../core/scheduler.ts';
 import { isMastered, LEECH_LAPSE_THRESHOLD } from '../../core/ladder.ts';
 import { glossFor } from '../glosses.ts';
 import { getAnchor } from '../content.ts';
-import { romajiOfTokens } from '../../core/kana.ts';
+import { romajiOfTokens, splitKanjiReading, toHiragana } from '../../core/kana.ts';
 import type { ItemKind, TargetLang, Timestamp } from '../types.ts';
 
 /**
@@ -43,6 +43,12 @@ export interface GlossaryEntry {
   reading?: string;
   /** A phrase's compiled romaji (a chunk, D111). */
   romaji?: string;
+  /**
+   * A kanji's readings, KANJIDIC2's notation unpacked (なが, never なが.い) and
+   * in hiragana — the on'yomi first. A kanji has several, and one of them was
+   * not "the" reading.
+   */
+  kanjiReadings?: string[];
   kind: ItemKind;
   band: number;
   /** Indonesian meaning where one exists — authored for chunks, else the shard. */
@@ -151,6 +157,15 @@ export const buildGlossary = async (
         headword: item.headword,
         ...(item.reading !== undefined ? { reading: item.reading } : {}),
         ...(item.romaji !== undefined ? { romaji: item.romaji } : {}),
+        ...(item.kind === 'kanji' && (item.readings ?? []).length > 0
+          ? {
+              kanjiReadings: [
+                ...new Set(
+                  (item.readings ?? []).map((entry) => toHiragana(splitKanjiReading(entry).reading)).filter(Boolean),
+                ),
+              ].slice(0, 3),
+            }
+          : {}),
         kind: item.kind,
         band: item.band,
         ...(gloss !== undefined ? { gloss } : {}),

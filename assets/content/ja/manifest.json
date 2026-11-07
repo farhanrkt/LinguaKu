@@ -184,9 +184,9 @@
       "band": 1,
       "path": "kanji.b1.json",
       "count": 1748,
-      "bytes": 419664,
-      "gzipBytes": 95124,
-      "sha256": "6a4e4d2f607dd0a7fa1e57295406146b6ca867d8feeca48f8ec2ca647ec3bbbe"
+      "bytes": 369260,
+      "gzipBytes": 85259,
+      "sha256": "d213707aacee37386aae65782c2360267e9de7edf84e6a8cf46edf41115b2a7a"
     },
     {
       "kind": "lexemes",
@@ -304,6 +304,15 @@
       "bytes": 4139,
       "gzipBytes": 1293,
       "sha256": "0a7a434d281a615bdd124f86034274e9624a2e461f8d546790eb8bbfe2c80b12"
+    },
+    {
+      "kind": "radicals",
+      "band": 1,
+      "path": "radicals.json",
+      "count": 234,
+      "bytes": 12369,
+      "gzipBytes": 3602,
+      "sha256": "b9a0f58fa5946ca13c3fdef9099aed8ecbc530415a6439ce65dc364d7a7bf2ab"
     }
   ],
   "glossCoverage": {

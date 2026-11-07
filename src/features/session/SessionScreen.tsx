@@ -785,6 +785,13 @@ const AnsweredCard = ({
           <SentenceText task={task} scriptMode={scriptMode} />
         )}
       </div>
+      {/* A character card's character, said (D111): the verdict below names
+          it too, but the card it belongs to should not be the one place left
+          showing a bare あ or 日. */}
+      {task.kana ? <RomajiLine romaji={task.kana.romaji} /> : null}
+      {task.kanji?.reading ? (
+        <RomajiLine romaji={`${task.kanji.reading} (${task.kanji.romaji ?? ''})`} />
+      ) : null}
 
       {task.translation.length > 0 ? (
         <p className="mt-1 text-stone-600 dark:text-slate-400">{task.translation}</p>

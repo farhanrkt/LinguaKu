@@ -248,14 +248,22 @@ export const ClozeFrame = ({
   );
 };
 
-/** The first letter (or first kana) of the missing word, and how long it is. */
+/**
+ * The first letter (or first kana) of the missing word, and how long it is.
+ *
+ * A one-character answer gets its length only: its first character *is* the
+ * answer, and "Petunjuk: の" printed it. Kana is followed by its romaji
+ * (D111) on the rungs that draw Japanese in kana or kanji.
+ */
 const HintLine = ({ hint, scriptMode }: { hint: ClozeHint; scriptMode: ScriptMode }) => {
   const shown =
-    hint.script === 'latin'
-      ? `${hint.first}${' _'.repeat(hint.rest)}`
-      : scriptMode === 'romaji'
-        ? `${toRomaji(hint.first)}…`
-        : `${hint.first}${'＿'.repeat(hint.rest)}`;
+    hint.rest === 0
+      ? copy.session.cloze.oneCharacter
+      : hint.script === 'latin'
+        ? `${hint.first}${' _'.repeat(hint.rest)}`
+        : scriptMode === 'romaji'
+          ? `${toRomaji(hint.first)}…`
+          : `${hint.first}${'＿'.repeat(hint.rest)} (${toRomaji(hint.first)}…)`;
   return (
     <p className="mt-2 text-sm text-stone-600 dark:text-slate-400" data-testid="cloze-hint">
       {copy.session.cloze.hint(shown)}
@@ -581,15 +589,19 @@ export const RecognitionTask = ({
     <AudioButton onPlay={onPlayAudio} available={audioAvailable} />
 
     <div className="mt-6 flex flex-col gap-3">
-      {(task.options ?? []).map((option) => (
-        <OptionCard
-          key={option}
-          label={option}
-          selected={false}
-          disabled={busy === true}
-          onToggle={() => onAnswer({ raw: option, confidence: null })}
-        />
-      ))}
+      {(task.options ?? []).map((option) => {
+        const romaji = task.optionsRomaji?.[option];
+        return (
+          <OptionCard
+            key={option}
+            label={option}
+            {...(romaji !== undefined ? { hint: romaji } : {})}
+            selected={false}
+            disabled={busy === true}
+            onToggle={() => onAnswer({ raw: option, confidence: null })}
+          />
+        );
+      })}
     </div>
   </div>
 );
@@ -753,19 +765,14 @@ export const ClozeTask = ({
 };
 
 /**
- * The kanji card (SPEC §2.11): component breakdown, readings, and a mnemonic the
- * learner can rewrite.
- *
- * The editable field is the point, not a nicety. §2.11's finding is that
- * self-generated mnemonics are stronger than given ones, so the baseline is
- * deliberately thin and the copy invites replacing it.
- */
-/**
  * A kanji's whole face: parts, meanings, readings and the mnemonic.
  *
  * Shown at the first meeting and again on every verdict, because a learner who
  * missed the meaning or the reading needs exactly this — and the mnemonic is
  * editable in both places, since a miss is when a better one gets written.
+ * The editable field is the point, not a nicety: §2.11's finding is that
+ * self-generated mnemonics are stronger than given ones, so the baseline is
+ * deliberately thin and the copy invites replacing it.
  */
 export const KanjiDetails = ({
   face,
@@ -778,20 +785,21 @@ export const KanjiDetails = ({
   const [saved, setSaved] = useState(false);
   return (
     <div>
-      {face.components.length > 0 ? (
+      {/* Every part with its name and meaning (D121): a bare 厶 or 冂 is a
+          shape the learner cannot say or use in a mnemonic. */}
+      {face.componentDetails.length > 0 ? (
         <div className="mt-6">
           <p className="text-sm font-semibold text-stone-500 dark:text-slate-400">
             {copy.session.kanji.componentsHeading}
           </p>
-          <p className="mt-1 text-2xl" data-testid="kanji-components">
-            {face.components.join('  +  ')}
-          </p>
-          <ul className="mt-2 flex flex-col gap-1 text-sm text-stone-600 dark:text-slate-400" data-testid="kanji-component-details">
+          <ul className="mt-2 flex flex-col gap-2" data-testid="kanji-components">
             {face.componentDetails.map((detail) => (
-              <li key={detail.part}>
-                <span className="font-semibold text-stone-800 dark:text-slate-200">{detail.part}</span>
-                {detail.romaji ? ` (${detail.romaji})` : ''}
-                {detail.meaning ? ` — ${copy.word.englishMeaning(detail.meaning)}` : ''}
+              <li key={detail.part} className="flex items-baseline gap-3 rounded-xl bg-stone-100 px-3 py-2 dark:bg-slate-900">
+                <span className="text-2xl font-bold text-stone-900 dark:text-slate-100">{detail.part}</span>
+                <span className="text-sm text-stone-700 dark:text-slate-300">
+                  {detail.romaji ? <span className="font-semibold">{detail.romaji}</span> : null}
+                  {detail.meaning ? <span className="text-stone-600 dark:text-slate-400"> — {detail.meaning}</span> : null}
+                </span>
               </li>
             ))}
           </ul>

@@ -34,6 +34,7 @@
     "ingest:chunks": "node scripts/ingest/build-chunks.ts",
     "ingest:topics": "node scripts/ingest/build-topics.ts",
     "ingest:meanings": "node scripts/ingest/build-meanings.ts",
+    "ingest:radicals": "node scripts/ingest/build-radicals.ts",
     "check:offline": "node scripts/check-offline.mjs"
   },
   "dependencies": {

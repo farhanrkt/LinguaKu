@@ -20,7 +20,7 @@ import type { FrequencyBand } from '../../src/core/frequency.ts';
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets', 'content', 'ja');
 
 interface ShardRecord {
-  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'glosses' | 'chunks' | 'topics' | 'meanings';
+  kind: 'sentences' | 'lexemes' | 'anchors' | 'kanji' | 'glosses' | 'chunks' | 'topics' | 'meanings' | 'radicals';
   band: FrequencyBand;
   path: string;
   count: number;
@@ -55,7 +55,6 @@ interface KanjiRecord {
   grade: number | null;
   strokes: number | null;
   components: string[];
-  breakdown: string[];
   on: string[];
   kun: string[];
   meanings: string[];
@@ -213,42 +212,40 @@ describe('kanji (SPEC §2.11)', () => {
     }
   });
 
-  it('decomposes 校 into 木 and 交, the example SPEC §2.11 names', () => {
-    // KRADFILE itself gives the radicals (父 + 木 + 亠). The spec's split is one
-    // level up, and `breakdown` recovers it — while `components` keeps the
-    // authoritative radical list intact.
+  it('ships the radicals KRADFILE states, and no derived grouping (D121)', () => {
+    // A "one level up" grouping (校 = 木 + 交) was derived from radical-set
+    // subsets until v1.36.0, and matched rare kanji that merely share radicals:
+    // 事 = ヨ + 叮, 東 = 一 + 柚. KRADFILE says which radicals a kanji
+    // contains, not how they combine, so the radicals ship as stated.
     const school = allKanji.find((kanji) => kanji.literal === '校');
-    expect(school).toBeDefined();
-    expect(school?.breakdown).toEqual(['木', '交']);
     expect(school?.components).toEqual(expect.arrayContaining(['父', '木', '亠']));
+    for (const kanji of allKanji) expect(kanji).not.toHaveProperty('breakdown');
   });
 
-  it('groups other well-known compounds the same way', () => {
-    const breakdownOf = (literal: string) =>
-      allKanji.find((kanji) => kanji.literal === literal)?.breakdown;
-    expect(breakdownOf('語')).toEqual(['言', '吾']);
-    expect(breakdownOf('時')).toEqual(['日', '寺']);
-  });
-
-  it('never invents a sub-unit that is the kanji itself', () => {
+  it('names every part a shipped kanji uses (D121)', () => {
+    const { radicals } = read<{
+      radicals: Record<string, { glyph?: string; romaji: string; meaning: string[] }>;
+    }>('radicals.json');
     for (const kanji of allKanji) {
-      expect(kanji.breakdown.length).toBeGreaterThanOrEqual(1);
-      // An atomic radical legitimately *is* its own component — KRADFILE lists
-      // 日 as 日. What the grouping must never do is add the character back in
-      // where the radicals did not already have it.
-      if (!kanji.components.includes(kanji.literal)) {
-        expect(kanji.breakdown).not.toContain(kanji.literal);
+      for (const part of kanji.components) {
+        if (part === kanji.literal) continue;
+        const entry = radicals[part];
+        expect(entry, `${kanji.literal}: ${part}`).toBeDefined();
+        expect(entry!.romaji).toMatch(/^[a-z]+( [a-z]+)*$/);
+        expect(entry!.meaning.length).toBeGreaterThan(0);
       }
     }
   });
 
-  it('falls back to the raw radicals where no grouping was found', () => {
-    // The heuristic is conservative by design; most kanji keep their radicals.
-    const grouped = allKanji.filter(
-      (kanji) => kanji.breakdown.join() !== kanji.components.join(),
-    );
-    expect(grouped.length).toBeGreaterThan(0);
-    expect(grouped.length).toBeLessThan(allKanji.length);
+  it("draws KRADFILE's stand-ins as the radical they stand for", () => {
+    // JIS X 0208 has no code for 氵, so KRADFILE writes 汁 — and a card that
+    // drew it raw told a learner that 海 contains "soup".
+    const { radicals } = read<{ radicals: Record<string, { glyph?: string }> }>('radicals.json');
+    expect(radicals['汁']?.glyph).toBe('氵');
+    expect(radicals['扎']?.glyph).toBe('扌');
+    expect(radicals['化']?.glyph).toBe('亻');
+    expect(radicals['艾']?.glyph).toBe('艹');
+    expect(radicals['込']?.glyph).toBe('辶');
   });
 
   it('carries the readings a card needs', () => {
@@ -286,7 +283,7 @@ describe('provenance and licence (SPEC §5.2)', () => {
       // corpus content to inherit a licence from — a list of ids, and
       // Indonesian the project wrote (D9: provenance is per file, and so is the
       // licence that follows from it).
-      const expected = shard.kind === 'topics' || shard.kind === 'meanings' ? 'MIT' : 'CC BY-SA 4.0';
+      const expected = ['topics', 'meanings', 'radicals'].includes(shard.kind) ? 'MIT' : 'CC BY-SA 4.0';
       expect(read<{ license: string }>(shard.path).license).toBe(expected);
     }
   });
@@ -316,7 +313,7 @@ describe('provenance and licence (SPEC §5.2)', () => {
       // Meanings are written here for the words Wiktionary does not cover
       // (D112) — Indonesian authored for LinguaKu, kept out of the share-alike
       // gloss shards so neither licence is widened (invariant 28).
-      if (shard.kind === 'meanings') {
+      if (shard.kind === 'meanings' || shard.kind === 'radicals') {
         expect(sources).toEqual(['linguaku-authored']);
         continue;
       }

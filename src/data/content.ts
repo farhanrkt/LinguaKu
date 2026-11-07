@@ -86,10 +86,13 @@ export interface WireKanji {
   on: string[];
   kun: string[];
   meanings: string[];
-  /** KRADFILE's radicals — authoritative. */
+  /**
+   * KRADFILE's radicals — authoritative, and what the card shows (D121): the
+   * one-level-up grouping D41 derived from them matched rare kanji that merely
+   * share radicals (事 = ヨ + 叮), and was withdrawn. Each part is named by
+   * data/radicals/ja.yaml.
+   */
   components: string[];
-  /** Grouped one level up, so 校 reads as 木 + 交 (decision D41). */
-  breakdown: string[];
 }
 
 export type ShardKind =
@@ -100,6 +103,7 @@ export type ShardKind =
   | 'chunks'
   | 'glosses'
   | 'meanings'
+  | 'radicals'
   | 'passages';
 
 interface ShardRecord {
@@ -282,7 +286,7 @@ const toChunkItem = (wire: WireChunk, lang: TargetLang): Item => ({
 /**
  * A kanji becomes an `Item` like any other, so it gets a card, a schedule and a
  * place in the session — SPEC §2.11 teaches kanji, it does not merely display
- * them. `componentsOf` carries the breakdown the card renders, and the anchors
+ * them. `componentsOf` carries the parts the card names, and the anchors
  * are left empty: a kanji is taught by its components and readings, not by an
  * example sentence, which is why §2.5's anchor rule does not apply to it.
  */
@@ -293,7 +297,7 @@ const toKanjiItem = (wire: WireKanji, lang: TargetLang): Item => ({
   headword: wire.literal,
   ...(wire.kun[0] ?? wire.on[0] ? { reading: wire.kun[0] ?? wire.on[0]! } : {}),
   anchorSentenceIds: [],
-  componentsOf: wire.breakdown,
+  componentsOf: wire.components,
   ...(wire.meanings.length > 0 ? { meanings: wire.meanings } : {}),
   ...(wire.on.length + wire.kun.length > 0 ? { readings: [...wire.on, ...wire.kun] } : {}),
   // KANJIDIC2's newspaper frequency where it has one; otherwise the tail.

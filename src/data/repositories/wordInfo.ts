@@ -125,8 +125,11 @@ export const wordInfo = async (token: string, reading?: string | null): Promise<
   // from the home screen's list as often as any single word.
   const exact =
     (await db.items.get(`ja:lex:${token}`)) ?? (await db.items.get(`ja:chunk:${token}`)) ?? null;
+  // Unpacked: a kanji item's own reading is KANJIDIC2's notation (なが.い).
   const kana = toHiragana(
-    reading !== undefined && reading !== null && reading.length > 0 ? reading : (exact?.reading ?? token),
+    splitKanjiReading(
+      reading !== undefined && reading !== null && reading.length > 0 ? reading : (exact?.reading ?? token),
+    ).reading,
   );
   // A chunk's meaning is authored onto it; a word's is looked up.
   const meaningOf = async (entry: Item | null): Promise<readonly string[]> =>

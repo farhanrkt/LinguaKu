@@ -10,6 +10,7 @@ import { acceptedAnswers } from '../../core/grader.ts';
 import {
   isKana,
   isKatakana,
+  romajiOfWord,
   splitKanjiReading,
   toHiragana,
   toKatakana,
@@ -21,6 +22,7 @@ import type { FrequencyBand } from '../../core/frequency.ts';
 import type { Item, TargetLang } from '../../data/types.ts';
 import { anchorPool, getAnchor, type AnchorSentence } from '../../data/content.ts';
 import { glossFor } from '../../data/glosses.ts';
+import { loadRadicals } from '../../data/radicals.ts';
 import { selectGraded } from '../../core/coverage.ts';
 import { tokenizeLatin } from '../../core/tokenize.ts';
 import { presentableLevel, TEXT_ONLY_MAX_LEVEL } from '../../core/ladder.ts';
@@ -117,6 +119,8 @@ export interface Task {
    * options can be one letter apart, and that letter is the question.
    */
   choice?: boolean;
+  /** Japanese choice cards: each option's romaji, keyed by the option (D111). */
+  optionsRomaji?: Readonly<Record<string, string>>;
   /**
    * The first letter and length of the missing word, on the cloze rungs (see
    * `clozeHint`). Japanese gives the first kana of the reading instead, drawn
@@ -212,7 +216,10 @@ export interface KanjiFace {
    */
   mode: 'intro' | 'meaning' | 'reading';
   literal: string;
-  /** The component breakdown, e.g. 校 → 木 + 交 (decision D41). */
+  /**
+   * The parts, as written in the character: KRADFILE's radicals with its
+   * stand-ins replaced (氵 where it says 汁) — D121.
+   */
   components: string[];
   /**
    * What the character itself is read as — KANJIDIC2's notation already
@@ -238,9 +245,9 @@ export interface KanjiFace {
   /** Every reading, unpacked and in hiragana, for the verdict (and recall). */
   readings: string[];
   /**
-   * Each component with what it sounds like and means, where the component is
-   * itself a kanji the app knows (or a kana-shaped radical, which has a sound).
-   * Every character on the card gets its romaji and meaning.
+   * Each part with its name in romaji and its meaning in Indonesian, from
+   * data/radicals/ja.yaml (D121) — every part a shipped kanji uses has one.
+   * Null only where the table could not be read (offline before it was).
    */
   componentDetails: Array<{ part: string; romaji: string | null; meaning: string | null }>;
 }
@@ -269,7 +276,7 @@ const lexemesOfBand = async (lang: TargetLang, band: FrequencyBand): Promise<Ite
  * money." against "Tom benar." — answerable from any one word, and not a test
  * of the word the card was for.
  */
-const pickWordDistractors = async (item: Item, sentenceText: string, seed: number): Promise<string[]> => {
+const pickWordDistractors = async (item: Item, sentenceText: string, seed: number): Promise<Item[]> => {
   const inSentence = sentenceText.toLowerCase();
   const pool = (await lexemesOfBand(item.lang, item.band)).filter(
     (other) =>
@@ -279,9 +286,7 @@ const pickWordDistractors = async (item: Item, sentenceText: string, seed: numbe
   );
   const length = [...item.headword].length;
   const close = pool.filter((other) => Math.abs([...other.headword].length - length) <= 2);
-  return shuffle(close.length >= DISTRACTORS ? close : pool, mulberry32(seed))
-    .slice(0, DISTRACTORS)
-    .map((other) => other.headword);
+  return shuffle(close.length >= DISTRACTORS ? close : pool, mulberry32(seed)).slice(0, DISTRACTORS);
 };
 
 /** Kanji of a band with an English meaning, cached like the lexemes. */
@@ -485,25 +490,26 @@ export const buildTask = async (
     // and one with neither stays an introduction rather than an empty question.
     const mode: KanjiFace['mode'] =
       rung === 0 ? 'intro' : rung === 1 && meaning.length > 0 ? 'meaning' : readings.length > 0 ? 'reading' : meaning.length > 0 ? 'meaning' : 'intro';
-    const parts = componentsOf(item);
-    const partRows = await db.items.bulkGet(parts.map((part) => `ja:kanji:${part}`));
-    const componentDetails = parts.map((part, index) => {
-      const row = partRows[index];
-      const reading = row ? kanjiReadingsOf(row)[0] : undefined;
+    const radicals = await loadRadicals();
+    const componentDetails = componentsOf(item).map((part) => {
+      const radical = radicals.get(part);
       return {
-        part,
-        romaji: reading ? toRomaji(reading) : isKana(part) ? toRomaji(toHiragana(part)) : null,
-        meaning: row?.meanings?.[0] ?? null,
+        part: radical?.glyph ?? part,
+        romaji: radical?.romaji ?? null,
+        meaning: radical ? radical.meaning.join('; ') : null,
       };
     });
+    // The literal's own sound for the mnemonic: its first reading, which is
+    // the on'yomi where it has one (会 is "kai", not the あ of 会う).
+    const literalRomaji = readings[0] !== undefined ? toRomaji(readings[0]) : null;
     const face: KanjiFace = {
       mode,
       literal: item.headword,
-      components: parts,
+      components: componentDetails.map((detail) => detail.part),
       componentDetails,
       ...kanjiReadingOf(item.reading),
       meanings: item.meanings ?? [],
-      mnemonic: mine?.text ?? baselineMnemonic(item.headword, componentsOf(item)),
+      mnemonic: mine?.text ?? baselineMnemonic(item.headword, literalRomaji, componentDetails),
       mnemonicIsMine: mine !== null,
       readings,
     };
@@ -711,13 +717,23 @@ export const buildTask = async (
   if (effective === 'recognition') {
     if (cloze) {
       // Which word completes the sentence? Four words from the same band.
-      const distractors = (await pickWordDistractors(item, sentence.text, seed)).map((word) =>
-        likeAnswer(word, cloze.answer),
-      );
+      const picked = await pickWordDistractors(item, sentence.text, seed);
+      const distractors = picked.map((other) => likeAnswer(other.headword, cloze.answer));
+      // Each Japanese option says how it reads (D111) — the answer by the
+      // sentence's own reading, the others by their lexeme's.
+      const optionsRomaji = japanese
+        ? Object.fromEntries(
+            [
+              [cloze.answer, romajiOfWord(cloze.answer, tokenReading || null)] as const,
+              ...picked.map((other, index) => [distractors[index]!, romajiOfWord(other.headword, other.reading, other.romaji)] as const),
+            ].filter((entry): entry is readonly [string, string] => entry[1] !== null),
+          )
+        : undefined;
       return {
         ...withSentence,
         kind: 'recognition',
         cloze,
+        ...(optionsRomaji ? { optionsRomaji } : {}),
         options: shuffle([cloze.answer, ...distractors], mulberry32(seed + 1)),
         answer: cloze.answer,
         choice: true,

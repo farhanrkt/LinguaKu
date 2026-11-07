@@ -11,7 +11,17 @@ import { copy } from '../../i18n/id.ts';
  * It is also never stored. An untouched default is content, not learner data;
  * only an edit reaches the `Mnemonic` table.
  */
-export const baselineMnemonic = (literal: string, components: string[]): string =>
-  components.length > 0
-    ? copy.session.kanji.baseline(literal, components)
-    : copy.session.kanji.baselineAtomic(literal);
+export const baselineMnemonic = (
+  literal: string,
+  /** The character's own sound, so the scaffold is readable (D111). */
+  romaji: string | null,
+  components: ReadonlyArray<{ part: string; romaji: string | null }>,
+): string => {
+  const said = (text: string, sound: string | null): string => (sound ? `${text} (${sound})` : text);
+  return components.length > 0
+    ? copy.session.kanji.baseline(
+        said(literal, romaji),
+        components.map((component) => said(component.part, component.romaji)),
+      )
+    : copy.session.kanji.baselineAtomic(said(literal, romaji));
+};

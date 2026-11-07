@@ -1,0 +1,256 @@
+# The parts a kanji is built from, named (SPEC §2.11, D121).
+#
+# A kanji card shows what the character is made of, so the learner can build a
+# mnemonic from it. The parts come from KRADFILE (the `components` of each
+# kanji in kanji.b1.json), which lists the radicals a kanji contains — and
+# nothing more: not how they combine, and, for 98 of the 234 parts the shipped
+# kanji use, no reading or meaning at all, because they are radicals rather than
+# kanji in their own right. Before this table the card showed 厶, 冂 or 亠 with
+# nothing beside them.
+#
+# KRADFILE also writes some radicals as a whole kanji that contains them,
+# because JIS X 0208 has no code for the radical itself: 汁 stands for 氵, 扎
+# for 扌, 化 for 亻. Shown raw, the card told a learner that 海 contains "soup".
+# `glyph` is the form actually written in the character.
+#
+# Each entry: what to draw (`glyph`, where it differs), the part's romaji — its
+# traditional radical name where it has one, otherwise its reading — and its
+# meaning in Indonesian. Compiled by scripts/ingest/build-radicals.ts into
+# assets/content/ja/radicals.json (dataset `linguaku-authored`, MIT), which fails
+# on any part of a shipped kanji this table does not name, and on any entry no
+# shipped kanji uses (invariant 32). Wants a native speaker's review.
+
+一: { romaji: "ichi", meaning: "satu; garis datar" }
+口: { romaji: "kuchi", meaning: "mulut; lubang" }
+ノ: { romaji: "no", meaning: "goresan miring ke kiri" }
+｜: { romaji: "tatebou", meaning: "garis tegak" }
+日: { romaji: "hi", meaning: "matahari; hari" }
+ハ: { glyph: "八", romaji: "hachi", meaning: "delapan; terbelah" }
+二: { romaji: "ni", meaning: "dua" }
+土: { romaji: "tsuchi", meaning: "tanah" }
+木: { romaji: "ki", meaning: "pohon; kayu" }
+亠: { romaji: "nabebuta", meaning: "tutup panci; penutup" }
+目: { romaji: "me", meaning: "mata" }
+并: { glyph: "丷", romaji: "hachigashira", meaning: "delapan di atas; dua titik" }
+乞: { glyph: "𠂉", romaji: "no ichi", meaning: "goresan miring di atas garis" }
+小: { romaji: "shou", meaning: "kecil" }
+十: { romaji: "juu", meaning: "sepuluh; silang" }
+汁: { glyph: "氵", romaji: "sanzui", meaning: "air" }
+田: { romaji: "ta", meaning: "sawah" }
+化: { glyph: "亻", romaji: "ninben", meaning: "orang" }
+丶: { romaji: "ten", meaning: "titik" }
+大: { romaji: "dai", meaning: "besar" }
+又: { romaji: "mata", meaning: "tangan kanan; lagi" }
+貝: { romaji: "kai", meaning: "kerang; uang" }
+扎: { glyph: "扌", romaji: "tehen", meaning: "tangan" }
+儿: { romaji: "hitoashi", meaning: "kaki manusia" }
+厶: { romaji: "mu", meaning: "pribadi; milik sendiri" }
+月: { romaji: "tsuki", meaning: "bulan; daging (sebagai bagian kiri)" }
+艾: { glyph: "艹", romaji: "kusakanmuri", meaning: "rumput; tanaman" }
+幺: { romaji: "itogashira", meaning: "benang halus; kecil" }
+宀: { romaji: "ukanmuri", meaning: "atap rumah" }
+个: { glyph: "𠆢", romaji: "hitoyane", meaning: "orang, sebagai atap" }
+言: { romaji: "gonben", meaning: "kata; ucapan" }
+勹: { romaji: "tsutsumigamae", meaning: "membungkus" }
+王: { romaji: "ou", meaning: "raja; permata" }
+亅: { romaji: "hanebou", meaning: "kait" }
+心: { romaji: "kokoro", meaning: "hati; perasaan" }
+冂: { romaji: "keigamae", meaning: "bingkai; batas" }
+人: { romaji: "hito", meaning: "orang" }
+糸: { romaji: "ito", meaning: "benang" }
+立: { romaji: "tatsu", meaning: "berdiri" }
+尸: { romaji: "shikabane", meaning: "tubuh berbaring; atap" }
+冖: { romaji: "wakanmuri", meaning: "penutup" }
+込: { glyph: "辶", romaji: "shinnyou", meaning: "berjalan; jalan" }
+匕: { romaji: "saji", meaning: "sendok" }
+厂: { romaji: "gandare", meaning: "tebing" }
+女: { romaji: "onna", meaning: "perempuan" }
+杰: { glyph: "灬", romaji: "rekka", meaning: "api" }
+寸: { romaji: "sun", meaning: "ukuran kecil; tangan" }
+夂: { romaji: "fuyugashira", meaning: "langkah lambat" }
+攵: { romaji: "nobun", meaning: "memukul; tindakan" }
+刈: { glyph: "刂", romaji: "rittou", meaning: "pisau" }
+止: { romaji: "tomeru", meaning: "berhenti" }
+戈: { romaji: "hoko", meaning: "tombak" }
+尚: { glyph: "⺌", romaji: "shou", meaning: "kecil, di bagian atas" }
+ヨ: { glyph: "彐", romaji: "keigashira", meaning: "moncong; tangan" }
+衣: { romaji: "koromo", meaning: "pakaian" }
+隹: { romaji: "furutori", meaning: "burung" }
+禾: { romaji: "nogihen", meaning: "padi; biji-bijian" }
+冫: { romaji: "nisui", meaning: "es; dingin" }
+刀: { romaji: "katana", meaning: "pedang; pisau" }
+巾: { romaji: "haba", meaning: "kain" }
+力: { romaji: "chikara", meaning: "tenaga; kekuatan" }
+广: { romaji: "madare", meaning: "bangunan beratap miring" }
+廾: { romaji: "nijuuashi", meaning: "dua tangan" }
+卩: { romaji: "fushizukuri", meaning: "stempel; berlutut" }
+几: { romaji: "tsukue", meaning: "meja" }
+彳: { romaji: "gyouninben", meaning: "melangkah; pergi" }
+米: { romaji: "kome", meaning: "beras" }
+阡: { glyph: "阝", romaji: "kozatohen", meaning: "bukit" }
+山: { romaji: "yama", meaning: "gunung" }
+羊: { romaji: "hitsuji", meaning: "domba" }
+虫: { romaji: "mushi", meaning: "serangga" }
+金: { romaji: "kane", meaning: "logam; emas; uang" }
+卜: { romaji: "boku", meaning: "ramalan" }
+頁: { romaji: "oogai", meaning: "kepala; halaman" }
+白: { romaji: "shiro", meaning: "putih" }
+乙: { romaji: "otsu", meaning: "kail; urutan kedua" }
+士: { romaji: "samurai", meaning: "orang terpelajar; prajurit" }
+夕: { romaji: "yuu", meaning: "senja" }
+竹: { romaji: "take", meaning: "bambu" }
+水: { romaji: "mizu", meaning: "air" }
+買: { glyph: "罒", romaji: "amigashira", meaning: "jaring" }
+艮: { romaji: "kon", meaning: "berhenti; teguh" }
+忙: { glyph: "忄", romaji: "risshinben", meaning: "hati; perasaan" }
+車: { romaji: "kuruma", meaning: "kendaraan; roda" }
+爪: { romaji: "tsume", meaning: "cakar; kuku" }
+囗: { romaji: "kunigamae", meaning: "pagar keliling" }
+斤: { romaji: "ono", meaning: "kapak" }
+已: { glyph: "己", romaji: "onore", meaning: "diri sendiri; ular (bentuk 巳)" }
+里: { romaji: "sato", meaning: "desa" }
+示: { romaji: "shimesu", meaning: "menunjukkan; dewa" }
+工: { romaji: "kou", meaning: "kerajinan; pekerjaan" }
+火: { romaji: "hi", meaning: "api" }
+凵: { romaji: "ukebako", meaning: "wadah terbuka" }
+矢: { romaji: "ya", meaning: "anak panah" }
+子: { romaji: "ko", meaning: "anak" }
+雨: { romaji: "ame", meaning: "hujan" }
+方: { romaji: "hou", meaning: "arah; cara" }
+干: { romaji: "kan", meaning: "kering; perisai" }
+耳: { romaji: "mimi", meaning: "telinga" }
+音: { romaji: "oto", meaning: "bunyi" }
+欠: { romaji: "akubi", meaning: "menguap; kurang" }
+九: { romaji: "kyuu", meaning: "sembilan" }
+皿: { romaji: "sara", meaning: "piring" }
+老: { glyph: "耂", romaji: "oikanmuri", meaning: "tua" }
+弓: { romaji: "yumi", meaning: "busur panah" }
+匚: { romaji: "hakogamae", meaning: "kotak" }
+彡: { romaji: "sanzukuri", meaning: "hiasan; helai rambut" }
+戸: { romaji: "to", meaning: "pintu" }
+疔: { glyph: "疒", romaji: "yamaidare", meaning: "penyakit" }
+用: { romaji: "you", meaning: "menggunakan" }
+牛: { romaji: "ushi", meaning: "sapi" }
+殳: { romaji: "rumata", meaning: "tongkat; memukul" }
+犯: { glyph: "犭", romaji: "kemonohen", meaning: "binatang" }
+馬: { romaji: "uma", meaning: "kuda" }
+礼: { glyph: "礻", romaji: "shimesuhen", meaning: "dewa; upacara" }
+門: { romaji: "mon", meaning: "gerbang" }
+邦: { glyph: "阝", romaji: "oozato", meaning: "desa; kota (di bagian kanan)" }
+勿: { romaji: "butsu", meaning: "jangan" }
+自: { romaji: "ji", meaning: "diri sendiri; hidung" }
+毋: { romaji: "nakare", meaning: "jangan; ibu" }
+石: { romaji: "ishi", meaning: "batu" }
+犬: { romaji: "inu", meaning: "anjing" }
+手: { romaji: "te", meaning: "tangan" }
+西: { glyph: "覀", romaji: "nishi", meaning: "penutup (bentuk 西)" }
+母: { romaji: "haha", meaning: "ibu" }
+臣: { romaji: "shin", meaning: "abdi; pengikut" }
+豆: { romaji: "mame", meaning: "kacang" }
+比: { romaji: "hi", meaning: "membandingkan" }
+足: { romaji: "ashi", meaning: "kaki" }
+食: { romaji: "shoku", meaning: "makanan; makan" }
+氏: { romaji: "uji", meaning: "marga" }
+癶: { romaji: "hatsugashira", meaning: "langkah kaki" }
+辛: { romaji: "shin", meaning: "pedas; pahit" }
+豕: { romaji: "buta", meaning: "babi" }
+穴: { romaji: "ana", meaning: "lubang" }
+マ: { romaji: "ma", meaning: "bentuk マ" }
+見: { romaji: "miru", meaning: "melihat" }
+甘: { romaji: "amai", meaning: "manis" }
+冊: { romaji: "satsu", meaning: "buku; lembaran" }
+廴: { romaji: "ennyou", meaning: "langkah panjang" }
+辰: { romaji: "shin", meaning: "naga (shio); waktu" }
+爿: { romaji: "shouhen", meaning: "papan kayu" }
+聿: { romaji: "fudezukuri", meaning: "kuas tulis" }
+歹: { romaji: "gatsuhen", meaning: "tulang; kematian" }
+酉: { romaji: "tori", meaning: "guci arak" }
+至: { romaji: "itaru", meaning: "tiba; mencapai" }
+非: { romaji: "hi", meaning: "bukan; salah" }
+疋: { romaji: "hiki", meaning: "kaki; gulungan kain" }
+弋: { romaji: "shikigamae", meaning: "anak panah bertali" }
+ユ: { romaji: "yu", meaning: "bentuk ユ" }
+生: { romaji: "sei", meaning: "hidup; lahir" }
+青: { romaji: "ao", meaning: "biru; hijau muda" }
+川: { romaji: "kawa", meaning: "sungai" }
+皮: { romaji: "kawa", meaning: "kulit" }
+井: { romaji: "i", meaning: "sumur" }
+禹: { glyph: "禸", romaji: "guunoashi", meaning: "jejak hewan" }
+虍: { romaji: "torakanmuri", meaning: "harimau" }
+文: { romaji: "bun", meaning: "tulisan; pola" }
+舌: { romaji: "shita", meaning: "lidah" }
+元: { romaji: "gen", meaning: "asal; awal" }
+父: { romaji: "chichi", meaning: "ayah" }
+谷: { romaji: "tani", meaning: "lembah" }
+初: { glyph: "衤", romaji: "koromohen", meaning: "pakaian" }
+魚: { romaji: "sakana", meaning: "ikan" }
+走: { romaji: "hashiru", meaning: "berlari" }
+亡: { romaji: "bou", meaning: "hilang; meninggal" }
+隶: { romaji: "reizukuri", meaning: "menangkap; mengikuti" }
+舛: { romaji: "maiashi", meaning: "kaki yang berlawanan arah" }
+羽: { romaji: "hane", meaning: "bulu sayap" }
+品: { romaji: "hin", meaning: "barang" }
+也: { romaji: "nari", meaning: "juga (partikel kuno)" }
+鳥: { romaji: "tori", meaning: "burung" }
+斗: { romaji: "to", meaning: "takaran" }
+五: { romaji: "go", meaning: "lima" }
+韋: { romaji: "nameshigawa", meaning: "kulit samak" }
+行: { romaji: "gyou", meaning: "pergi; baris" }
+世: { romaji: "yo", meaning: "dunia; generasi" }
+乃: { romaji: "no", meaning: "maka; lalu" }
+尢: { romaji: "dainomageashi", meaning: "kaki yang bengkok" }
+舟: { romaji: "fune", meaning: "perahu" }
+而: { romaji: "shikashite", meaning: "dan; namun" }
+鹿: { romaji: "shika", meaning: "rusa" }
+矛: { romaji: "hoko", meaning: "tombak bermata" }
+釆: { romaji: "nogome", meaning: "membedakan" }
+玄: { romaji: "gen", meaning: "gelap; misterius" }
+長: { romaji: "naga", meaning: "panjang" }
+支: { romaji: "shi", meaning: "cabang; mendukung" }
+滴: { glyph: "啇", romaji: "teki", meaning: "akar; pangkal" }
+巴: { romaji: "tomoe", meaning: "pusaran" }
+尤: { romaji: "yuu", meaning: "terutama" }
+麻: { romaji: "asa", meaning: "rami" }
+及: { romaji: "kyuu", meaning: "mencapai" }
+身: { romaji: "mi", meaning: "tubuh" }
+巛: { romaji: "magarikawa", meaning: "sungai berliku" }
+屯: { romaji: "ton", meaning: "berkumpul" }
+免: { romaji: "men", meaning: "bebas; izin" }
+牙: { romaji: "kiba", meaning: "taring" }
+鬼: { romaji: "oni", meaning: "hantu; setan" }
+耒: { romaji: "suki", meaning: "bajak" }
+气: { romaji: "kigamae", meaning: "uap; napas" }
+斉: { romaji: "sei", meaning: "sama rata" }
+角: { romaji: "tsuno", meaning: "tanduk; sudut" }
+首: { romaji: "kubi", meaning: "leher; kepala" }
+鬲: { romaji: "kanae", meaning: "kuali berkaki tiga" }
+入: { romaji: "iru", meaning: "masuk" }
+臼: { romaji: "usu", meaning: "lesung" }
+歯: { romaji: "ha", meaning: "gigi" }
+巨: { romaji: "kyo", meaning: "raksasa" }
+赤: { romaji: "aka", meaning: "merah" }
+髟: { romaji: "kamigashira", meaning: "rambut panjang" }
+革: { romaji: "kaku", meaning: "kulit olahan" }
+缶: { romaji: "kan", meaning: "kaleng; wadah" }
+面: { romaji: "men", meaning: "wajah; permukaan" }
+血: { romaji: "chi", meaning: "darah" }
+黄: { romaji: "ki", meaning: "kuning" }
+無: { romaji: "mu", meaning: "tidak ada" }
+屮: { romaji: "tetsu", meaning: "tunas" }
+色: { romaji: "iro", meaning: "warna" }
+片: { romaji: "kata", meaning: "sebelah; serpihan" }
+毛: { romaji: "ke", meaning: "bulu; rambut" }
+彑: { romaji: "keigashira", meaning: "kepala babi" }
+岡: { romaji: "oka", meaning: "bukit" }
+亀: { romaji: "kame", meaning: "kura-kura" }
+肉: { romaji: "niku", meaning: "daging" }
+骨: { romaji: "hone", meaning: "tulang" }
+瓜: { romaji: "uri", meaning: "melon" }
+黒: { romaji: "kuro", meaning: "hitam" }
+高: { romaji: "taka", meaning: "tinggi" }
+竜: { romaji: "ryuu", meaning: "naga" }
+瓦: { romaji: "kawara", meaning: "genteng" }
+風: { romaji: "kaze", meaning: "angin" }
+奄: { romaji: "en", meaning: "menutupi" }
+麦: { romaji: "mugi", meaning: "gandum" }
+豸: { romaji: "mujina", meaning: "binatang buas" }
